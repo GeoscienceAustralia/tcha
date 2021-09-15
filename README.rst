@@ -33,7 +33,8 @@ Potential intensity analysis
 ----------------------------
 
 Using the theory of potential intensity to guide estimation of simulated TC
-intensity. 
+intensity.
+
 
 Basin-wide trends
 ~~~~~~~~~~~~~~~~~
@@ -44,6 +45,8 @@ Monthly trends
 
 Potential intensity from climate models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Deep layer mean winds
 ---------------------

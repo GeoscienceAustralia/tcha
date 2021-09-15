@@ -23,7 +23,7 @@ import seaborn as sns
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-
+from matplotlib import patheffects
 from shapely.geometry import box as sbox
 from shapely.geometry import LineString
 
@@ -62,7 +62,7 @@ def regression_trend(numbers, start_year, end_year):
     value for each regression.
     """
     years = pd.to_datetime([datetime(y, 1, 1) for y in range(start_year, end_year+1)])
-    results = pd.DataFrame(columns=['slope', 'intercept', 'rsq'],
+    results = pd.DataFrame(columns=['slope', 'intercept', 'rsq', 'mean'],
                            index=years)
     for year in years:
         idx = numbers.index >= year.year
@@ -73,7 +73,8 @@ def regression_trend(numbers, start_year, end_year):
         slope = model.coef_
         intercept = model.intercept_
         r_sq = model.score(x, y)
-        results.loc[year] = [slope, intercept, r_sq]
+        mean = y.mean()
+        results.loc[year] = [slope, intercept, r_sq, mean]
 
     return results
 
@@ -101,21 +102,25 @@ def filter_tracks_domain(df, minlon=90, maxlon=180, minlat=-40, maxlat=0,
     domain = sbox(minlon, minlat, maxlon, maxlat, ccw=False)
     tracks = df.groupby(idcode)
     tempfilter = tracks.filter(lambda x: len(x) > 1)
-    filterdf = tempfilter.groupby(idcode).filter(lambda x: LineString(zip(x[lonname], x[latname])).intersects(domain))
+    filterdf = tempfilter.groupby(idcode).filter(
+        lambda x: LineString(zip(x[lonname], x[latname])).intersects(domain)
+        )
     return filterdf
 
 # Start with the default TC best track database:
 inputPath = r"X:\georisk\HaRIA_B_Wind\data\raw\from_bom\tc"
 dataFile = pjoin(inputPath, r"IDCKMSTM0S - 20210722.csv")
-outputPath = r"X:\georisk\HaRIA_B_Wind\data\derived\tc\tcfrequency"
+outputPath = r"X:\georisk\HaRIA_B_Wind\projects\tcha\data\derived\tcfrequency"
 usecols = [0, 1, 2, 7, 8, 16, 49, 53]
 colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
             'CENTRAL_PRES', 'MAX_WIND_SPD', 'MAX_WIND_GUST']
 dtypes = [str, str, str, float, float, float, float, float]
 df = pd.read_csv(dataFile, skiprows=4, usecols=usecols,
-                 dtype=dict(zip(colnames, dtypes)), na_values=[' '])
+                 dtype=dict(zip(colnames, dtypes)),
+                 na_values=[' '])
 
-df = filter_tracks_domain(df, 90, 160, -40, 0, 'DISTURBANCE_ID', 'LAT', 'LON')
+df = filter_tracks_domain(df, 90, 160, -40, 0,
+                          'DISTURBANCE_ID', 'LAT', 'LON')
 
 
 df['TM'] = pd.to_datetime(df.TM, format="%Y-%m-%d %H:%M", errors='coerce')
@@ -152,6 +157,8 @@ fig, ax = plt.subplots(figsize=(10, 6))
 fig.patch.set_facecolor('white')
 ax.bar(sc.index[idx], sc.ID[idx], label="All TCs")
 ax.bar(ns.index[nsidx], ns.values[nsidx], color='orange', label="Severe TCs")
+ax.axhline(np.mean(sc.ID[idx]), color='0.5', path_effects=[patheffects.withStroke(linewidth=3, foreground='white')], label="Mean frequency (1970-2020)")
+ax.axhline(np.mean(sc.ID[idx2]), color='r', path_effects=[patheffects.withStroke(linewidth=3, foreground='white')], label="Mean frequency (1985-2020)")
 ax.grid(True)
 ax.set_yticks(np.arange(0, 21, 2))
 ax.set_xlabel("Season")
@@ -170,10 +177,9 @@ ax.bar(sc.index[idx], sc.ID[idx], label="All TCs")
 ax.bar(ns.index[nsidx], ns.values[nsidx], color='orange', label="Severe TCs")
 sns.regplot(x=sc.index[idx], y=sc.ID[idx], ax=ax, color='0.5', scatter=False, label='1970-2020 trend')
 sns.regplot(x=sc.index[idx2], y=sc.ID[idx2], ax=ax, color='r', scatter=False, label='1985-2020 trend')
+
 ax.grid(True)
-
 ax.set_yticks(np.arange(0, 21, 2))
-
 ax.set_xlabel("Season")
 ax.set_ylabel("Count")
 ax.legend(fontsize='small')
