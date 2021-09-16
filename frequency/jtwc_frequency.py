@@ -97,22 +97,22 @@ COLUNITS = ['', '', '', '', '', '', '', '', 'kts', 'hPa',
 
 DATEFORMAT = "%Y%m%d%H"
 CONVERTERS = {
-    1: lambda s: s.strip(' ,'),
-    2: lambda s: datetime.strptime(s.strip(' ,'), DATEFORMAT),
-    6: lambda s: float(convertLatLon(s.strip(' ,'))),
-    7: lambda s: float(convertLatLon(s.strip(' ,'))),
-    8: lambda s: s.strip(' ,'),
-    9: lambda s: s.strip(' ,'),
-    10: lambda s: s.strip(' ,'),
-    11: lambda s: convert(float(s.strip(' ,') or 0), COLUNITS[11], 'km'),
-    12: lambda s: s.strip(' ,'),
-    13: lambda s: convert(float(s.strip(' ,') or 0), COLUNITS[13], 'km'),
-    14: lambda s: convert(float(s.strip(' ,') or 0), COLUNITS[14], 'km'),
-    15: lambda s: convert(float(s.strip(' ,') or 0), COLUNITS[15], 'km'),
-    16: lambda s: convert(float(s.strip(' ,') or 0), COLUNITS[16], 'km'),
-    17: lambda s: float(s.strip(' ,')),
-    18: lambda s: convert(float(s.strip(' ,') or 0), COLUNITS[18], 'km'),
-    19: lambda s: convert(float(s.strip(' ,') or 0), COLUNITS[19], 'km')
+    'Number': lambda s: s.strip(' ,'),
+    "Datetime": lambda s: datetime.strptime(s.strip(' ,'), DATEFORMAT),
+    "Latitude": lambda s: float(convertLatLon(s.strip(' ,'))),
+    "Longitude": lambda s: float(convertLatLon(s.strip(' ,'))),
+    "Windspeed": lambda s: float(s.strip(' ,') or 0),
+    "Pressure": lambda s: float(s.strip(' ,') or 0),
+    "Status": lambda s: s.strip(' ,'),
+    "RAD": lambda s: convert(float(s.strip(' ,') or 0), COLUNITS[11], 'km'),
+    "WINDCODE": lambda s: s.strip(' ,'),
+    "RAD1": lambda s: convert(float(s.strip(' ,') or 0), COLUNITS[13], 'km'),
+    "RAD2": lambda s: convert(float(s.strip(' ,') or 0), COLUNITS[14], 'km'),
+    "RAD3": lambda s: convert(float(s.strip(' ,') or 0), COLUNITS[15], 'km'),
+    "RAD4": lambda s: convert(float(s.strip(' ,') or 0), COLUNITS[16], 'km'),
+    "Poci": lambda s: float(s.strip(' ,') or 0),
+    "Roci": lambda s: convert(float(s.strip(' ,') or 0), COLUNITS[18], 'km'),
+    "RMAX": lambda s: convert(float(s.strip(' ,') or 0), COLUNITS[19], 'km')
 }
 
 
@@ -134,13 +134,25 @@ def loadFile(filename: str) -> pd.DataFrame:
             'SEASCODE', 'SEAS1', 'SEAS2', 'SEAS3', 'SEAS4']
         df = pd.read_csv(filename, names=COLNAMES, delimiter=",",
                          parse_dates=[2], infer_datetime_format=True,
-                         skipinitialspace=True, converters=CONVERTERS)
+                         skipinitialspace=True, converters=CONVERTERS,
+                         error_bad_lines=False)
     except ValueError:
-        COLNAMES = ['BASIN','Number', 'Datetime','TECHNUM', 'TECH', 'TAU',
-                    'Latitude', 'Longitude', 'Windspeed','Pressure', '']
-        df = pd.read_csv(filename, names=COLNAMES, delimiter=",",
-                         parse_dates=[2], infer_datetime_format=True,
-                         skipinitialspace=True, converters=CONVERTERS)
+        LOGGER.debug("Older format file")
+        try:
+            COLNAMES = ['BASIN','Number', 'Datetime','TECHNUM', 'TECH', 'TAU',
+                        'Latitude', 'Longitude', 'Windspeed','Pressure', '']
+            df = pd.read_csv(filename, names=COLNAMES, delimiter=",",
+                             parse_dates=[2], infer_datetime_format=True,
+                             skipinitialspace=True, converters=CONVERTERS,
+                             error_bad_lines=False)
+        except ValueError:
+            LOGGER.debug("Intermediate format")
+            COLNAMES = ['BASIN','Number', 'Datetime','TECHNUM', 'TECH', 'TAU',
+                        'Latitude', 'Longitude', 'Windspeed','Pressure', ]
+            df = pd.read_csv(filename, names=COLNAMES, delimiter=",",
+                             parse_dates=[2], infer_datetime_format=True,
+                             skipinitialspace=True, converters=CONVERTERS,
+                             usecols=range(10), error_bad_lines=False)
 
     return df
 
@@ -158,7 +170,6 @@ for file in os.listdir(inputPath):
         alltracks.append(tempdf)
 
 df = pd.concat(alltracks)
-breakpoint()
 df = filter_tracks_domain(df, 90, 160, -40, 0,
                           'eventid', 'Latitude', 'Longitude')
 
@@ -176,16 +187,15 @@ tdf = df.groupby('eventid').agg({
 
 geometry = df.groupby('eventid').apply(lambda x: LineString(zip(x['Longitude'], x['Latitude'])))
 trackdf = gpd.GeoDataFrame(tdf, geometry=geometry)
-breakpoint()
 # Calculate the number of unique values in each season:
 sc = df.groupby(['season']).nunique()
 
 xc = df.groupby(['eventid',]).agg({
     'Pressure': np.min,
     'Windspeed': np.max,
-    'season': 'max'})
-ns = xc[xc['Windspeed'] > 115].groupby('season').nunique()['eventid']
-breakpoint()
+    'season': 'max',
+    'eventid':'first'})
+ns = xc[xc['Windspeed'] > 64].groupby('season').nunique()['eventid']
 idx = sc.index >= 1970
 idx2 = sc.index >= 1985
 nsidx = ns.index >= 1970
