@@ -19,6 +19,8 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 from shapely.geometry import LineString
 from shapely.geometry import box as sbox
+from scipy.stats import kendalltau
+
 
 import seaborn as sns
 
@@ -56,7 +58,8 @@ def filter_tracks_domain(df, minlon=90, maxlon=180, minlat=-40, maxlat=0):
 
 
 inputPath = "X:/georisk/HaRIA_B_Wind/data/raw/from_bom/tc"
-outputPath = "X:/georisk/HaRIA_B_Wind/data/derived/tc/lmi"
+outputPath = "X:/georisk/HaRIA_B_Wind/projects/tcha/data/derived/lmi"
+
 
 inputFile = pjoin(inputPath, "Objective Tropical Cyclone Reanalysis - QC.csv")
 source = "http://www.bom.gov.au/cyclone/history/database/OTCR_alldata_final_external.csv"
@@ -162,7 +165,7 @@ plt.text(1.1, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=ax.ax_joint.transAxes, fontsize='xx-small', ha='right')
 plt.savefig(pjoin(outputPath, "lmivmax_timeelapsed.png"), bbox_inches='tight')
 
-g = sns.FacetGrid(lmidf, col="month", col_wrap=4)
+g = sns.FacetGrid(lmidf, col="month", col_wrap=4, ylim=(-25, -5))
 g.map(sns.regplot, "lmidtyear", "lmilat")
 g.set_axis_labels("Season", r"Latitude of LMI [$^{\circ}$S]")
 for col_key,ax in g.axes_dict.items():
@@ -172,3 +175,14 @@ g.fig.text(0.01, 0.01, f"Source: {source}", transform=g.fig.transFigure,
 plt.text(0.99, 0.01, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=g.fig.transFigure, fontsize='xx-small', ha='right')
 plt.savefig(pjoin(outputPath, "lmivmax_monthlytrend.png"), bbox_inches='tight')
+
+print(r"Month, $tau$, p-value")
+for month in range(1, 13):
+    monfilter = lmidf['month']==month
+    x = lmidf[monfilter]['lmidt'].values.reshape(-1, 1)
+    y = lmidf[monfilter]['lmilat'].values.reshape(-1, 1)
+    if len(x) <= 2: continue
+    tau, pval = kendalltau(x, y)
+    print(f"{month}, {tau:.4f}, {pval:.4f}")
+
+
