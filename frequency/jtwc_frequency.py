@@ -70,7 +70,7 @@ def convertLatLon(strval: str) -> float:
         fval = fval % 360
     return fval
 
-def season(year, month):
+def season(year: int, month: int) -> int:
     """
     Determine the southern hemisphere TC season based on the year and month value.
     If the month is earlier than June, we assign the season to be the preceding year.

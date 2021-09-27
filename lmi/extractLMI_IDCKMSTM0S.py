@@ -26,6 +26,7 @@ import seaborn as sns
 
 # From TCRM codebase
 from Utilities.loadData import getSpeedBearing
+from metutils import convert
 
 
 DATEFMT = "%Y-%m-%d %H:%M"
@@ -72,27 +73,27 @@ def filter_tracks_domain(df, minlon=90, maxlon=180, minlat=-40, maxlat=0):
 
 
 inputPath = "X:/georisk/HaRIA_B_Wind/data/raw/from_bom/tc"
-outputPath = "X:/georisk/HaRIA_B_Wind/projects/tcha/data/derived/lmi"
+outputPath = "X:/georisk/HaRIA_B_Wind/projects/tcha/data/derived/lmi/
 
 
-inputFile = pjoin(inputPath, "Objective Tropical Cyclone Reanalysis - QC.csv")
-source = "http://www.bom.gov.au/cyclone/history/database/OTCR_alldata_final_external.csv"
+dataFile = pjoin(inputPath, r"IDCKMSTM0S - 20210722.csv")
+source = "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv"
 
 usecols = [0, 1, 2, 7, 8, 11, 12, 13]
+usecols = [0, 1, 2, 7, 8, 16, 49, 53]
 colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
-            'adj. ADT Vm (kn)', 'CP(CKZ(Lok R34,LokPOCI, adj. Vm),hPa)', 
-            'POCI (Lok, hPa)']
+            'CENTRAL_PRES', 'MAX_WIND_SPD', 'MAX_WIND_GUST']
 dtypes = [str, str, str, float, float, float, float, float]
-
-df = pd.read_csv(inputFile, usecols=usecols,
-                 dtype=dict(zip(colnames, dtypes)), na_values=[' '], nrows=13743)
+df = pd.read_csv(dataFile, skiprows=4, usecols=usecols,
+                 dtype=dict(zip(colnames, dtypes)),
+                 na_values=[' '])
 colrenames = {'DISTURBANCE_ID': 'num',
               'TM': 'datetime',
               'LON': 'lon', 'LAT': 'lat',
-              'adj. ADT Vm (kn)':'vmax',
-              'CP(CKZ(Lok R34,LokPOCI, adj. Vm),hPa)': 'pmin',
-              'POCI (Lok, hPa)': 'poci'}
+              'MAX_WIND_SPD':'vmax',
+              'CENTRAL_PRES': 'pmin',}
 df.rename(colrenames, axis=1, inplace=True)
+df['vmax'] = convert(df.vmax.values, "mps", "kts")
 
 df['datetime'] = pd.to_datetime(df.datetime, format="%Y-%m-%d %H:%M", errors='coerce')
 df['year'] = pd.DatetimeIndex(df['datetime']).year
@@ -121,7 +122,7 @@ lmidf['initlat'] = obstc.loc[obstc.index.to_series().groupby(obstc['num']).first
 lmidf['initlon'] = obstc.loc[obstc.index.to_series().groupby(obstc['num']).first().reset_index(name='idx')['idx']]['lon'].values
 lmidf['lmilat'] = obstc.loc[obstc.groupby(["num"])["vmax"].idxmax()]['lat']
 lmidf['lmilon'] = obstc.loc[obstc.groupby(["num"])["vmax"].idxmax()]['lon']
-lmidf.to_csv(pjoin(outputPath, "OTCR.lmi.20210810.csv"), index=False, date_format=DATEFMT)
+lmidf.to_csv(pjoin(outputPath, "lmi.20210928.csv"), index=False, date_format=DATEFMT)
 
 # Plot distribution of LMI:
 fig, ax = plt.subplots(figsize=(10, 8))
@@ -180,7 +181,7 @@ plt.text(1.1, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=ax.ax_joint.transAxes, fontsize='xx-small', ha='right')
 plt.savefig(pjoin(outputPath, "lmivmax_timeelapsed.png"), bbox_inches='tight')
 
-g = sns.FacetGrid(lmidf, col="month", col_wrap=4, ylim=(-25, -5))
+g = sns.FacetGrid(lmidf, col="month", col_wrap=4, ylim=(-30, -5))
 g.map(sns.regplot, "season", "lmilat")
 g.set_axis_labels("Season", r"Latitude of LMI [$^{\circ}$S]")
 for col_key,ax in g.axes_dict.items():
