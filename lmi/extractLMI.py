@@ -191,16 +191,11 @@ plt.text(0.99, 0.01, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=g.fig.transFigure, fontsize='xx-small', ha='right')
 plt.savefig(pjoin(outputPath, "llmi_monthlytrend.png"), bbox_inches='tight')
 
-print("Trend analysis")
-print(r"Month, $tau$, p-value")
-for month in range(1, 13):
-    monfilter = lmidf['month'] == month
-    x = lmidf[monfilter]['lmidt'].values.reshape(-1, 1)
-    y = lmidf[monfilter]['lmilat'].values.reshape(-1, 1)
-    if len(x) <= 2:
-        continue
-    tau, pval = kendalltau(x, y)
-    print(f"{datetime.strftime(datetime(2000, month, 1), '%B')}, {tau:.4f}, {pval:.4f}")
+# This calculates the trend and significance of the trend for each month
+mdf = lmidf.groupby('month').apply(
+    lambda x: pd.Series(kendalltau(x['lmidt'], x['lmilat']),['tau', 'pval']))
+
+mdf.to_csv(pjoin(outputPath, "llmi_monthlytrend.csv"), float_format="%.4f")
 
 tbl = lmidf.groupby('season').agg(
     {'num': len,

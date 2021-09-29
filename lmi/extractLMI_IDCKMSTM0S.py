@@ -73,7 +73,7 @@ def filter_tracks_domain(df, minlon=90, maxlon=180, minlat=-40, maxlat=0):
 
 
 inputPath = "X:/georisk/HaRIA_B_Wind/data/raw/from_bom/tc"
-outputPath = "X:/georisk/HaRIA_B_Wind/projects/tcha/data/derived/lmi/
+outputPath = "X:/georisk/HaRIA_B_Wind/projects/tcha/data/derived/lmi"
 
 
 dataFile = pjoin(inputPath, r"IDCKMSTM0S - 20210722.csv")
