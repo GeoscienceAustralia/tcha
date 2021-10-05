@@ -11,33 +11,102 @@ from datetime import datetime
 from calendar import monthrange
 import xarray as xr
 import pandas as pd
+import seaborn as sns
 
+import matplotlib.pyplot as plt
+from cartopy import crs as ccrs
+
+# This should be moved to config file or command-line args:
 trackfile = "/g/data/w85/QFES_SWHA/hazard/input/ibtracs.since1980.list.v04r00.csv"
 lsrrpath = "/g/data/rt52/era5/single-levels/reanalysis/lsrr"
 crrpath = "/g/data/rt52/era5/single-levels/reanalysis/crr"
 outputpath = "/scratch/w85/cxa547/precip"
 
+precipcolorseq=['#FFFFFF', '#ceebfd', '#87CEFA', '#4969E1', '#228B22', 
+                '#90EE90', '#FFDD66', '#FFCC00', '#FF9933', 
+                '#FF6600', '#FF0000', '#B30000', '#73264d']
+precipcmap = sns.blend_palette(precipcolorseq, len(precipcolorseq), as_cmap=True)
+preciplevels = [1.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0, 300.0, 400.0, 500.0]
+cbar_kwargs = {"shrink":0.9, 'ticks': preciplevels,}
 
-def sel_ds(dataArray, time, lat, lon, margin=3.):
+erasource = "ECMWF Reanalysis version 5"
+tcsource = "IBTrACS v4.0"
+
+LOGGER = logging.getLogger()
+
+def plot_precip(ds: xr.DataArray, outputFile: str):
+
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    ax.figure.set_size_inches(15, 12)
+    ds.sum(axis=0).plot.contourf(ax=ax, transform=ccrs.PlateCarree(),
+                                 levels=preciplevels,
+                                 extend='both',
+                                 cmap=precipcmap,
+                                 cbar_kwargs=cbar_kwargs)
+    ax.set_aspect('equal')
+    titlestr = f"{ds.time[0]:%Y-%m-%d %H:%M} - {ds.time[-1]:%Y-%m-%d %H:%M}"
+    ax.set_title(titlestr)
+    ax.coastlines(resolution='10m')
+
+    plt.text(-0.1, -0.05, f"Source: {erasource}",
+             transform=ax.ax_joint.transAxes,
+             fontsize='xx-small', ha='left',)
+    plt.text(1.1, -0.05, f"TC data: {tcsource}",
+             transform=ax.ax_joint.transAxes,
+             fontsize='xx-small', ha='right',)
+    plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
+             transform=ax.transAxes,
+             fontsize='xx-small', ha='right')
+
+    gl = ax.gridlines(draw_labels=True, linestyle=":")
+    gl.top_labels = False
+    gl.right_labels = False
+    LOGGER.info(f"Saving plot to {outputFile}")
+    plt.savefig(outputFile, bbox_inches='tight')
+    plt.close()
+
+
+def sel_ds(dataArray: xr.DataArray, time: datetime, lat: float, lon: float, margin: float = 5.):
+    LOGGER.debug(f"Selecting slice of DataArray for time {time}")
     method = 'nearest'
     return dataArray.sel(
         time=time, method=method).sel(
         latitude=slice(lat + margin, lat - margin),
         longitude=slice(lon - margin, lon + margin)).load()
 
-def extract(sid, track):
-    # lsrr - large-scale rain rate [kg m**-2 s**-1]
-    # crr - convective rain rate [kg m**-2 s**-1]
-    # Will need to multiply by 3600 to get hourly rain rate.
+def extract(sid: str, track: pd.DataFrame, outputPath: str):
+    """
+    Extract two rainfall related parameters for the full range of dates covered
+    by the track::
+      lsrr - large scale rain rate
+      crr - convective rain rate
+
+    Combined, these provide the total rainfall rate (kg/m^2/s), which is then
+    converted to a rainfall total by multiplying by 3600 seconds.
+
+    NOTE::
+    This function could readily be made more generic to extract any field, or a
+    collection of fields, from ERA5 data. Since `xarray` can open multiple files
+    using `xr.open_mfdataset`, one could feasibly create a list that spans times
+    and variables, then open that
+
+    :param str sid: Storm identifier
+    :param track: `pd.DataFrame` containing details of the track.
+    :param str outputPath: Folder to store the resulting data (in netcdf format)
+
+    """
+
     lsrrfileset = set()
     crrfileset = set()
+
     for dt in track['ISO_TIME']:
         startdate = datetime(dt.year, dt.month, 1)
         enddate = datetime(dt.year, dt.month, monthrange(dt.year, dt.month)[1])
         datestr = f"{startdate.strftime('%Y%m%d')}-{enddate.strftime('%Y%m%d')}"
+        LOGGER.debug(f"Datestring is: {datestr}")
         lsrrfileset.add(pjoin(lsrrpath, f"{dt.year}", f"lsrr_era5_oper_sfc_{datestr}.nc"))
         crrfileset.add(pjoin(crrpath, f"{dt.year}", f"crr_era5_oper_sfc_{datestr}.nc"))
-        
+
     lsrrfiles = list(lsrrfileset)
     crrfiles = list(crrfileset)
 
@@ -45,19 +114,29 @@ def extract(sid, track):
     crds = xr.open_mfdataset(crrfiles)[['crr']]
 
     ds_list = []
-    for i, (r, row) in enumerate(track.iterrows()):
+    LOGGER.debug("Iterating through each timestep in the track")
+    for idx, row in track.iterrows():
         dscr = sel_ds(crds, row['ISO_TIME'], row['LAT'], row['LON'])
         dsls = sel_ds(lsds, row['ISO_TIME'], row['LAT'], row['LON'])
-        dsprcp = (dsls.lsrr + dscr.crr) * 3600
-        ds_list.append(dsprcp)
+        ds_list.append((dsls.lsrr + dscr.crr) * 3600)
 
+    LOGGER.debug(f"Concatenating {len(ds_list)} time steps")
     dsfootprint = xr.concat(ds_list, 'time').assign_coords(**{'time':track['ISO_TIME'].values})
     outds = dsfootprint.to_dataset(name='precip')
-    outds.to_netcdf(pjoin(outputpath, f"{sid}_precip.nc"))
+    LOGGER.info(f"Saving data for {sid} to {outputPath}")
+    outds.to_netcdf(pjoin(outputPath, f"{sid}_precip.nc"))
+
+    # plot_precip(ds, pjoin(outputPath, f"{sid}_precip.png"))
+
     return
 
 # Read in the track data from file:
-df = pd.read_csv(trackfile, skiprows=[1], header=0)
+try:
+    df = pd.read_csv(trackfile, skiprows=[1], header=0)
+except:
+    LOGGER.exception(f"Cannot load {trackfile}")
+    raise
+
 df = df.loc[df['BASIN'].isin(['SP', 'SI'])]
 df['ISO_TIME'] = pd.to_datetime(df['ISO_TIME'])
 df.loc[df['lon'] < 0, 'lon'] += 360.
@@ -65,9 +144,11 @@ df.loc[df['lon'] < 0, 'lon'] += 360.
 tracks = df.groupby('SID')
 
 for sid, track in tracks:
+    LOGGER.info(f"Extracting data for {sid}")
     dftc = track.set_index('ISO_TIME').resample('H').interpolate('linear').reset_index()
     extract(sid, track)
 
+"""
 lsrrfileset = set()
 crrfileset = set()
 
@@ -100,3 +181,4 @@ plt.contour(x, y, dsfootprint.sum(axis=0),)
 
 outds = dsfootprint.to_dataset(name='precip')
 outds.to_netcdf(pjoin(outputpath, "yasi_precip.nc"))
+"""
