@@ -17,8 +17,8 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 
-from metutils import convert
-from files import flStartLog
+from Utilities.metutils import convert
+from Utilities.files import flStartLog
 
 mpl.rcParams['grid.linestyle'] = ':'
 mpl.rcParams['grid.linewidth'] = 0.5
@@ -156,8 +156,11 @@ def loadFile(filename: str) -> pd.DataFrame:
 
     return df
 
-inputPath = "X:/georisk/HaRIA_B_Wind/data/raw/from_jtwc/bsh/"
-outputPath = r"X:\georisk\HaRIA_B_Wind\projects\tcha\data\derived\tcfrequency\JTWC"
+# inputPath = "X:/georisk/HaRIA_B_Wind/data/raw/from_jtwc/bsh/"
+# outputPath = r"X:\georisk\HaRIA_B_Wind\projects\tcha\data\derived\tcfrequency\JTWC"
+
+inputPath = os.path.expanduser("~/geoscience/data/jtwc")
+outputPath = os.path.expanduser(r"~/geoscience/data/out")
 
 LOGGER.info(f"Input folder is: {inputPath}")
 alltracks = []
