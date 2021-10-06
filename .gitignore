@@ -1,3 +1,7 @@
 .vscode/settings.json
 tcha.code-workspace
+
+# Log files, backups, etc.
 *.log
+*~
+*.stdout

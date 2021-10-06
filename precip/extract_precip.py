@@ -3,6 +3,7 @@
 # $ module use /g/data/dk92/apps/Modules/modulefiles
 # $ module avail NCI-data-analysis
 # $ module load NCI-data-analysis_<version>
+# $ export PYTHONPATH=$PYTHONPATH:$HOME/pylib/python
 
 import os
 from os.path import join as pjoin
@@ -15,12 +16,12 @@ import seaborn as sns
 
 import matplotlib.pyplot as plt
 from cartopy import crs as ccrs
-
+from files import flStartLog
 # This should be moved to config file or command-line args:
 trackfile = "/g/data/w85/QFES_SWHA/hazard/input/ibtracs.since1980.list.v04r00.csv"
 lsrrpath = "/g/data/rt52/era5/single-levels/reanalysis/lsrr"
 crrpath = "/g/data/rt52/era5/single-levels/reanalysis/crr"
-outputpath = "/scratch/w85/cxa547/precip"
+outputPath = "/scratch/w85/cxa547/precip"
 
 precipcolorseq=['#FFFFFF', '#ceebfd', '#87CEFA', '#4969E1', '#228B22', 
                 '#90EE90', '#FFDD66', '#FFCC00', '#FF9933', 
@@ -29,32 +30,38 @@ precipcmap = sns.blend_palette(precipcolorseq, len(precipcolorseq), as_cmap=True
 preciplevels = [1.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0, 300.0, 400.0, 500.0]
 cbar_kwargs = {"shrink":0.9, 'ticks': preciplevels,}
 
-erasource = "ECMWF Reanalysis version 5"
-tcsource = "IBTrACS v4.0"
+erasource = "ECMWF Reanalysis version 5\nhttps://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels"
+tcsource = "IBTrACS v4.0\nhttps://www.ncdc.noaa.gov/ibtracs/"
 
-LOGGER = logging.getLogger()
+LOGGER = flStartLog("extract_precip.log", "INFO", verbose=True, datestamp=False)
 
-def plot_precip(ds: xr.DataArray, outputFile: str):
+def plot_precip(ds: xr.DataArray, track: pd.DataFrame, outputFile: str):
 
     ax = plt.axes(projection=ccrs.PlateCarree())
     ax.figure.set_size_inches(15, 12)
-    ds.sum(axis=0).plot.contourf(ax=ax, transform=ccrs.PlateCarree(),
+    try:
+        ds.sum(dim='time').plot.contourf(ax=ax, transform=ccrs.PlateCarree(),
                                  levels=preciplevels,
                                  extend='both',
                                  cmap=precipcmap,
                                  cbar_kwargs=cbar_kwargs)
+    except TypeError:
+        plt.close()
+        return
+    ax.plot(track['LON'], track['LAT'], color='k')
     ax.set_aspect('equal')
-    titlestr = f"{ds.time[0]:%Y-%m-%d %H:%M} - {ds.time[-1]:%Y-%m-%d %H:%M}"
+    startdate = pd.to_datetime(ds.time.values[0])
+    enddate = pd.to_datetime(ds.time.values[-1])
+    titlestr = f"{startdate:%Y-%m-%d %H:%M} - {enddate:%Y-%m-%d %H:%M}"
     ax.set_title(titlestr)
     ax.coastlines(resolution='10m')
-
     plt.text(-0.1, -0.05, f"Source: {erasource}",
-             transform=ax.ax_joint.transAxes,
+             transform=ax.transAxes,
              fontsize='xx-small', ha='left',)
     plt.text(1.1, -0.05, f"TC data: {tcsource}",
-             transform=ax.ax_joint.transAxes,
+             transform=ax.transAxes,
              fontsize='xx-small', ha='right',)
-    plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
+    plt.text(1.1, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
              transform=ax.transAxes,
              fontsize='xx-small', ha='right')
 
@@ -122,11 +129,16 @@ def extract(sid: str, track: pd.DataFrame, outputPath: str):
 
     LOGGER.debug(f"Concatenating {len(ds_list)} time steps")
     dsfootprint = xr.concat(ds_list, 'time').assign_coords(**{'time':track['ISO_TIME'].values})
-    outds = dsfootprint.to_dataset(name='precip')
+    dsfootprint.assign_attrs(**{
+            'long_name': 'Total hourly rainfall amount',
+            'standard_name': 'precipitation_amount',
+            'units': 'kg m**-2'
+            })
+    outds = dsfootprint.to_dataset(name='pr', promote_attrs=True)
     LOGGER.info(f"Saving data for {sid} to {outputPath}")
     outds.to_netcdf(pjoin(outputPath, f"{sid}_precip.nc"))
 
-    # plot_precip(ds, pjoin(outputPath, f"{sid}_precip.png"))
+    plot_precip(outds.pr, track[['LON', 'LAT']], pjoin(outputPath, f"{sid}_precip.png"))
 
     return
 
@@ -139,14 +151,14 @@ except:
 
 df = df.loc[df['BASIN'].isin(['SP', 'SI'])]
 df['ISO_TIME'] = pd.to_datetime(df['ISO_TIME'])
-df.loc[df['lon'] < 0, 'lon'] += 360.
+df.loc[df['LON'] < 0, 'LON'] += 360.
 
 tracks = df.groupby('SID')
 
 for sid, track in tracks:
     LOGGER.info(f"Extracting data for {sid}")
     dftc = track.set_index('ISO_TIME').resample('H').interpolate('linear').reset_index()
-    extract(sid, track)
+    extract(sid, track, outputPath)
 
 """
 lsrrfileset = set()
