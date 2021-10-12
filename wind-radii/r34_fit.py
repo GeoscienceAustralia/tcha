@@ -43,14 +43,16 @@ def lin_lat(x, zeta):
 def resid(p):
     return p['alpha'] + p['beta'] * X[:, 0] + p['zeta'] * np.abs(X[:, 1]) - y
 
+
 df = load_jtwc_data(input_path)
 
 #
 # fit the linear model
 #
 
-X = np.column_stack((df.dP.values, df.Latitude.values))
-y = np.log(df.rMax.values)
+mask = ~np.isnan(df.r34.values)
+X = np.column_stack((df.dP.values[mask], df.Latitude.values[mask]))
+y = np.log(df.r34.values[mask])
 rmod = Model(lin_dp) + Model(lin_lat)
 params = rmod.make_params(alpha=1., beta=-0.001, zeta=.001)
 
@@ -99,34 +101,37 @@ plt.text(0.0, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(acces
           transform=ax0.transAxes, fontsize='xx-small', ha='left',)
 plt.text(1.0, -0.15, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=ax1.transAxes, fontsize='xx-small', ha='right')
-plt.savefig(os.path.join(out_path, "Rmax residuals.png"), bbox_inches='tight')
+plt.savefig(os.path.join(out_path, "R34 residuals.png"), bbox_inches='tight')
 
 #
 # plot model vs observations
 #
+
 result = rmod.fit(y, x=X, params=params)
-pred = result.eval(x=X)
+pred = result.eval(x=np.column_stack((df.dP.values, df.Latitude.values)))
+
+# generate some noisy predictions
 noise_var = np.var(result.residual)
-noise = np.random.normal(loc=0, size=len(df), scale=np.sqrt(noise_var))
+noise = np.random.normal(loc=0, size=len(pred), scale=np.sqrt(noise_var))
 rm = np.exp(pred + noise)
 
 sns.set_context("poster")
 sns.set_style("whitegrid")
 fig, ax = plt.subplots(1, 1, figsize=(12, 8), sharey=True)
 ax.scatter(df.dP, rm, c='b', cmap=sns.light_palette('blue', as_cmap=True), s=40, label='Model', alpha=0.5)
-ax.scatter(df.dP, df.rMax, c='k', edgecolor=None, s=50, marker='x', label='Observations')
+ax.scatter(df.dP, df.r34, c='k', edgecolor=None, s=50, marker='x', label='Observations')
 ax.set_xlim(0, 100)
 ax.set_xlabel(r"$\Delta p$ (hPa)")
-ax.set_ylabel(r"$R_{max}$ (km)")
+ax.set_ylabel(r"$R_{34}$ (km)")
 ax.set_yticks(np.arange(0, 201, 25))
-ax.set_ylim(0, 300)
+ax.set_ylim(0, 350)
 ax.legend(loc=1)
 ax.grid(True)
 plt.text(-0.2, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)",
           transform=ax.transAxes, fontsize='xx-small', ha='left',)
 plt.text(1.0, -0.15, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=ax.transAxes, fontsize='xx-small', ha='right')
-plt.savefig(os.path.join(out_path, "RMax - model-obs.png"), bbox_inches='tight')
+plt.savefig(os.path.join(out_path, "R34 - model-obs.png"), bbox_inches='tight')
 
 #
 # Distribution plots
@@ -158,29 +163,23 @@ def l2score(obs, model):
     return np.linalg.norm(obs - model, np.inf)
 
 
-# generate some noisy predictions
-pred = result.eval(x=X)
-noise_var = np.var(result.residual)
-noise = np.random.normal(loc=0, size=len(df), scale=np.sqrt(noise_var))
-rm = np.exp(pred + noise)
+xx, yy, odp_r34 = bivariate_kde(df.dP[mask],  df.r34[mask], bw='scott')
+xx, yy, mdp_r34 = bivariate_kde(df.dP, rm, bw='scott')
 
-xx, yy, odp_rmax = bivariate_kde(df.dP,  df.rMax, bw='scott')
-xx, yy, mdp_rmax = bivariate_kde(df.dP, rm, bw='scott')
+xx, yy, olat_r34 = bivariate_kde(df.Latitude[mask], df.r34[mask], bw='scott')
+xx, yy, mlat_r34 = bivariate_kde(df.Latitude, rm, bw='scott')
 
-xx, yy, olat_rmax = bivariate_kde(df.Latitude, df.rMax, bw='scott')
-xx, yy, mlat_rmax = bivariate_kde(df.Latitude, rm, bw='scott')
-
-l2rmdp = l2score(odp_rmax, mdp_rmax)
-l2rmlat = l2score(olat_rmax, mlat_rmax)
+l2rmdp = l2score(odp_r34, mdp_r34)
+l2rmlat = l2score(olat_r34, mlat_r34)
 
 fig, ax = plt.subplots(1, 1, figsize=(12, 8))
 levs = np.arange(0.01, 0.11, 0.01)
-ax = sns.kdeplot(df.dP,  df.rMax, cmap='Reds', kwargs={'levels': levs}, shade=True, shade_lowest=False)
+ax = sns.kdeplot(df.dP[mask],  df.r34[mask], cmap='Reds', kwargs={'levels': levs}, shade=True, shade_lowest=False)
 ax = sns.kdeplot(df.dP, rm, cmap='Blues', kwargs={'levels': levs})
 ax.set_xlim(0, 100)
 ax.set_xlabel(r"$\Delta p$ (hPa)")
-ax.set_ylabel(r"$R_{max}$ (km)")
-ax.set_ylim(0, 300)
+ax.set_ylabel(r"$R_{34}$ (km)")
+ax.set_ylim(0, 350)
 ax.grid(True)
 
 red = sns.color_palette("Reds")[-2]
@@ -192,15 +191,15 @@ plt.text(-0.2, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(acce
           transform=ax.transAxes, fontsize='xx-small', ha='left',)
 plt.text(1.0, -0.15, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=ax.transAxes, fontsize='xx-small', ha='right')
-plt.savefig(os.path.join(out_path, "RMax - dP RMax model distribution.png"), bbox_inches='tight')
+plt.savefig(os.path.join(out_path, "R34 - dP R34 model distribution.png"), bbox_inches='tight')
 
 fig, ax = plt.subplots(1, 1, figsize=(12, 8))
-ax = sns.kdeplot(df.Latitude, df.rMax, cmap='Reds', kwargs={'levels':levs}, shade=True, shade_lowest=False)
+ax = sns.kdeplot(df.Latitude[mask], df.r34[mask], cmap='Reds', kwargs={'levels':levs}, shade=True, shade_lowest=False)
 ax = sns.kdeplot(df.Latitude, rm, cmap='Blues', kwargs={'levels':levs})
 ax.set_xlim(-30, 0)
 ax.set_xlabel("Latitude")
-ax.set_ylabel(r"$R_{max}$ (nm)")
-ax.set_ylim(0, 300)
+ax.set_ylabel(r"$R_{34}$ (nm)")
+ax.set_ylim(0, 350)
 ax.grid(True)
 
 ax.text(-5, 90, "Observed", color=red)
@@ -210,4 +209,4 @@ plt.text(-0.2, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(acce
           transform=ax.transAxes, fontsize='xx-small', ha='left',)
 plt.text(1.0, -0.15, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=ax.transAxes, fontsize='xx-small', ha='right')
-plt.savefig(os.path.join(out_path, "RMax - lat RMax model distribution.png"), bbox_inches='tight')
+plt.savefig(os.path.join(out_path, "R34 - lat R34 model distribution.png"), bbox_inches='tight')
