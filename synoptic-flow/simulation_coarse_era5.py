@@ -85,7 +85,7 @@ for row in list(df.itertuples())[:10]:
 
 print(time.time() - t0, 's')
 
-df = df.iloc[:out.shape[0]].copy()
+df = df.iloc[:len(lats)].copy()
 df['lats_sim'] = np.array(lats)
-df['lons_sim'] = np.array(longs)
+df['lons_sim'] = np.array(lons)
 df.to_csv("coarse_tc_tracks.csv")
