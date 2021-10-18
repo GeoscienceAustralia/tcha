@@ -66,7 +66,7 @@ for row in list(df.itertuples())[:10]:
         uds_interp_250 = uds_250.interp(latitude=row.Latitude, longitude=row.Longitude)
         vds_interp_250 = vds_250.interp(latitude=row.Latitude, longitude=row.Longitude)
 
-        u = -3.0575 + 0.4897 * uds_interp_850 + 0.6752 * uds_interp_250 + np.random.normal(loc=0, size=1, scale=10.85)
+        u = -3.0575 + 0.4897 * uds_interp_850 + 0.6752 * uds_interp_250 #+ np.random.normal(loc=0, size=1, scale=10.85)
         v = -5.1207 + 0.3257 * vds_interp_850 + 0.1502 * vds_interp_250 + np.random.normal(loc=0, size=1, scale=7.232)
 
         dt = 6  # hours
