@@ -4,7 +4,7 @@ import pandas as pd
 from calendar import monthrange
 import time
 import geopy
-from geopy.distance import VincentyDistance
+from geopy.distance import geodesic
 
 
 prefix = "/g/data/rt52/era5/pressure-levels/reanalysis"
@@ -73,7 +73,7 @@ for row in list(df.itertuples())[:10]:
         distance = np.sqrt(u ** 2 + v ** 2) * dt
 
         origin = geopy.Point(lats[-1], lons[-1])
-        destination = VincentyDistance(kilometers=distance).destination(origin, bearing)
+        destination = geodesic(kilometers=distance).destination(origin, bearing)
         lats.append(destination.latitude)
         lons.append(destination.longitude)
 
