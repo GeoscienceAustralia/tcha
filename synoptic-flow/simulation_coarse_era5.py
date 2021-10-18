@@ -23,7 +23,7 @@ lats = [None]
 lons = [None]
 ids = set()
 
-for row in list(df.itertuples()):
+for row in list(df.itertuples())[:10]:
 
     if row.eventid not in ids:
         # using forward difference
@@ -84,8 +84,10 @@ for row in list(df.itertuples()):
 
 print(time.time() - t0, 's')
 out = np.array(out)
+
+df = df.iloc[:out.shape[0]].copy()
 df['u_250'] = out[:, 0]
 df['v_250'] = out[:, 1]
 df['u_850'] = out[:, 2]
 df['v_850'] = out[:, 3]
-df.to_csv("jtwc_era5.csv")
+df.to_csv("coarse_tc_tracks.csv")
