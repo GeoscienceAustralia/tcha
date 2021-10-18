@@ -24,7 +24,7 @@ lats = [None]
 lons = [None]
 ids = set()
 
-for row in list(df.itertuples())[:10]:
+for row in list(df.itertuples())[:100]:
 
     if row.eventid not in ids:
         # using forward difference
