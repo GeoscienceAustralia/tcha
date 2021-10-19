@@ -122,7 +122,7 @@ if __name__ == '__main__':
                 lat = destination.latitude
                 lon = destination.longitude
 
-            except IndexError:
+            except Exception:
                 lat = np.nan
                 lon = np.nan
 
