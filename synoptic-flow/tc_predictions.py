@@ -74,7 +74,7 @@ if __name__ == '__main__':
     lons = [None]
     ids = set()
 
-    for i, row in enumerate(list(df.itertuples())[:10]):
+    for i, row in enumerate(list(df.itertuples())[:]):
 
         if row.eventid not in ids:
             # using forward difference
@@ -133,10 +133,10 @@ if __name__ == '__main__':
 
     print(time.time() - t0, 's')
 
-    # df = df.iloc[:len(lats)].copy()
-    # lats = lats[:len(df)]
-    # lons = lons[:len(df)]
-    #
-    # df['lats_sim'] = np.array(lats)
-    # df['lons_sim'] = np.array(lons)
-    # df.to_csv(os.path.expanduser("~/tc_predictions.csv"))
+    df = df.iloc[:len(lats)].copy()
+    lats = lats[:len(df)]
+    lons = lons[:len(df)]
+
+    df['lats_sim'] = np.array(lats)
+    df['lons_sim'] = np.array(lons)
+    df.to_csv(os.path.expanduser("~/tc_predictions.csv"))
