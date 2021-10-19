@@ -104,4 +104,4 @@ lons = lons[:len(df)]
 
 df['lats_sim'] = np.array(lats)
 df['lons_sim'] = np.array(lons)
-df.to_csv(os.path.expanduser("~/fine_tc_tracks.csv"))
+df.to_csv(os.path.expanduser("~/tc_predictions.csv"))
