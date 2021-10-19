@@ -68,6 +68,7 @@ if __name__ == '__main__':
     # vds_250s = client.persist(vds_250s)
 
     print(time.time() - t0, 's')
+    client.close()
     #
     # out = []
     # prev_eventid = None
