@@ -86,6 +86,9 @@ for row in list(df.itertuples())[:]:
 print(time.time() - t0, 's')
 
 df = df.iloc[:len(lats)].copy()
+lats = lats[:len(df)]
+lons = lons[:len(df)]
+
 df['lats_sim'] = np.array(lats)
 df['lons_sim'] = np.array(lons)
 df.to_csv(os.path.expanduser("~/coarse_tc_tracks.csv"))
