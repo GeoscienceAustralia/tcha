@@ -13,8 +13,14 @@ from dask.distributed import Client
 if __name__ == '__main__':
     dask.config.set({'temporary_directory': os.path.expanduser('~')})
     dask.config.set(shuffle='disk')
+    dask.config.set(
+        {'distributed.worker.memory.target': False,
+         'distributed.worker.memory.spill': False,
+         'distributed.worker.memory.pause': False,
+         'distributed.worker.memory.terminate': False, }
+    )
     client = Client(set_as_default=True)
-    dask.config.set(shuffle='disk')
+
     print(client)
 
     prefix = "/g/data/rt52/era5/pressure-levels/reanalysis"
