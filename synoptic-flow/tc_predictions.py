@@ -6,13 +6,15 @@ from calendar import monthrange
 import time
 import geopy
 from geopy.distance import geodesic
+import dask
 from dask.distributed import Client
 
 
 if __name__ == '__main__':
-
-    client = Client()
-
+    dask.config.set({'temporary_directory': os.path.expanduser('~')})
+    dask.config.set(shuffle='disk')
+    client = Client(set_as_default=True)
+    dask.config.set(shuffle='disk')
     print(client)
 
     prefix = "/g/data/rt52/era5/pressure-levels/reanalysis"
