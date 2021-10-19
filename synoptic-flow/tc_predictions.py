@@ -36,7 +36,7 @@ if __name__ == '__main__':
 
     lat_slices = [slice(slice(lat + 10, lat - 10)) for lat in df.Latitude]
     lon_slices = [slice(slice(lon - 10, lon + 10)) for lon in df.Longitude]
-    time_slices = [slice(slice(t, t + np.timedelta64(6, 'h') )) for t in df.Datetime]
+    time_slices = [slice(slice(t, t + np.timedelta64(6, 'h'))) for t in df.Datetime]
     slices = zip(time_slices, lon_slices, lat_slices)
 
     ufiles = [
@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
     uds_850s = [
         uds[ufile].u.sel(time=t, level=850, longitude=lo, latitude=la)
-        for ufile, t, lo, la in zip(ufiles, slices)
+        for (ufile, (t, lo, la)) in zip(ufiles, slices)
     ]
 
     # uds_850s = client.persist(uds_850s)
