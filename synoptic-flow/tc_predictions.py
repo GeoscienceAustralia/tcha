@@ -20,8 +20,9 @@ if __name__ == '__main__':
          'distributed.worker.memory.pause': False,
          'distributed.worker.memory.terminate': False, }
     )
+    print("Setting up dask client.")
     client = Client(set_as_default=True)
-
+    print("Setup complete.")
     print(client)
 
     prefix = "/g/data/rt52/era5/pressure-levels/reanalysis"
