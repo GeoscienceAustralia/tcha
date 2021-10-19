@@ -74,7 +74,7 @@ if __name__ == '__main__':
     lons = [None]
     ids = set()
 
-    for i, row in enumerate(df.itertuples()):
+    for i, row in enumerate(list(df.itertuples())[:10]):
 
         if row.eventid not in ids:
             # using forward difference
