@@ -70,7 +70,7 @@ for row in list(df.itertuples())[:]:
         v = -5.1207 + 0.3257 * vds_interp_850 + 0.1502 * vds_interp_250 + np.random.normal(loc=0, size=1, scale=7.232)[0]
 
         dt = 6  # hours
-        bearing = np.arctan(u / v)
+        bearing = np.arctan(u / v) * 180 / np.pi
         distance = np.sqrt(u ** 2 + v ** 2) * dt
 
         origin = geopy.Point(lats[-1], lons[-1])
