@@ -9,6 +9,7 @@ from geopy.distance import geodesic
 import dask
 from dask.distributed import Client
 
+print("Finished imports.")
 
 if __name__ == '__main__':
     dask.config.set({'temporary_directory': os.path.expanduser('~')})
