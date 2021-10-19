@@ -41,12 +41,6 @@ for row in list(df.itertuples())[:]:
 
     timestamp = row.Datetime
 
-    ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
-    vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
-
-    uds = xr.open_dataset(ufile, chunks='auto')
-    vds = xr.open_dataset(vfile, chunks='auto')
-
     lat = lats[-1]
     lon = lons[-1]
 
