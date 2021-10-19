@@ -9,7 +9,6 @@ from geopy.distance import geodesic
 import dask
 from dask.distributed import Client
 
-print("Finished imports.")
 
 if __name__ == '__main__':
     dask.config.set({'temporary_directory': '/scratch/w85/kr4383'})
@@ -21,9 +20,7 @@ if __name__ == '__main__':
          'distributed.worker.memory.pause': False,
          'distributed.worker.memory.terminate': False, }
     )
-    print("Setting up dask client.")
     client = Client(set_as_default=True)
-    print("Setup complete.")
     print(client)
 
     prefix = "/g/data/rt52/era5/pressure-levels/reanalysis"
