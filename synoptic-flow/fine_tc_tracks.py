@@ -45,8 +45,8 @@ for row in list(df.itertuples())[:]:
     year = timestamp.year
     days = monthrange(year, month)[1]
 
-    lat_slice = slice(lats[-1] + 0.5, lats[-1] - 0.5)
-    long_slice = slice(lons[-1] - 0.5, lons[-1] + 0.5)
+    lat_slice = slice(lats[-1] + 10, lats[-1] - 10)
+    long_slice = slice(lons[-1] - 10, lons[-1] + 10)
 
     ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
     vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
@@ -59,28 +59,36 @@ for row in list(df.itertuples())[:]:
     vds_850 = vds.v.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
     vds_250 = vds.v.sel(time=timestamp, level=250, longitude=long_slice, latitude=lat_slice).compute()
 
-    try:
-        uds_interp_850 = uds_850.interp(latitude=lats[-1], longitude=lons[-1])
-        vds_interp_850 = vds_850.interp(latitude=lats[-1], longitude=lons[-1])
+    lat = lats[-1]
+    lon = lons[-1]
 
-        uds_interp_250 = uds_250.interp(latitude=lats[-1], longitude=lons[-1])
-        vds_interp_250 = vds_250.interp(latitude=lats[-1], longitude=lons[-1])
+    for _ in range(6):
 
-        u = -3.0575 + 0.4897 * uds_interp_850 + 0.6752 * uds_interp_250 + np.random.normal(loc=0, size=1, scale=10.85)[0]
-        v = -5.1207 + 0.3257 * vds_interp_850 + 0.1502 * vds_interp_250 + np.random.normal(loc=0, size=1, scale=7.232)[0]
+        try:
+            uds_interp_850 = uds_850.interp(latitude=lat, longitude=lon)
+            vds_interp_850 = vds_850.interp(latitude=lat, longitude=lon)
 
-        dt = 6  # hours
-        bearing = np.arctan(u / v) * 180 / np.pi
-        distance = np.sqrt(u ** 2 + v ** 2) * dt
+            uds_interp_250 = uds_250.interp(latitude=lat, longitude=lon)
+            vds_interp_250 = vds_250.interp(latitude=lat, longitude=lon)
 
-        origin = geopy.Point(lats[-1], lons[-1])
-        destination = geodesic(kilometers=distance).destination(origin, bearing)
-        lats.append(destination.latitude)
-        lons.append(destination.longitude)
+            u = -3.0575 + 0.4897 * uds_interp_850 + 0.6752 * uds_interp_250
+            v = -5.1207 + 0.3257 * vds_interp_850 + 0.1502 * vds_interp_250
 
-    except IndexError:
-        lats.append(np.nan)
-        lons.append(np.nan)
+            dt = 1  # hours
+            bearing = np.arctan(u / v) * 180 / np.pi
+            distance = np.sqrt(u ** 2 + v ** 2) * dt
+
+            origin = geopy.Point(lats[-1], lons[-1])
+            destination = geodesic(kilometers=distance).destination(origin, bearing)
+            lat = destination.latitude
+            lon = destination.longitude
+
+        except IndexError:
+            lat = np.nan
+            lon = np.nan
+
+    lats.append(lat)
+    lons.append(lon)
 
 
 print(time.time() - t0, 's')
@@ -91,4 +99,4 @@ lons = lons[:len(df)]
 
 df['lats_sim'] = np.array(lats)
 df['lons_sim'] = np.array(lons)
-df.to_csv(os.path.expanduser("~/coarse_tc_tracks.csv"))
+df.to_csv(os.path.expanduser("~/fine_tc_tracks.csv"))
