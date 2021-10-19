@@ -53,7 +53,7 @@ if __name__ == '__main__':
         for (ufile, (t, lo, la)) in zip(ufiles, slices)
     ]
 
-    uds_850s = client.compute(uds_850s[:10])
+    uds_850s = client.compute(uds_850s[:10]).restult()
     print(uds_850s[0])
     #
     # vds_850s = [
