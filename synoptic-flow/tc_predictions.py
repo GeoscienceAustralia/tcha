@@ -39,8 +39,11 @@ if __name__ == '__main__':
         for t in df.Datetime
     ]
 
+    uds = dict((ufile, xr.open_dataset(ufile, chunks='auto')) for ufile in set(ufiles))
+    vds = dict((vfile, xr.open_dataset(vfile, chunks='auto')) for vfile in set(vfiles))
+
     uds_850s = [
-        xr.open_dataset(ufile, chunks='auto').u.sel(time=t, level=850, longitude=lo, latitude=la)
+        uds[ufile].u.sel(time=t, level=850, longitude=lo, latitude=la)
         for ufile, t, lo, la in zip(ufiles, slices)
     ]
 
