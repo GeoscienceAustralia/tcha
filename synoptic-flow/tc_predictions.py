@@ -80,6 +80,8 @@ if __name__ == '__main__':
     # vds_250s = client.persist(vds_250s)
 
     print(time.time() - t0, 's')
+    with open('log.txt', 'w') as fout:
+        fout.write(str(time.time() - t0))
     client.close()
     #
     # out = []
