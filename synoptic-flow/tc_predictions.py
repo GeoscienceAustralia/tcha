@@ -56,7 +56,8 @@ if __name__ == '__main__':
         for (ufile, (t, lo, la)) in zip(ufiles, slices)
     ]
 
-    uds_850s = client.compute(uds_850s)
+    uds_850s = client.compute(uds_850s[:10])
+    print(uds_850s[0])
     #
     # vds_850s = [
     #     xr.open_dataset(vfile, chunks='auto').v.sel(time=t, level=850, longitude=lo, latitude=la)
