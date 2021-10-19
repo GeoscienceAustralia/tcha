@@ -34,9 +34,9 @@ if __name__ == '__main__':
 
     t0 = time.time()
 
-    lat_slices = [slice(slice(lat + 10, lat - 10)) for lat in df.Latitude]
-    lon_slices = [slice(slice(lon - 10, lon + 10)) for lon in df.Longitude]
-    time_slices = [slice(slice(t, t + np.timedelta64(6, 'h'))) for t in df.Datetime]
+    lat_slices = [slice(lat + 10, lat - 10) for lat in df.Latitude]
+    lon_slices = [slice(lon - 10, lon + 10) for lon in df.Longitude]
+    time_slices = [slice(t, t + np.timedelta64(6, 'h')) for t in df.Datetime]
     slices = zip(time_slices, lon_slices, lat_slices)
 
     ufiles = [
