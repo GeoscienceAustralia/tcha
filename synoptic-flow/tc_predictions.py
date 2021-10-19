@@ -96,10 +96,10 @@ if __name__ == '__main__':
         lat = row.Latitude
         lon = row.Longitude
 
-        uds_850 = uds[ufiles[i]].u.sel(time=time_slices[i], level=850, longitude=lat[i], latitude=lat_slices[i]).compute()
-        uds_250 = uds[ufiles[i]].u.sel(time=time_slices[i], level=250, longitude=lat[i], latitude=lat_slices[i]).compute()
-        vds_850 = vds[vfiles[i]].v.sel(time=time_slices[i], level=850, longitude=lat[i], latitude=lat_slices[i]).compute()
-        vds_250 = vds[vfiles[i]].v.sel(time=time_slices[i], level=250, longitude=lat[i], latitude=lat_slices[i]).compute()
+        uds_850 = uds[ufiles[i]].u.sel(time=time_slices[i], level=850, longitude=lon_slices[i], latitude=lat_slices[i]).compute()
+        uds_250 = uds[ufiles[i]].u.sel(time=time_slices[i], level=250, longitude=lon_slices[i], latitude=lat_slices[i]).compute()
+        vds_850 = vds[vfiles[i]].v.sel(time=time_slices[i], level=850, longitude=lon_slices[i], latitude=lat_slices[i]).compute()
+        vds_250 = vds[vfiles[i]].v.sel(time=time_slices[i], level=250, longitude=lon_slices[i], latitude=lat_slices[i]).compute()
 
         for _ in range(6):
 
