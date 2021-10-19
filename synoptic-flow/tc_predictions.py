@@ -12,8 +12,8 @@ from dask.distributed import Client
 print("Finished imports.")
 
 if __name__ == '__main__':
-    dask.config.set({'temporary_directory': '/scratch/w85/cxa547'})
-    dask.config.set({'local-directory': '/scratch/w85/cxa547'})
+    dask.config.set({'temporary_directory': '/scratch/w85/kr4383'})
+    dask.config.set({'local-directory': '/scratch/w85/kr4383'})
     dask.config.set(shuffle='disk')
     dask.config.set(
         {'distributed.worker.memory.target': False,
