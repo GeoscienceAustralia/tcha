@@ -8,60 +8,63 @@ import geopy
 from geopy.distance import geodesic
 from dask.distributed import Client
 
-client = Client()
 
-print(client)
+if __name__ == '__main__':
 
-prefix = "/g/data/rt52/era5/pressure-levels/reanalysis"
-df = pd.read_csv(os.path.expanduser("~/jtwc_clean.csv"))
+    client = Client()
 
-dt = pd.Timedelta(1, units='hours')
-df.Datetime = pd.to_datetime(df.Datetime)
+    print(client)
 
-t0 = time.time()
+    prefix = "/g/data/rt52/era5/pressure-levels/reanalysis"
+    df = pd.read_csv(os.path.expanduser("~/jtwc_clean.csv"))
+
+    dt = pd.Timedelta(1, units='hours')
+    df.Datetime = pd.to_datetime(df.Datetime)
+
+    t0 = time.time()
 
 
-lat_slices = [slice(slice(lat + 10, lat - 10)) for lat in df.Latitude]
-lon_slices = [slice(slice(lon - 10, lon + 10)) for lon in df.Longitude]
-time_slices = [slice(slice(t, t + np.timedelta64(6, 'h') )) for t in df.Datetime]
-slices = zip(time_slices, lon_slices, lat_slices)
+    lat_slices = [slice(slice(lat + 10, lat - 10)) for lat in df.Latitude]
+    lon_slices = [slice(slice(lon - 10, lon + 10)) for lon in df.Longitude]
+    time_slices = [slice(slice(t, t + np.timedelta64(6, 'h') )) for t in df.Datetime]
+    slices = zip(time_slices, lon_slices, lat_slices)
 
-ufiles = [
-    f"{prefix}/u/{t.year}/u_era5_oper_pl_{t.year}{t.month:02d}01-{t.year}{t.month:02d}{monthrange(t.year, t.month)[1]}.nc"
-    for t in df.Datetime
-]
-vfiles = [
-    f"{prefix}/v/{t.year}/v_era5_oper_pl_{t.year}{t.month:02d}01-{t.year}{t.month:02d}{monthrange(t.year, t.month)[1]}.nc"
-    for t in df.Datetime
-]
+    ufiles = [
+        f"{prefix}/u/{t.year}/u_era5_oper_pl_{t.year}{t.month:02d}01-{t.year}{t.month:02d}{monthrange(t.year, t.month)[1]}.nc"
+        for t in df.Datetime
+    ]
+    vfiles = [
+        f"{prefix}/v/{t.year}/v_era5_oper_pl_{t.year}{t.month:02d}01-{t.year}{t.month:02d}{monthrange(t.year, t.month)[1]}.nc"
+        for t in df.Datetime
+    ]
 
-uds_850s = [
-    xr.open_dataset(ufile, chunks='auto').u.sel(time=t, level=850, longitude=lo, latitude=la)
-    for ufile, t, lo, la in zip(ufiles, slices)
-]
+    uds_850s = [
+        xr.open_dataset(ufile, chunks='auto').u.sel(time=t, level=850, longitude=lo, latitude=la)
+        for ufile, t, lo, la in zip(ufiles, slices)
+    ]
 
-uds_850s = client.persist(uds_850s)
+    uds_850s = client.persist(uds_850s)
 
-vds_850s = [
-    xr.open_dataset(vfile, chunks='auto').v.sel(time=t, level=850, longitude=lo, latitude=la)
-    for vfile, t, lo, la in zip(vfiles, slices)
-]
+    vds_850s = [
+        xr.open_dataset(vfile, chunks='auto').v.sel(time=t, level=850, longitude=lo, latitude=la)
+        for vfile, t, lo, la in zip(vfiles, slices)
+    ]
 
-vds_850s = client.persist(vds_850s)
+    vds_850s = client.persist(vds_850s)
 
-uds_250s = [
-    xr.open_dataset(ufile, chunks='auto').u.sel(time=t, level=250, longitude=lo, latitude=la)
-    for ufile, t, lo, la in zip(ufiles, slices)
-]
+    uds_250s = [
+        xr.open_dataset(ufile, chunks='auto').u.sel(time=t, level=250, longitude=lo, latitude=la)
+        for ufile, t, lo, la in zip(ufiles, slices)
+    ]
 
-uds_250s = client.persist(uds_250s)
+    uds_250s = client.persist(uds_250s)
 
-vds_250s = [
-    xr.open_dataset(vfile, chunks='auto').v.sel(time=t, level=250, longitude=lo, latitude=la)
-    for vfile, t, lo, la in zip(vfiles, slices)
-]
+    vds_250s = [
+        xr.open_dataset(vfile, chunks='auto').v.sel(time=t, level=250, longitude=lo, latitude=la)
+        for vfile, t, lo, la in zip(vfiles, slices)
+    ]
 
-vds_250s = client.persist(vds_250s)
+    vds_250s = client.persist(vds_250s)
 
 
 out = []
