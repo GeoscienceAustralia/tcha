@@ -41,10 +41,6 @@ for row in list(df.itertuples())[:]:
 
     timestamp = row.Datetime
 
-    month = timestamp.month
-    year = timestamp.year
-    days = monthrange(year, month)[1]
-
     ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
     vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
 
@@ -56,8 +52,18 @@ for row in list(df.itertuples())[:]:
 
     for _ in range(6):
 
-        lat_slice = slice(lats[-1] + 0.5, lats[-1] - 0.5)
-        long_slice = slice(lons[-1] - 0.5, lons[-1] + 0.5)
+        month = timestamp.month
+        year = timestamp.year
+        days = monthrange(year, month)[1]
+
+        ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
+        vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
+
+        uds = xr.open_dataset(ufile, chunks='auto')
+        vds = xr.open_dataset(vfile, chunks='auto')
+
+        lat_slice = slice(lat + 0.5, lat - 0.5)
+        long_slice = slice(lon - 0.5, lon + 0.5)
 
         uds_850 = uds.u.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
         uds_250 = uds.u.sel(time=timestamp, level=250, longitude=long_slice, latitude=lat_slice).compute()
@@ -87,6 +93,8 @@ for row in list(df.itertuples())[:]:
         except IndexError:
             lat = np.nan
             lon = np.nan
+
+        timestamp += np.timedelta64(1, 'h')
 
     lats.append(lat)
     lons.append(lon)
