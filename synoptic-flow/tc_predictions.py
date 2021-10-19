@@ -61,15 +61,11 @@ if __name__ == '__main__':
         vds[vfile].v.sel(time=t, level=250, longitude=lo, latitude=la) for (vfile, (t, lo, la)) in zip(vfiles, slices)
     ]
 
-    uds_850s = client.compute(uds_850s)
-    vds_850s = client.compute(vds_850s)
-    uds_250s = client.compute(uds_250s)
-    vds_250s = client.compute(vds_250s)
+    uds_850s = client.persist(uds_850s)
+    vds_850s = client.persist(vds_850s)
+    uds_250s = client.persist(uds_250s)
+    vds_250s = client.persist(vds_250s)
 
-    uds_850s = [x.result() for x in uds_850s]
-    vds_850s = [x.result() for x in vds_850s]
-    uds_250s = [x.result() for x in uds_250s]
-    vds_250s = [x.result() for x in vds_250s]
     out = []
     prev_eventid = None
     prev_month = None
