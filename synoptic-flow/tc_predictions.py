@@ -47,8 +47,8 @@ if __name__ == '__main__':
     prev_eventid = None
     prev_month = None
 
-    lats = [None]
-    lons = [None]
+    lats = []
+    lons = []
     ids = set()
 
     for i, row in enumerate(list(df.itertuples())[:10]):
