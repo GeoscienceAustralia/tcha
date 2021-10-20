@@ -72,8 +72,9 @@ if __name__ == '__main__':
             ufile += f"{timestamp.year}{timestamp.month:02d}{monthrange(timestamp.year, timestamp.month)[1]}.nc"
             vfile = f"{prefix}/v/{timestamp.year}/v_era5_oper_pl_{timestamp.year}{timestamp.month:02d}01-"
             vfile += f"{timestamp.year}{timestamp.month:02d}{monthrange(timestamp.year, timestamp.month)[1]}.nc"
+
             uds = xr.open_dataset(ufile, chunks='auto')
-            vds = xr.open_dataset(ufile, chunks='auto')
+            vds = xr.open_dataset(vfile, chunks='auto')
 
             lat_slice = slice(lat + 0.5, lat - 0.5)
             long_slice = slice(lon - 0.5, lon + 0.5)
