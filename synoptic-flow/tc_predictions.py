@@ -66,6 +66,7 @@ if __name__ == '__main__':
         lon = row.Longitude
 
         for _ in range(6):
+            print(lat)
 
             lat_slice = slice(lat + 0.5, lat - 0.5)
             long_slice = slice(lon - 0.5, lon + 0.5)
@@ -101,7 +102,7 @@ if __name__ == '__main__':
                 lon = destination.longitude
 
             except Exception as e:
-                print(e)
+                # print(e)
                 lat = np.nan
                 lon = np.nan
 
