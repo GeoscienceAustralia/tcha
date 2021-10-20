@@ -52,7 +52,8 @@ if __name__ == '__main__':
     ids = set()
 
     for i, row in enumerate(list(df.itertuples())[:]):
-
+        if (i % 50) == 0:
+            print(f"{i} out of {len(df)} completed.")
         if row.eventid not in ids:
             # using forward difference
             # discard last position of previous TC track
