@@ -102,7 +102,6 @@ if __name__ == '__main__':
                 destination = geodesic(kilometers=distance).destination(origin, bearing)
                 lat = destination.latitude
                 lon = destination.longitude
-                print("End:", lat)
 
             except Exception as e:
                 print(e)
