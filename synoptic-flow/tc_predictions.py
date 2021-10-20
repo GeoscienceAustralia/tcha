@@ -82,14 +82,10 @@ if __name__ == '__main__':
             time_slice = slice(timestamp, timestamp + np.timedelta64(6, 'h'))
 
             try:
-                uds_850 = uds[ufiles[i]].u.sel(time=timestamp, level=850, longitude=long_slice,
-                                               latitude=lat_slice).compute()
-                uds_250 = uds[ufiles[i]].u.sel(time=timestamp, level=250, longitude=long_slice,
-                                               latitude=lat_slice).compute()
-                vds_850 = vds[vfiles[i]].v.sel(time=timestamp, level=850, longitude=long_slice,
-                                               latitude=lat_slice).compute()
-                vds_250 = vds[vfiles[i]].v.sel(time=timestamp, level=250, longitude=long_slice,
-                                               latitude=lat_slice).compute()
+                uds_850 = uds.u.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
+                uds_250 = uds.u.sel(time=timestamp, level=250, longitude=long_slice, latitude=lat_slice).compute()
+                vds_850 = vds.v.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
+                vds_250 = vds.v.sel(time=timestamp, level=250, longitude=long_slice, latitude=lat_slice).compute()
 
                 uds_interp_850 = uds_850.interp(latitude=lat, longitude=lon)
                 vds_interp_850 = vds_850.interp(latitude=lat, longitude=lon)
