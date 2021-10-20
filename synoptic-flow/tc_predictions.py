@@ -79,16 +79,16 @@ if __name__ == '__main__':
             lat_slice = slice(lat + 0.5, lat - 0.5)
             long_slice = slice(lon - 0.5, lon + 0.5)
 
-            time_slice = slice(timestamp, timestamp + np.timedelta64(6, 'h'))
-
             try:
                 uds_850 = uds.u.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
                 uds_250 = uds.u.sel(time=timestamp, level=250, longitude=long_slice, latitude=lat_slice).compute()
                 vds_850 = vds.v.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
                 vds_250 = vds.v.sel(time=timestamp, level=250, longitude=long_slice, latitude=lat_slice).compute()
-                print(uds_850.data)
+
                 uds_interp_850 = uds_850.interp(latitude=lat, longitude=lon)
                 vds_interp_850 = vds_850.interp(latitude=lat, longitude=lon)
+
+                print(uds_interp_850.data)
 
                 uds_interp_250 = uds_250.interp(latitude=lat, longitude=lon)
                 vds_interp_250 = vds_250.interp(latitude=lat, longitude=lon)
