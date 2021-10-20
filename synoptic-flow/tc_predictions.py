@@ -66,7 +66,7 @@ if __name__ == '__main__':
         lon = row.Longitude
 
         for _ in range(6):
-            print(lat)
+            print("Start:", lat)
 
             lat_slice = slice(lat + 0.5, lat - 0.5)
             long_slice = slice(lon - 0.5, lon + 0.5)
@@ -100,6 +100,7 @@ if __name__ == '__main__':
                 destination = geodesic(kilometers=distance).destination(origin, bearing)
                 lat = destination.latitude
                 lon = destination.longitude
+                print("End:", lat)
 
             except Exception as e:
                 # print(e)
