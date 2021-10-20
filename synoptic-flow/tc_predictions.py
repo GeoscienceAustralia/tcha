@@ -66,7 +66,6 @@ if __name__ == '__main__':
         lon = row.Longitude
 
         for _ in range(6):
-            print("Start:", lat)
 
             ufile = f"{prefix}/u/{timestamp.year}/u_era5_oper_pl_{timestamp.year}{timestamp.month:02d}01-"
             ufile += f"{timestamp.year}{timestamp.month:02d}{monthrange(timestamp.year, timestamp.month)[1]}.nc"
@@ -87,8 +86,6 @@ if __name__ == '__main__':
 
                 uds_interp_850 = uds_850.interp(latitude=lat, longitude=lon)
                 vds_interp_850 = vds_850.interp(latitude=lat, longitude=lon)
-
-                print(uds_interp_850.data)
 
                 uds_interp_250 = uds_250.interp(latitude=lat, longitude=lon)
                 vds_interp_250 = vds_250.interp(latitude=lat, longitude=lon)
