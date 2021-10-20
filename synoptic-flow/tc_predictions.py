@@ -56,15 +56,7 @@ if __name__ == '__main__':
         if row.eventid not in ids:
             # using forward difference
             # discard last position of previous TC track
-            lats[-1] = row.Latitude
-            lons[-1] = row.Longitude
             ids.add(row.eventid)
-
-        if np.isnan(lats[-1]):
-            # TC went out of domain
-            lats.append(np.nan)
-            lons.append(np.nan)
-            continue
 
         timestamp = row.Datetime
 
