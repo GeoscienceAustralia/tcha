@@ -31,11 +31,6 @@ if __name__ == '__main__':
 
     t0 = time.time()
 
-    lat_slices = [slice(lat + 10, lat - 10) for lat in df.Latitude]
-    lon_slices = [slice(lon - 10, lon + 10) for lon in df.Longitude]
-    time_slices = [slice(t, t + np.timedelta64(6, 'h')) for t in df.Datetime]
-    slices = zip(time_slices, lon_slices, lat_slices)
-
     ufiles = [
         f"{prefix}/u/{t.year}/u_era5_oper_pl_{t.year}{t.month:02d}01-{t.year}{t.month:02d}{monthrange(t.year, t.month)[1]}.nc"
         for t in df.Datetime
@@ -48,24 +43,6 @@ if __name__ == '__main__':
     uds = dict((ufile, xr.open_dataset(ufile, chunks='auto')) for ufile in set(ufiles))
     vds = dict((vfile, xr.open_dataset(vfile, chunks='auto')) for vfile in set(vfiles))
 
-    # uds_850s = [
-    #     uds[ufile].u.sel(time=t, level=850, longitude=lo, latitude=la) for (ufile, (t, lo, la)) in zip(ufiles, slices)
-    # ]
-    # vds_850s = [
-    #     vds[vfile].v.sel(time=t, level=850, longitude=lo, latitude=la) for (vfile, (t, lo, la)) in zip(vfiles, slices)
-    # ]
-    # uds_250s = [
-    #     uds[ufile].u.sel(time=t, level=250, longitude=lo, latitude=la) for (ufile, (t, lo, la)) in zip(ufiles, slices)
-    # ]
-    # vds_250s = [
-    #     vds[vfile].v.sel(time=t, level=250, longitude=lo, latitude=la) for (vfile, (t, lo, la)) in zip(vfiles, slices)
-    # ]
-    #
-    # uds_850s = client.persist(uds_850s)
-    # vds_850s = client.persist(vds_850s)
-    # uds_250s = client.persist(uds_250s)
-    # vds_250s = client.persist(vds_250s)
-
     out = []
     prev_eventid = None
     prev_month = None
@@ -74,7 +51,7 @@ if __name__ == '__main__':
     lons = [None]
     ids = set()
 
-    for i, row in enumerate(list(df.itertuples())[:]):
+    for i, row in enumerate(list(df.itertuples())[:10]):
 
         if row.eventid not in ids:
             # using forward difference
@@ -96,20 +73,15 @@ if __name__ == '__main__':
         lat = row.Latitude
         lon = row.Longitude
 
-        # uds_850 = uds[ufiles[i]].u.sel(time=time_slices[i], level=850, longitude=lon_slices[i], latitude=lat_slices[i]).compute()
-        # uds_250 = uds[ufiles[i]].u.sel(time=time_slices[i], level=250, longitude=lon_slices[i], latitude=lat_slices[i]).compute()
-        # vds_850 = vds[vfiles[i]].v.sel(time=time_slices[i], level=850, longitude=lon_slices[i], latitude=lat_slices[i]).compute()
-        # vds_250 = vds[vfiles[i]].v.sel(time=time_slices[i], level=250, longitude=lon_slices[i], latitude=lat_slices[i]).compute()
-
         for _ in range(6):
-            uds_850 = uds[ufiles[i]].u.sel(time=timestamp, level=850, longitude=lon_slices[i],
-                                           latitude=lat_slices[i]).compute()
-            uds_250 = uds[ufiles[i]].u.sel(time=timestamp, level=250, longitude=lon_slices[i],
-                                           latitude=lat_slices[i]).compute()
-            vds_850 = vds[vfiles[i]].v.sel(time=timestamp, level=850, longitude=lon_slices[i],
-                                           latitude=lat_slices[i]).compute()
-            vds_250 = vds[vfiles[i]].v.sel(time=timestamp, level=250, longitude=lon_slices[i],
-                                           latitude=lat_slices[i]).compute()
+
+            lat_slice = slice(lat + 0.5, lat - 0.5)
+            long_slice = slice(lon - 0.5, lon + 0.5)
+
+            uds_850 = uds[ufiles[i]].u.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
+            uds_250 = uds[ufiles[i]].u.sel(time=timestamp, level=250, longitude=long_slice, latitude=lat_slice).compute()
+            vds_850 = vds[vfiles[i]].v.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
+            vds_250 = vds[vfiles[i]].v.sel(time=timestamp, level=250, longitude=long_slice, latitude=lat_slice).compute()
 
             try:
                 uds_interp_850 = uds_850.interp(time=timestamp, latitude=lat, longitude=lon)
