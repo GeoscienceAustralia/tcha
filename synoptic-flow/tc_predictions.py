@@ -71,17 +71,22 @@ if __name__ == '__main__':
             long_slice = slice(lon - 0.5, lon + 0.5)
 
             time_slice = slice(timestamp, timestamp + np.timedelta64(6, 'h'))
-            uds_850 = uds[ufiles[i]].u.sel(time=time_slice, level=850, longitude=long_slice, latitude=lat_slice).compute()
-            uds_250 = uds[ufiles[i]].u.sel(time=time_slice, level=250, longitude=long_slice, latitude=lat_slice).compute()
-            vds_850 = vds[vfiles[i]].v.sel(time=time_slice, level=850, longitude=long_slice, latitude=lat_slice).compute()
-            vds_250 = vds[vfiles[i]].v.sel(time=time_slice, level=250, longitude=long_slice, latitude=lat_slice).compute()
 
             try:
-                uds_interp_850 = uds_850.interp(time=timestamp, latitude=lat, longitude=lon)
-                vds_interp_850 = vds_850.interp(time=timestamp, latitude=lat, longitude=lon)
+                uds_850 = uds[ufiles[i]].u.sel(time=timestamp, level=850, longitude=long_slice,
+                                               latitude=lat_slice).compute()
+                uds_250 = uds[ufiles[i]].u.sel(time=timestamp, level=250, longitude=long_slice,
+                                               latitude=lat_slice).compute()
+                vds_850 = vds[vfiles[i]].v.sel(time=timestamp, level=850, longitude=long_slice,
+                                               latitude=lat_slice).compute()
+                vds_250 = vds[vfiles[i]].v.sel(time=timestamp, level=250, longitude=long_slice,
+                                               latitude=lat_slice).compute()
 
-                uds_interp_250 = uds_250.interp(time=timestamp, latitude=lat, longitude=lon)
-                vds_interp_250 = vds_250.interp(time=timestamp, latitude=lat, longitude=lon)
+                uds_interp_850 = uds_850.interp(latitude=lat, longitude=lon)
+                vds_interp_850 = vds_850.interp(latitude=lat, longitude=lon)
+
+                uds_interp_250 = uds_250.interp(latitude=lat, longitude=lon)
+                vds_interp_250 = vds_250.interp(latitude=lat, longitude=lon)
 
                 u = -3.0575 + 0.4897 * uds_interp_850 + 0.6752 * uds_interp_250
                 v = -5.1207 + 0.3257 * vds_interp_850 + 0.1502 * vds_interp_250
