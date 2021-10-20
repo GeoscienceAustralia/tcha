@@ -100,7 +100,7 @@ if __name__ == '__main__':
                 bearing = np.arctan(u / v) * 180 / np.pi
                 distance = np.sqrt(u ** 2 + v ** 2) * dt
 
-                origin = geopy.Point(lats[-1], lons[-1])
+                origin = geopy.Point(lat, lon)
                 destination = geodesic(kilometers=distance).destination(origin, bearing)
                 lat = destination.latitude
                 lon = destination.longitude
