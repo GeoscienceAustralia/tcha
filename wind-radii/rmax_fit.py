@@ -62,19 +62,6 @@ printfuncs.report_ci(ci)
 print(result.chisqr)
 
 #
-# use MCMC to explore the parameter space
-#
-
-rr = mini.emcee(burn=500, steps=10_000)
-
-ll = [r'$\{0}$'.format(v) for v in rr.var_names]
-with sns.plotting_context("notebook"):
-    corner.corner(
-        rr.flatchain, labels=ll, truths=list(rr.params.valuesdict().values()), no_fill_contours=True,
-        fill_contours=False, plot_density=False, quantiles=[0.05, 0.5, 0.95], data_kwargs=dict(color='r', alpha=0.01)
-    )
-
-#
 # normal test of residuals in log space
 #
 
@@ -119,7 +106,6 @@ ax.set_xlim(0, 100)
 ax.set_xlabel(r"$\Delta p$ (hPa)")
 ax.set_ylabel(r"$R_{max}$ (km)")
 ax.set_yticks(np.arange(0, 201, 25))
-ax.set_ylim(0, 300)
 ax.legend(loc=1)
 ax.grid(True)
 plt.text(-0.2, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)",
@@ -178,9 +164,9 @@ levs = np.arange(0.01, 0.11, 0.01)
 ax = sns.kdeplot(df.dP,  df.rMax, cmap='Reds', kwargs={'levels': levs}, shade=True, shade_lowest=False)
 ax = sns.kdeplot(df.dP, rm, cmap='Blues', kwargs={'levels': levs})
 ax.set_xlim(0, 100)
+ax.set_ylim(0, 150)
 ax.set_xlabel(r"$\Delta p$ (hPa)")
 ax.set_ylabel(r"$R_{max}$ (km)")
-ax.set_ylim(0, 300)
 ax.grid(True)
 
 red = sns.color_palette("Reds")[-2]
@@ -198,9 +184,10 @@ fig, ax = plt.subplots(1, 1, figsize=(12, 8))
 ax = sns.kdeplot(df.Latitude, df.rMax, cmap='Reds', kwargs={'levels':levs}, shade=True, shade_lowest=False)
 ax = sns.kdeplot(df.Latitude, rm, cmap='Blues', kwargs={'levels':levs})
 ax.set_xlim(-30, 0)
+ax.set_ylim(0, 150)
+
 ax.set_xlabel("Latitude")
-ax.set_ylabel(r"$R_{max}$ (nm)")
-ax.set_ylim(0, 300)
+ax.set_ylabel(r"$R_{max}$ (km)")
 ax.grid(True)
 
 ax.text(-5, 90, "Observed", color=red)

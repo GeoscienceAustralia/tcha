@@ -34,46 +34,56 @@ print(corr)
 
 # dP vs Rmax plot
 fct = sns.relplot(df.dP, df.rMax, height=5, aspect=1.5)
-plt.text(0.0, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)", transform=fct.ax.transAxes, fontsize='x-small', ha='left')
-plt.text(1.0, -0.15, f"Created: {datetime.now():%Y-%m-%d %H:%M}", transform=fct.ax.transAxes, fontsize='x-small', ha='right')
+fct.ax.set_xlabel(r"$\Delta p$ (hPa)")
+fct.ax.set_ylabel(r"$R_{max}$ (km)")
+plt.text(0.0, -0.2, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)", transform=fct.ax.transAxes, fontsize='x-small', ha='left')
+plt.text(1.0, -0.2, f"Created: {datetime.now():%Y-%m-%d %H:%M}", transform=fct.ax.transAxes, fontsize='x-small', ha='right')
 plt.savefig(os.path.join(out_path, "RMax - dP vs RMax.png"), bbox_inches='tight')
 
 # latitude vs Rmax plot
 fct = sns.relplot(df.Latitude, df.rMax, aspect=1.5)
-plt.text(0.0, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)",
+fct.ax.set_ylabel(r"$R_{max}$ (km)")
+plt.text(0.0, -0.2, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)",
           transform=fct.ax.transAxes, fontsize='x-small', ha='left',)
-plt.text(1.0, -0.15, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
+plt.text(1.0, -0.2, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=fct.ax.transAxes, fontsize='x-small', ha='right')
 plt.savefig(os.path.join(out_path, "RMax - Latitude vs RMax.png"), bbox_inches='tight')
 
 # translation speed vs Rmax plot
 mask = df.translation_speed > 0
 fct = sns.relplot(df.translation_speed[mask], df.rMax[mask], aspect=1.5)
-plt.text(0.0, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)",
+fct.ax.set_ylabel(r"$R_{max}$ (km)")
+fct.ax.set_xlabel(r"Translation speed (km/h)")
+plt.text(0.0, -0.2, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)",
           transform=fct.ax.transAxes, fontsize='x-small', ha='left',)
-plt.text(1.0, -0.15, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
+plt.text(1.0, -0.2, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=fct.ax.transAxes, fontsize='x-small', ha='right')
 plt.savefig(os.path.join(out_path, "RMax - Translation Speed vs RMax.png"), bbox_inches='tight')
 
 # dP vs R34 plot
 fct = sns.relplot(df.dP, df.r34, height=5, aspect=1.5)
-plt.text(0.0, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)", transform=fct.ax.transAxes, fontsize='x-small', ha='left')
-plt.text(1.0, -0.15, f"Created: {datetime.now():%Y-%m-%d %H:%M}", transform=fct.ax.transAxes, fontsize='x-small', ha='right')
+fct.ax.set_xlabel(r"$\Delta p$ (hPa)")
+fct.ax.set_ylabel(r"$R_{34}$ (km)")
+plt.text(0.0, -0.2, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)", transform=fct.ax.transAxes, fontsize='x-small', ha='left')
+plt.text(1.0, -0.2, f"Created: {datetime.now():%Y-%m-%d %H:%M}", transform=fct.ax.transAxes, fontsize='x-small', ha='right')
 plt.savefig(os.path.join(out_path, "R34 - dP vs R34.png"), bbox_inches='tight')
 
 # latitude vs R34 plot
 fct = sns.relplot(df.Latitude, df.r34, aspect=1.5)
-plt.text(0.0, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)",
+fct.ax.set_ylabel(r"$R_{34}$ (km)")
+plt.text(0.0, -0.2, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)",
           transform=fct.ax.transAxes, fontsize='x-small', ha='left',)
-plt.text(1.0, -0.15, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
+plt.text(1.0, -0.2, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=fct.ax.transAxes, fontsize='x-small', ha='right')
 plt.savefig(os.path.join(out_path, "R34 - Latitude vs R34.png"), bbox_inches='tight')
 
 # translation speed vs R34 plot
 mask = df.translation_speed > 0
 fct = sns.relplot(df.translation_speed[mask], df.r34[mask], aspect=1.5)
-plt.text(0.0, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)",
+fct.ax.set_ylabel(r"$R_{34}$ (km)")
+fct.ax.set_xlabel(r"Translation speed (km/h)")
+plt.text(0.0, -0.2, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)",
           transform=fct.ax.transAxes, fontsize='x-small', ha='left',)
-plt.text(1.0, -0.15, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
+plt.text(1.0, -0.2, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=fct.ax.transAxes, fontsize='x-small', ha='right')
 plt.savefig(os.path.join(out_path, "R34 - Translation Speed vs R34.png"), bbox_inches='tight')

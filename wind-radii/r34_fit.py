@@ -13,6 +13,8 @@ from six import string_types
 from lmfit import Model, Minimizer, fit_report, conf_interval, printfuncs, report_fit
 import corner
 from datetime import datetime
+import warnings
+warnings.filterwarnings("ignore")
 
 matplotlib.use('tkagg')
 matplotlib.rcParams['grid.linestyle'] = ':'
@@ -64,19 +66,6 @@ printfuncs.report_ci(ci)
 print(result.chisqr)
 
 #
-# use MCMC to explore the parameter space
-#
-
-rr = mini.emcee(burn=500, steps=10_000)
-
-ll = [r'$\{0}$'.format(v) for v in rr.var_names]
-with sns.plotting_context("notebook"):
-    corner.corner(
-        rr.flatchain, labels=ll, truths=list(rr.params.valuesdict().values()), no_fill_contours=True,
-        fill_contours=False, plot_density=False, quantiles=[0.05, 0.5, 0.95], data_kwargs=dict(color='r', alpha=0.01)
-    )
-
-#
 # normal test of residuals in log space
 #
 
@@ -114,6 +103,7 @@ pred = result.eval(x=np.column_stack((df.dP.values, df.Latitude.values)))
 noise_var = np.var(result.residual)
 noise = np.random.normal(loc=0, size=len(pred), scale=np.sqrt(noise_var))
 rm = np.exp(pred + noise)
+print("Standard deviation:", np.sqrt(noise_var))
 
 sns.set_context("poster")
 sns.set_style("whitegrid")
@@ -123,8 +113,8 @@ ax.scatter(df.dP, df.r34, c='k', edgecolor=None, s=50, marker='x', label='Observ
 ax.set_xlim(0, 100)
 ax.set_xlabel(r"$\Delta p$ (hPa)")
 ax.set_ylabel(r"$R_{34}$ (km)")
-ax.set_yticks(np.arange(0, 201, 25))
-ax.set_ylim(0, 350)
+ax.set_yticks(np.arange(0, 201, 50))
+# ax.set_ylim(0, 350)
 ax.legend(loc=1)
 ax.grid(True)
 plt.text(-0.2, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)",
@@ -198,7 +188,7 @@ ax = sns.kdeplot(df.Latitude[mask], df.r34[mask], cmap='Reds', kwargs={'levels':
 ax = sns.kdeplot(df.Latitude, rm, cmap='Blues', kwargs={'levels':levs})
 ax.set_xlim(-30, 0)
 ax.set_xlabel("Latitude")
-ax.set_ylabel(r"$R_{34}$ (nm)")
+ax.set_ylabel(r"$R_{34}$ (km)")
 ax.set_ylim(0, 350)
 ax.grid(True)
 
