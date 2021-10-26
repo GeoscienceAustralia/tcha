@@ -95,9 +95,10 @@ plt.savefig(os.path.join(out_path, "Rmax residuals.png"), bbox_inches='tight')
 #
 # plot model vs observations
 #
-pred = result.eval(x=X)
+X_all = np.column_stack((df.dP.values, df.Latitude.values))
+pred = result.eval(x=X_all)
 noise_var = np.var(residuals)
-noise = np.random.normal(loc=0, size=len(df), scale=np.sqrt(noise_var))
+noise = np.random.normal(loc=0, size=len(pred), scale=np.sqrt(noise_var))
 rm = np.exp(pred + noise)
 
 sns.set_context("poster")
@@ -148,11 +149,7 @@ def l2score(obs, model):
 
 
 # generate some noisy predictions
-pred = result.eval(x=X)
-noise_var = np.var(residuals)
-noise = np.random.normal(loc=0, size=len(df), scale=np.sqrt(noise_var))
 print("Standard deviation:", np.sqrt(noise_var))
-rm = np.exp(pred + noise)
 
 xx, yy, odp_rmax = bivariate_kde(df.dP,  df.rMax, bw='scott')
 xx, yy, mdp_rmax = bivariate_kde(df.dP, rm, bw='scott')

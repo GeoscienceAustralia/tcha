@@ -94,7 +94,7 @@ plt.savefig(os.path.join(out_path, "R34 - Translation Speed vs R34.png"), bbox_i
 ### plot of the model means
 
 dps = np.linspace(0, 100, 100)
-rmax = np.exp(4.22 - 0.0198 * dps + 0.0023 * 5)
+rmax = np.exp(4.178 - 0.0192 * dps + 0.0033 * 5)
 r34 = np.exp(4.285 + 0.00965 * dps + 0.0269 * 5)
 
 plt.figure()
@@ -110,25 +110,36 @@ plt.savefig(os.path.join(out_path, "radii model means.png"), bbox_inches='tight'
 ########
 ### joint sampling
 
-ln_rmax_mean = 4.22 - 0.0198 * df.dP + 0.0023 * df.Latitude
+ln_rmax_mean = 4.178 - 0.0192 * df.dP + 0.0033 * df.Latitude
 ln_r34_mean = 4.285 + 0.00965 * df.dP + 0.0269 * df.Latitude
 
 # constrained sampling
-noise_rmax = np.random.normal(loc=0, size=len(df), scale=0.4)
-noise_r34 = np.random.normal(loc=0, size=len(df), scale=0.36)
+corrs = []
 
-ln_rmax = ln_rmax_mean + noise_rmax
-mask = ln_r34_mean + noise_r34 < ln_rmax
-while mask.sum() > 0:
-    noise_r34[mask] = np.random.normal(loc=0, size=mask.sum(), scale=0.362)
+for i in range(100):
+    noise_rmax = np.random.normal(loc=0, size=len(df), scale=0.4)
+    noise_r34 = np.random.normal(loc=0, size=len(df), scale=0.36)
+
+    ln_rmax = ln_rmax_mean + noise_rmax
     mask = ln_r34_mean + noise_r34 < ln_rmax
+    while mask.sum() > 0:
+        noise_r34[mask] = np.random.normal(loc=0, size=mask.sum(), scale=0.362)
+        mask = ln_r34_mean + noise_r34 < ln_rmax
 
-corr = np.corrcoef(np.exp(ln_rmax), np.exp(ln_r34_mean + noise_r34))[0, 1]
-print("Constrained sampling correlation coefficient:", np.mean(corr))
+    corr = np.corrcoef(np.exp(ln_rmax), np.exp(ln_r34_mean + noise_r34))
+    corrs.append(corr[0, 1])
 
-noise_shared = np.random.normal(loc=0, size=len(df), scale=1)
+print("Constrained sampling correlation coefficient:", np.mean(corrs))
 
-ln_rmax = ln_rmax_mean + 0.4 * noise_shared
-ln_r34 = ln_r34_mean + 0.36 * noise_shared
-corr = np.corrcoef(np.exp(ln_rmax), np.exp(ln_r34))[0, 1]
-print("Single sampling correlation coefficient:", corr)
+corrs = []
+
+for _ in range(100):
+    noise_shared = np.random.normal(loc=0, size=len(df), scale=1)
+
+    ln_rmax = ln_rmax_mean + 0.4 * noise_shared
+    ln_r34 = ln_r34_mean + 0.36 * noise_shared
+    corr = np.corrcoef(np.exp(ln_rmax), np.exp(ln_r34))
+
+    corrs.append(corr[0, 1])
+
+print("Single sampling correlation coefficient:", np.mean(corrs))
