@@ -109,9 +109,8 @@ plt.savefig(os.path.join(out_path, "radii model means.png"), bbox_inches='tight'
 
 ########
 ### joint sampling
-mask = ~np.isnan(df.r34)
-ln_rmax_mean = 4.178 - 0.0192 * df.dP[mask] + 0.0033 * df.Latitude[mask]
-ln_r34_mean = 4.285 + 0.00965 * df.dP[mask] + 0.0269 * df.Latitude[mask]
+ln_rmax_mean = 4.178 - 0.0192 * df.dP + 0.0033 * np.abs(df.Latitude)
+ln_r34_mean = 4.285 + 0.00965 * df.dP + 0.0269 * np.abs(df.Latitude)
 
 # constrained sampling
 corrs = []
