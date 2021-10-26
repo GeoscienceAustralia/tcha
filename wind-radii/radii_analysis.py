@@ -117,8 +117,8 @@ ln_r34_mean = 4.285 + 0.00965 * df.dP[mask] + 0.0269 * df.Latitude[mask]
 corrs = []
 
 for i in range(100):
-    noise_rmax = np.random.normal(loc=0, size=len(df), scale=0.4)
-    noise_r34 = np.random.normal(loc=0, size=len(df), scale=0.36)
+    noise_rmax = np.random.normal(loc=0, size=len(ln_rmax_mean), scale=0.4)
+    noise_r34 = np.random.normal(loc=0, size=len(ln_rmax_mean), scale=0.36)
 
     ln_rmax = ln_rmax_mean + noise_rmax
     mask = ln_r34_mean + noise_r34 < ln_rmax
@@ -134,7 +134,7 @@ print("Constrained sampling correlation coefficient:", np.mean(corrs))
 corrs = []
 
 for _ in range(100):
-    noise_shared = np.random.normal(loc=0, size=len(df), scale=1)
+    noise_shared = np.random.normal(loc=0, size=len(ln_rmax_mean), scale=1)
 
     ln_rmax = ln_rmax_mean + 0.4 * noise_shared
     ln_r34 = ln_r34_mean + 0.36 * noise_shared
