@@ -13,6 +13,8 @@ from six import string_types
 from lmfit import Model, Minimizer, fit_report, conf_interval, printfuncs, report_fit
 import corner
 from datetime import datetime
+import warnings
+warnings.filterwarnings("ignore")
 
 matplotlib.use('tkagg')
 matplotlib.rcParams['grid.linestyle'] = ':'
@@ -49,17 +51,19 @@ df = load_jtwc_data(input_path)
 # fit the linear model
 #
 
-X = np.column_stack((df.dP.values, df.Latitude.values))
-y = np.log(df.rMax.values)
+mask = ~np.isnan(df.r34.values)
+X = np.column_stack((df.dP.values[mask], df.Latitude.values[mask]))
+y = np.log(df.rMax.values[mask])
+# X = np.column_stack((df.dP.values, df.Latitude.values))
+# y = np.log(df.rMax.values)
 rmod = Model(lin_dp) + Model(lin_lat)
 params = rmod.make_params(alpha=1., beta=-0.001, zeta=.001)
 
-mini = Minimizer(resid, params)
-result = mini.minimize()
-print(fit_report(result.params))
-ci = conf_interval(mini, result)
-printfuncs.report_ci(ci)
-print(result.chisqr)
+params = rmod.make_params(alpha=1., beta=-0.001, zeta=.001)
+result = rmod.fit(y, x=X,  params=params)
+residuals = result.eval(x=X) - y
+print(result.values)
+print("RMSE:", np.sqrt(np.mean(residuals ** 2)))
 
 #
 # normal test of residuals in log space
@@ -68,19 +72,19 @@ print(result.chisqr)
 fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(14, 6))
 
 ax = sns.distplot(
-    result.residual, hist_kws={'ec':'b', 'width':0.05},
+    residuals, hist_kws={'ec':'b', 'width':0.05},
     kde_kws={'label': 'Residuals', 'linestyle': '--'}, ax=ax0, norm_hist=True
 )
-pp = sm.ProbPlot(result.residual, stats.norm, fit=True)
+pp = sm.ProbPlot(residuals, stats.norm, fit=True)
 pp.qqplot('Residuals', 'Normal', line='45', ax=ax1, color='gray', alpha=0.5)
 fig.tight_layout()
 x = np.linspace(-2, 2, 1000)
 
 ax0.legend(loc=0)
 
-fp = stats.norm.fit(result.residual)
+fp = stats.norm.fit(residuals)
 ax0.plot(x, stats.norm.pdf(x, fp[0], fp[1]), label='Normal', color='r')
-print(stats.normaltest(result.residual))
+print(stats.normaltest(residuals))
 ax0.legend()
 plt.text(0.0, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)",
           transform=ax0.transAxes, fontsize='xx-small', ha='left',)
@@ -91,9 +95,8 @@ plt.savefig(os.path.join(out_path, "Rmax residuals.png"), bbox_inches='tight')
 #
 # plot model vs observations
 #
-result = rmod.fit(y, x=X, params=params)
 pred = result.eval(x=X)
-noise_var = np.var(result.residual)
+noise_var = np.var(residuals)
 noise = np.random.normal(loc=0, size=len(df), scale=np.sqrt(noise_var))
 rm = np.exp(pred + noise)
 
@@ -146,8 +149,9 @@ def l2score(obs, model):
 
 # generate some noisy predictions
 pred = result.eval(x=X)
-noise_var = np.var(result.residual)
+noise_var = np.var(residuals)
 noise = np.random.normal(loc=0, size=len(df), scale=np.sqrt(noise_var))
+print("Standard deviation:", np.sqrt(noise_var))
 rm = np.exp(pred + noise)
 
 xx, yy, odp_rmax = bivariate_kde(df.dP,  df.rMax, bw='scott')

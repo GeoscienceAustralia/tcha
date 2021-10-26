@@ -57,13 +57,14 @@ X = np.column_stack((df.dP.values[mask], df.Latitude.values[mask]))
 y = np.log(df.r34.values[mask])
 rmod = Model(lin_dp) + Model(lin_lat)
 params = rmod.make_params(alpha=1., beta=-0.001, zeta=.001)
+params['alpha'].set(min=4.722)
 
 mini = Minimizer(resid, params)
 result = mini.minimize()
 print(fit_report(result.params))
-ci = conf_interval(mini, result)
-printfuncs.report_ci(ci)
-print(result.chisqr)
+# ci = conf_interval(mini, result)
+# printfuncs.report_ci(ci)
+print("RMSE:", np.sqrt(np.mean(result.residual ** 2)))
 
 #
 # normal test of residuals in log space
@@ -200,3 +201,33 @@ plt.text(-0.2, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(acce
 plt.text(1.0, -0.15, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=ax.transAxes, fontsize='xx-small', ha='right')
 plt.savefig(os.path.join(out_path, "R34 - lat R34 model distribution.png"), bbox_inches='tight')
+
+###
+# constrained model
+noise = np.random.normal(loc=0, size=len(pred), scale=np.sqrt(noise_var))
+ln_rmax = 4.22 - 0.0198 * df.dP + 0.0023 * np.abs(df.Latitude)
+ln_rmax += np.random.normal(loc=0, size=len(df), scale=0.401)
+
+# if r34 <
+mask = pred + noise < ln_rmax
+while mask.sum() > 0:
+    noise[mask] = np.random.normal(loc=0, size=mask.sum(), scale=np.sqrt(noise_var))
+    mask = pred + noise < ln_rmax
+
+sns.set_context("poster")
+sns.set_style("whitegrid")
+fig, ax = plt.subplots(1, 1, figsize=(12, 8), sharey=True)
+ax.scatter(df.dP, rm, c='b', cmap=sns.light_palette('blue', as_cmap=True), s=40, label='Model', alpha=0.5)
+ax.scatter(df.dP, df.r34, c='k', edgecolor=None, s=50, marker='x', label='Observations')
+ax.set_xlim(0, 100)
+ax.set_xlabel(r"$\Delta p$ (hPa)")
+ax.set_ylabel(r"$R_{34}$ (km)")
+ax.set_yticks(np.arange(0, 201, 50))
+# ax.set_ylim(0, 350)
+ax.legend(loc=1)
+ax.grid(True)
+plt.text(-0.2, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)",
+          transform=ax.transAxes, fontsize='xx-small', ha='left',)
+plt.text(1.0, -0.15, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
+         transform=ax.transAxes, fontsize='xx-small', ha='right')
+plt.savefig(os.path.join(out_path, "Constrained R34 - model-obs.png"), bbox_inches='tight')

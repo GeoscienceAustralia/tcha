@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib
 from jtwc import load_jtwc_data
+import warnings
+warnings.filterwarnings("ignore")
 
 matplotlib.use('tkagg')
 
@@ -87,3 +89,46 @@ plt.text(0.0, -0.2, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(access
 plt.text(1.0, -0.2, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=fct.ax.transAxes, fontsize='x-small', ha='right')
 plt.savefig(os.path.join(out_path, "R34 - Translation Speed vs R34.png"), bbox_inches='tight')
+
+#########
+### plot of the model means
+
+dps = np.linspace(0, 100, 100)
+rmax = np.exp(4.22 - 0.0198 * dps + 0.0023 * 5)
+r34 = np.exp(4.285 + 0.00965 * dps + 0.0269 * 5)
+
+plt.figure()
+ax = sns.lineplot(dps, rmax, label=r'$R_{max}$')
+sns.lineplot(dps, r34, label='$R_{34}$')
+ax.set_xlabel(r'$\Delta p$ (hPa)')
+ax.set_ylabel(r'Radius')
+plt.text(1.0, -0.2, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
+         transform=ax.transAxes, fontsize='x-small', ha='right')
+plt.savefig(os.path.join(out_path, "radii model means.png"), bbox_inches='tight')
+
+
+########
+### joint sampling
+
+ln_rmax_mean = 4.22 - 0.0198 * df.dP + 0.0023 * df.Latitude
+ln_r34_mean = 4.285 + 0.00965 * df.dP + 0.0269 * df.Latitude
+
+# constrained sampling
+noise_rmax = np.random.normal(loc=0, size=len(df), scale=0.4)
+noise_r34 = np.random.normal(loc=0, size=len(df), scale=0.36)
+
+ln_rmax = ln_rmax_mean + noise_rmax
+mask = ln_r34_mean + noise_r34 < ln_rmax
+while mask.sum() > 0:
+    noise_r34[mask] = np.random.normal(loc=0, size=mask.sum(), scale=0.362)
+    mask = ln_r34_mean + noise_r34 < ln_rmax
+
+corr = np.corrcoef(np.exp(ln_rmax), np.exp(ln_r34_mean + noise_r34))[0, 1]
+print("Constrained sampling correlation coefficient:", np.mean(corr))
+
+noise_shared = np.random.normal(loc=0, size=len(df), scale=1)
+
+ln_rmax = ln_rmax_mean + 0.4 * noise_shared
+ln_r34 = ln_r34_mean + 0.36 * noise_shared
+corr = np.corrcoef(np.exp(ln_rmax), np.exp(ln_r34))[0, 1]
+print("Single sampling correlation coefficient:", corr)
