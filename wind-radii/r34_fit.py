@@ -231,3 +231,18 @@ plt.text(-0.2, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(acce
 plt.text(1.0, -0.15, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=ax.transAxes, fontsize='xx-small', ha='right')
 plt.savefig(os.path.join(out_path, "Constrained R34 - model-obs.png"), bbox_inches='tight')
+
+
+##### historical extreme events
+extreme_arr = np.array([
+    [55, 54, -12.5],
+    [1100, 143, 16],
+    [152, 89, -11.7],
+])
+
+extreme_df = pd.DataFrame(
+    extreme_arr, columns=['R34', 'dP', 'Latitude'],
+    index=['Tracey', 'Tip', 'Monica'])
+x = np.column_stack([extreme_arr[:, 1], extreme_arr[:, 2]])
+extreme_df['R34 model mean'] = np.exp(result.eval(x=x))
+print(extreme_df)
