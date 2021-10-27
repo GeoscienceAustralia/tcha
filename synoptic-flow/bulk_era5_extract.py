@@ -47,5 +47,5 @@ for i, row in enumerate(list(df.itertuples())[:10]):
 
 
 print(time.time() - t0, 's')
-np.save("era5_dump.np", out)
+np.save(os.path.expanduser("~/era5_dump.np"), out)
 
