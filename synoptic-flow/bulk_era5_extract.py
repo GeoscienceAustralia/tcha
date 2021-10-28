@@ -15,11 +15,11 @@ df.Datetime = pd.to_datetime(df.Datetime)
 
 t0 = time.time()
 
-out = np.empty((len(df), 6, 51, 51))
+out = np.empty((len(df), 6, 6, 51, 51))
 prev_eventid = None
 prev_month = None
 
-for i, row in enumerate(list(df.itertuples())[:]):
+for i, row in enumerate(list(df.itertuples())[:10]):
     timestamp = row.Datetime
 
     month = timestamp.month
@@ -31,6 +31,7 @@ for i, row in enumerate(list(df.itertuples())[:]):
 
     lat_slice = slice(lat_cntr + 6.25, lat_cntr - 6.25)
     long_slice = slice(lon_cntr - 6.25, lon_cntr + 6.25)
+    time_slice = slice(timestamp, timestamp + np.timedelta64(6, 'h'))
 
     ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
     vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
@@ -47,5 +48,5 @@ for i, row in enumerate(list(df.itertuples())[:]):
 
 
 print(time.time() - t0, 's')
-np.save(os.path.expanduser("~/era5_dump.np"), out)
+np.save(os.path.expanduser("~/era5_time_series_dump.np"), out)
 
