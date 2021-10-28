@@ -37,14 +37,14 @@ for i, row in enumerate(list(df.itertuples())[:10]):
     vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
 
     uds = xr.open_dataset(ufile, chunks='auto')
-    out[i, 0, ...] = uds.u.sel(time=timestamp, level=200, longitude=long_slice, latitude=lat_slice).compute()
-    out[i, 1, ...] = uds.u.sel(time=timestamp, level=500, longitude=long_slice, latitude=lat_slice).compute()
-    out[i, 2, ...] = uds.u.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
+    out[i, 0, ...] = uds.u.sel(time=time_slice, level=200, longitude=long_slice, latitude=lat_slice).compute()
+    out[i, 1, ...] = uds.u.sel(time=time_slice, level=500, longitude=long_slice, latitude=lat_slice).compute()
+    out[i, 2, ...] = uds.u.sel(time=time_slice, level=850, longitude=long_slice, latitude=lat_slice).compute()
 
     vds = xr.open_dataset(vfile, chunks='auto')
-    out[i, 3, ...] = vds.v.sel(time=timestamp, level=200, longitude=long_slice, latitude=lat_slice).compute()
-    out[i, 4, ...] = vds.v.sel(time=timestamp, level=500, longitude=long_slice, latitude=lat_slice).compute()
-    out[i, 5, ...] = vds.v.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
+    out[i, 3, ...] = vds.v.sel(time=time_slice, level=200, longitude=long_slice, latitude=lat_slice).compute()
+    out[i, 4, ...] = vds.v.sel(time=time_slice, level=500, longitude=long_slice, latitude=lat_slice).compute()
+    out[i, 5, ...] = vds.v.sel(time=time_slice, level=850, longitude=long_slice, latitude=lat_slice).compute()
 
 
 print(time.time() - t0, 's')
