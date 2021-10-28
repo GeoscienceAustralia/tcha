@@ -31,7 +31,7 @@ for i, row in enumerate(list(df.itertuples())[:10]):
 
     lat_slice = slice(lat_cntr + 6.25, lat_cntr - 6.25)
     long_slice = slice(lon_cntr - 6.25, lon_cntr + 6.25)
-    time_slice = slice(timestamp, timestamp + np.timedelta64(6, 'h'))
+    time_slice = slice(timestamp, timestamp + np.timedelta64(5, 'h'))
 
     ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
     vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
