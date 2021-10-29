@@ -27,7 +27,7 @@ for i, row in enumerate(list(df.itertuples())[:]):
     days = monthrange(year, month)[1]
 
     lat_cntr = 0.25 * np.round(row.Latitude * 4)
-    lon_cntr = 0.25 * np.round(row.Latitude * 4)
+    lon_cntr = 0.25 * np.round(row.Longitude * 4)
 
     lat_slice = slice(lat_cntr + 6.25, lat_cntr - 6.25)
     long_slice = slice(lon_cntr - 6.25, lon_cntr + 6.25)
