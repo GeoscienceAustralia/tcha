@@ -38,15 +38,30 @@ for i, row in enumerate(list(df.itertuples())[:]):
     vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
 
     uds = xr.open_dataset(ufile, chunks='auto')
-    out[i, 0, ...] = uds.u.sel(time=timestamp, level=200, longitude=long_slice, latitude=lat_slice).compute()
-    out[i, 1, ...] = uds.u.sel(time=timestamp, level=500, longitude=long_slice, latitude=lat_slice).compute()
-    out[i, 2, ...] = uds.u.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
 
-    vds = xr.open_dataset(vfile, chunks='auto')
-    out[i, 3, ...] = vds.v.sel(time=timestamp, level=200, longitude=long_slice, latitude=lat_slice).compute()
-    out[i, 4, ...] = vds.v.sel(time=timestamp, level=500, longitude=long_slice, latitude=lat_slice).compute()
-    out[i, 5, ...] = vds.v.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
+    try:
+        out[i, 0, ...] = uds.u.sel(time=timestamp, level=200, longitude=long_slice, latitude=lat_slice).compute()
+        out[i, 1, ...] = uds.u.sel(time=timestamp, level=500, longitude=long_slice, latitude=lat_slice).compute()
+        out[i, 2, ...] = uds.u.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
 
+        vds = xr.open_dataset(vfile, chunks='auto')
+        out[i, 3, ...] = vds.v.sel(time=timestamp, level=200, longitude=long_slice, latitude=lat_slice).compute()
+        out[i, 4, ...] = vds.v.sel(time=timestamp, level=500, longitude=long_slice, latitude=lat_slice).compute()
+        out[i, 5, ...] = vds.v.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
+    except ValueError:
+        arr = uds.u.sel(time=timestamp, level=200, longitude=long_slice, latitude=lat_slice).compute()
+        offset = 51 - arr.shape[1]
+
+        out[i, 0, :, offset:] = arr
+        out[i, 1, :, offset:] = uds.u.sel(time=timestamp, level=500, longitude=long_slice, latitude=lat_slice).compute()
+        out[i, 2, :, offset:] = uds.u.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
+
+        vds = xr.open_dataset(vfile, chunks='auto')
+        out[i, 3, :, offset:] = vds.v.sel(time=timestamp, level=200, longitude=long_slice, latitude=lat_slice).compute()
+        out[i, 4, :, offset:] = vds.v.sel(time=timestamp, level=500, longitude=long_slice, latitude=lat_slice).compute()
+        out[i, 5, :, offset:] = vds.v.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
+
+        out[i, :, :, :offset] = np.nan
 
 print(time.time() - t0, 's')
 np.save(os.path.expanduser("~/era5_dump"), out)
