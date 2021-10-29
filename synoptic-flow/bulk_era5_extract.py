@@ -19,7 +19,7 @@ out = np.empty((len(df), 6, 6, 51, 51))
 prev_eventid = None
 prev_month = None
 
-for i, row in enumerate(list(df.itertuples())[:]):
+for i, row in enumerate(list(df.itertuples())[:10]):
     timestamp = row.Datetime
 
     month = timestamp.month
