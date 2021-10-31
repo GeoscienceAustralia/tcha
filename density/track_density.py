@@ -98,7 +98,7 @@ def gridDensity(tracks: gpd.GeoDataFrame, grid: gpd.GeoDataFrame,
     Calculate the count of events passing across each grid cell
     """
     dfjoin = gpd.sjoin(grid, tracks)
-    df2 = dfjoin.groupby(grid_id_field)[storm_id_field].nunique()
+    df2 = dfjoin.groupby(grid_id_field).agg({storm_id_field:'nunique'})
     dfcount = grid.merge(df2, how='left', left_on=grid_id_field, right_index=True)
     dfcount[storm_id_field] = dfcount[storm_id_field].fillna(0)
     dfcount.rename(columns = {storm_id_field:'storm_count'}, inplace = True)
@@ -123,6 +123,30 @@ def plot_density(dataArray: xr.DataArray, source: str, outputFile: str):
     gl.xlabel_style = {'size': 'small'}
     gl.ylabel_style = {'size': 'small'}
 
+    plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
+             transform=ax.transAxes, ha='right', fontsize='xx-small',)
+    plt.text(0.0, -0.1, f"Source: {source}", transform=ax.transAxes, fontsize='xx-small', ha='left',)
+    plt.savefig(outputFile, bbox_inches='tight')
+    plt.close()
+
+def plot_density_difference(dataArray: xr.DataArray, source: str, outputFile: str):
+    """
+    Plot difference in track density and save figure to file
+    """
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    ax.figure.set_size_inches(10,6)
+    cb = plt.contourf(xx, yy, dataArray.T, cmap='bwr',
+                      transform=ccrs.PlateCarree(),
+                      levels=np.arange(-0.2, .21, 0.02),
+                      extend='both')
+    plt.colorbar(cb, label="Difference TCs/year", shrink=0.9)
+    ax.coastlines()
+    gl = ax.gridlines(draw_labels=True, linestyle=":")
+    gl.top_labels = False
+    gl.right_labels = False
+    gl.xlabel_style = {'size': 'small'}
+    gl.ylabel_style = {'size': 'small'}
+    plt.title("Difference in mean track density (1981-2020 - 1951-2020)")
     plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
              transform=ax.transAxes, ha='right', fontsize='xx-small',)
     plt.text(0.0, -0.1, f"Source: {source}", transform=ax.transAxes, fontsize='xx-small', ha='left',)
@@ -173,18 +197,20 @@ usecols = [0, 1, 2, 7, 8, 16, 49, 53]
 colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
             'CENTRAL_PRES', 'MAX_WIND_SPD', 'MAX_WIND_GUST']
 dtypes = [str, str, str, float, float, float, float, float]
-df = pd.read_csv(dataFile, skiprows=4, usecols=usecols,
+sourcedf = pd.read_csv(dataFile, skiprows=4, usecols=usecols,
                  dtype=dict(zip(colnames, dtypes)),
                  na_values=[' '])
 
-df = filter_tracks_domain(df, 90, 160, -40, 0,
+sourcedf = filter_tracks_domain(sourcedf, 90, 160, -40, 0,
                           'DISTURBANCE_ID', 'LAT', 'LON')
 
-df['TM']= pd.to_datetime(df.TM, format="%Y-%m-%d %H:%M", errors='coerce')
-df['year'] = pd.DatetimeIndex(df['TM']).year
-df['month'] = pd.DatetimeIndex(df['TM']).month
-df['season'] = df[['year', 'month']].apply(lambda x: season(*x), axis=1)
-df = df[df.season >= 1981]
+sourcedf['TM']= pd.to_datetime(sourcedf.TM, format="%Y-%m-%d %H:%M", errors='coerce')
+sourcedf['year'] = pd.DatetimeIndex(sourcedf['TM']).year
+sourcedf['month'] = pd.DatetimeIndex(sourcedf['TM']).month
+sourcedf['season'] = sourcedf[['year', 'month']].apply(lambda x: season(*x), axis=1)
+
+# Calculate track density for 1981-2020
+df = sourcedf[sourcedf.season >= 1981]
 nseasons = df.season.max() - df.season.min() + 1
 
 dfstorm = addGeometry(df, storm_id_field, 'LON', 'LAT')
@@ -193,7 +219,6 @@ dfcount['density'] = dfcount['storm_count'] / nseasons
 
 tdarray = dfcount['density'].values.reshape(dims) # td = tropical cyclone *density*
 tcarray = dfcount['storm_count'].values.reshape(dims) # tc = tropical cyclone *count*
-
 da = xr.DataArray(tdarray, coords=[lon, lat], dims=['lon', 'lat'],
                   attrs=dict(long_name='Mean annual TC frequency',
                              units='TCs/year'))
@@ -204,6 +229,8 @@ ds = xr.Dataset({'density': da,
                  'count': dc},
                 attrs=dict(
                     description="Mean annual TC frequency",
+                    start_year=1981,
+                    end_year=2020,
                     source="http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv",
                     history=f"{datetime.now():%Y-%m-%d %H:%M}: {sys.argv[0]}"
                 ))
@@ -211,7 +238,49 @@ ds = xr.Dataset({'density': da,
 ds.to_netcdf(pjoin(outputPath, "mean_track_density.nc"))
 plot_density(da, "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv", pjoin(outputPath, "mean_track_density.png"))
 
+# Calculate track density for 1951-2020
+df = sourcedf[sourcedf.season >= 1951]
+nseasons = df.season.max() - df.season.min() + 1
 
+dfstorm = addGeometry(df, storm_id_field, 'LON', 'LAT')
+dfcount = gridDensity(dfstorm, dfgrid, grid_id_field, storm_id_field)
+dfcount['density'] = dfcount['storm_count'] / nseasons
+
+tdarray = dfcount['density'].values.reshape(dims) # td = tropical cyclone *density*
+tcarray = dfcount['storm_count'].values.reshape(dims) # tc = tropical cyclone *count*
+
+da1951 = xr.DataArray(tdarray, coords=[lon, lat], dims=['lon', 'lat'],
+                  attrs=dict(long_name='Mean annual TC frequency',
+                             units='TCs/year'))
+dc1951 = xr.DataArray(tcarray, coords=[lon, lat], dims=['lon', 'lat'],
+                  attrs=dict(long_name='Total TC count',
+                             units='TCs'))
+ds = xr.Dataset({'density': da1951,
+                 'count': dc1951},
+                attrs=dict(
+                    description="Mean annual TC frequency, 1951-2020",
+                    start_year=1951,
+                    end_year=2020,
+                    source="http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv",
+                    history=f"{datetime.now():%Y-%m-%d %H:%M}: {sys.argv[0]}"
+                ))
+
+ds.to_netcdf(pjoin(outputPath, "mean_track_density.1951-2020.nc"))
+plot_density(da1951, "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv", pjoin(outputPath, "mean_track_density.1951-2020.png"))
+
+diffda = da - da1951
+ds = xr.Dataset({'density': diffda},
+                attrs=dict(
+                    description="Difference in mean annual TC frequency",
+                    reference_period="1981-2020",
+                    difference_period="1951-2020",
+                    source="http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv",
+                    history=f"{datetime.now():%Y-%m-%d %H:%M}: {sys.argv[0]}"
+                ))
+ds.to_netcdf(pjoin(outputPath, "mean_track_density_difference.nc"))
+plot_density_difference(diffda, "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv", pjoin(outputPath, "mean_track_density_difference.png"))
+
+# Process Objective TC Reanalysis
 dataFile = pjoin(inputPath, r"Objective Tropical Cyclone Reanalysis - QC.csv")
 source="http://www.bom.gov.au/cyclone/history/database/OTCR_alldata_final_external.csv"
 usecols = [0, 1, 2, 7, 8, 11, 12]
