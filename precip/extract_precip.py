@@ -28,7 +28,7 @@ precipcolorseq=['#FFFFFF', '#ceebfd', '#87CEFA', '#4969E1', '#228B22',
                 '#FF6600', '#FF0000', '#B30000', '#73264d']
 precipcmap = sns.blend_palette(precipcolorseq, len(precipcolorseq), as_cmap=True)
 preciplevels = [1.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0, 300.0, 400.0, 500.0]
-cbar_kwargs = {"shrink":0.9, 'ticks': preciplevels,}
+cbar_kwargs = {"shrink":0.9, 'ticks': preciplevels, 'label': 'Accumulated precipitation [kg m**-2]'}
 
 erasource = "ECMWF Reanalysis version 5\nhttps://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels"
 tcsource = "IBTrACS v4.0\nhttps://www.ncdc.noaa.gov/ibtracs/"
@@ -135,9 +135,11 @@ def extract(sid: str, track: pd.DataFrame, outputPath: str):
             'units': 'kg m**-2'
             })
     outds = dsfootprint.to_dataset(name='pr', promote_attrs=True)
+    outds.pr.attrs['units'] = 'kg m**-2'
+    outds.pr.attrs['long_name'] = 'Total hourly rainfall amount'
+    outds.pr.attrs['standard_name'] = 'precipitation_amount'
     LOGGER.info(f"Saving data for {sid} to {outputPath}")
     outds.to_netcdf(pjoin(outputPath, f"{sid}_precip.nc"))
-
     plot_precip(outds.pr, track[['LON', 'LAT']], pjoin(outputPath, f"{sid}_precip.png"))
 
     return
