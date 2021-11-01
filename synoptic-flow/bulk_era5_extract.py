@@ -16,7 +16,7 @@ df.Datetime = pd.to_datetime(df.Datetime)
 t0 = time.time()
 
 # out = np.empty((len(df), 6, 6, 51, 51))
-out = np.empty((len(df), 6, 51, 51))
+out = np.empty((len(df), 2 * 14, 51, 51))
 prev_eventid = None
 prev_month = None
 
@@ -33,6 +33,7 @@ for i, row in enumerate(list(df.itertuples())[:]):
     lat_slice = slice(lat_cntr + 6.25, lat_cntr - 6.25)
     long_slice = slice(lon_cntr - 6.25, lon_cntr + 6.25)
     time_slice = slice(timestamp, timestamp + np.timedelta64(5, 'h'))
+    pslice = slice(300, 850)
 
     ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
     vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
@@ -40,26 +41,17 @@ for i, row in enumerate(list(df.itertuples())[:]):
     uds = xr.open_dataset(ufile, chunks='auto')
 
     try:
-        out[i, 0, ...] = uds.u.sel(time=timestamp, level=200, longitude=long_slice, latitude=lat_slice).compute()
-        out[i, 1, ...] = uds.u.sel(time=timestamp, level=500, longitude=long_slice, latitude=lat_slice).compute()
-        out[i, 2, ...] = uds.u.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
-
+        out[i, :14, ...] = uds.u.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
         vds = xr.open_dataset(vfile, chunks='auto')
-        out[i, 3, ...] = vds.v.sel(time=timestamp, level=200, longitude=long_slice, latitude=lat_slice).compute()
-        out[i, 4, ...] = vds.v.sel(time=timestamp, level=500, longitude=long_slice, latitude=lat_slice).compute()
-        out[i, 5, ...] = vds.v.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
+        out[i, 14:, ...] = vds.v.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
     except ValueError:
-        arr = uds.u.sel(time=timestamp, level=200, longitude=long_slice, latitude=lat_slice).compute()
-        offset = 51 - arr.shape[1]
+        arr = uds.u.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
+        offset = 51 - arr.shape[-1]
 
-        out[i, 0, :, :-offset] = arr
-        out[i, 1, :, :-offset] = uds.u.sel(time=timestamp, level=500, longitude=long_slice, latitude=lat_slice).compute()
-        out[i, 2, :, :-offset] = uds.u.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
+        out[i, :14, :, :-offset] = arr
 
         vds = xr.open_dataset(vfile, chunks='auto')
-        out[i, 3, :, :-offset] = vds.v.sel(time=timestamp, level=200, longitude=long_slice, latitude=lat_slice).compute()
-        out[i, 4, :, :-offset] = vds.v.sel(time=timestamp, level=500, longitude=long_slice, latitude=lat_slice).compute()
-        out[i, 5, :, :-offset] = vds.v.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
+        out[i, 14:, :, :-offset] = vds.v.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
 
         out[i, :, :, -offset:] = np.nan
 
