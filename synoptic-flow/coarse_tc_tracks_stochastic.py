@@ -24,6 +24,17 @@ lats = [None]
 lons = [None]
 ids = set()
 
+mat = np.array([
+    [0.33497787,  1.6584962 ,  1.36592335, -0.2392938 ,  0.03324952, 0.42346533],
+    [0.0097799 , -0.19549655, -0.10247046,  0.25220198,  1.58043784, 1.31665305]
+])
+
+beta_drift = np.array([-4.17982995, -0.62322132])
+
+df.Datetime = pd.to_datetime(df.Datetime)
+dts = df.groupby('eventid').agg({'Datetime': max}) - df.groupby('eventid').agg({'Datetime': min})
+dts.Datetime = (dts.Datetime.astype('timedelta64[h]') // 6) + 1
+
 for row in list(df.itertuples())[:]:
 
     if row.eventid not in ids:
@@ -45,29 +56,30 @@ for row in list(df.itertuples())[:]:
     year = timestamp.year
     days = monthrange(year, month)[1]
 
-    lat_slice = slice(lats[-1] + 0.5, lats[-1] - 0.5)
-    long_slice = slice(lons[-1] - 0.5, lons[-1] + 0.5)
+    lat_cntr = lats[-1]
+    lon_cntr = lons[-1]
+    lat_slice = slice(lat_cntr + 6.25, lat_cntr - 6.25)
+    long_slice = slice(lon_cntr - 6.25, lon_cntr + 6.25)
 
     ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
     vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
 
     uds = xr.open_dataset(ufile, chunks='auto')
-    uds_850 = uds.u.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
-    uds_250 = uds.u.sel(time=timestamp, level=250, longitude=long_slice, latitude=lat_slice).compute()
-
     vds = xr.open_dataset(vfile, chunks='auto')
-    vds_850 = vds.v.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
-    vds_250 = vds.v.sel(time=timestamp, level=250, longitude=long_slice, latitude=lat_slice).compute()
 
     try:
-        uds_interp_850 = uds_850.interp(latitude=lats[-1], longitude=lons[-1])
-        vds_interp_850 = vds_850.interp(latitude=lats[-1], longitude=lons[-1])
+        arr = np.empty(6)
+        arr[0] = uds.u.sel(time=timestamp, level=200, longitude=long_slice, latitude=lat_slice).compute().mean()
+        arr[1] = uds.u.sel(time=timestamp, level=500, longitude=long_slice, latitude=lat_slice).compute().mean()
+        arr[2] = uds.u.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute().mean()
 
-        uds_interp_250 = uds_250.interp(latitude=lats[-1], longitude=lons[-1])
-        vds_interp_250 = vds_250.interp(latitude=lats[-1], longitude=lons[-1])
+        arr[3] = vds.v.sel(time=timestamp, level=200, longitude=long_slice, latitude=lat_slice).compute().mean()
+        arr[4] = vds.v.sel(time=timestamp, level=500, longitude=long_slice, latitude=lat_slice).compute().mean()
+        arr[5] = vds.v.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute().mean()
 
-        u = -3.0575 + 0.4897 * uds_interp_850 + 0.6752 * uds_interp_250 + np.random.normal(loc=0, size=1, scale=10.85)[0]
-        v = -5.1207 + 0.3257 * vds_interp_850 + 0.1502 * vds_interp_250 + np.random.normal(loc=0, size=1, scale=7.232)[0]
+        vel = mat.dot(arr) + beta_drift
+        u = vel[0] + np.random.normal(loc=0, size=1, scale=5.8)[0]
+        v = vel[1] + np.random.normal(loc=0, size=1, scale=4.4)[0]
 
         dt = 6  # hours
         bearing = np.arctan(u / v) * 180 / np.pi
@@ -91,4 +103,4 @@ lons = lons[:len(df)]
 
 df['lats_sim'] = np.array(lats)
 df['lons_sim'] = np.array(lons)
-df.to_csv(os.path.expanduser("~/coarse_tc_tracks_stochastic.csv"))
+df.to_csv(os.path.expanduser("~/coarse_tc_tracks.csv"))
