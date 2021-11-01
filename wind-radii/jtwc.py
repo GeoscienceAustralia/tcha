@@ -134,7 +134,7 @@ def loadFile(filename: str) -> pd.DataFrame:
     return df
 
 
-def load_jtwc_data(path):
+def load_jtwc_data(path, savepath=None):
     alltracks = []
     for file in os.listdir(path):
         if fnmatch.fnmatch(file, "bsh*.txt") or fnmatch.fnmatch(file, "bsh*.dat"):
@@ -174,19 +174,22 @@ def load_jtwc_data(path):
     df.sort_values(by=['eventid', 'Datetime'], inplace=True)
     df.reset_index(inplace=True, drop=True)
     df['new_index'] = np.arange(len(df))
-    idxs = df.groupby(['eventid']).agg({'new_index': np.min}).values
+    idxs = df.groupby(['eventid']).agg({'new_index': np.max}).values
     df.drop('new_index', axis=1, inplace=True)
 
-    # translation speed is calculated via backward difference
+    # translation speed is calculated via forward difference
     # using the vincenty distance which is probably overkill
     dt = np.diff(df.Datetime) / (3600 * np.timedelta64(1, 's'))  # in hours
     coords = df[["Latitude", "Longitude"]].values
     dists = [vincenty(coords[i], coords[i + 1]) for i in range(len(coords) - 1)]
     speed = np.zeros(len(df))
-    speed[1:] = np.array(dists) / dt
+    speed[:-1] = np.array(dists) / dt
 
     # translation speed of the last record of each TC is set to 0
     speed[idxs] = 0
     df['translation_speed'] = speed
+
+    if savepath is not None:
+        df.to_csv(os.path.expanduser(savepath))
 
     return df
