@@ -105,6 +105,27 @@ def gridDensity(tracks: gpd.GeoDataFrame, grid: gpd.GeoDataFrame,
     dfcount['storm_count'] = dfcount['storm_count'].fillna(0)
     return dfcount
 
+def gridDensityBootstrap(tracks: gpd.GeoDataFrame, grid: gpd.GeoDataFrame,
+                         grid_id_field: str, storm_id_field: str):
+    """
+    Use a jackknife bootstrap approach to calculate a mean track density
+
+    """
+    seasons = tracks.season.values
+    # Remember we are leaving out one season each time...
+    nseasons = seasons.max() - seasons.min() - 2
+    outputframes = []
+    for season in seasons:
+        dfcount = gridDensity(tracks[tracks.season!=season], grid, grid_id_field, storm_id_field)
+        retval = dfcount['storm_count'] / nseasons
+        outputframes.append(retval)
+
+    outdf = pd.concat(outputframes)
+    outdf['mean'] = outdf.mean(axis=1)
+    outdf['std'] = outdf.std(axis=1)
+    return outdf[['mean', 'std']]
+    breakpoint()
+
 def plot_density(dataArray: xr.DataArray, source: str, outputFile: str):
     """
     Plot track density and save figure to file
@@ -237,6 +258,27 @@ ds = xr.Dataset({'density': da,
 
 ds.to_netcdf(pjoin(outputPath, "mean_track_density.nc"))
 plot_density(da, "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv", pjoin(outputPath, "mean_track_density.png"))
+
+dfjk = gridDensityBootstrap(dfstorm, dfgrid, grid_id_field, storm_id_field)
+mdarray = dfjk['mean'].values.reshape(dims)
+sdarray = dfjk['std'].values.reshape(dims)
+da = xr.DataArray(mdarray, coords=[lon, lat], dims=['lon', 'lat'],
+                  attrs=dict(long_name='Mean annual TC frequency',
+                             units='TCs/year'))
+dc = xr.DataArray(sdarray, coords=[lon, lat], dims=['lon', 'lat'],
+                  attrs=dict(long_name='Std dev of TC density',
+                             units=''))
+ds = xr.Dataset({'density': da,
+                 'std': dc},
+                attrs=dict(
+                    description="Mean annual TC frequency evaluated using bootstrap resampling",
+                    start_year=1981,
+                    end_year=2020,
+                    source="http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv",
+                    history=f"{datetime.now():%Y-%m-%d %H:%M}: {sys.argv[0]}"
+                ))
+
+ds.to_netcdf(pjoin(outputPath, "mean_track_density.bootstrap.nc"))
 
 # Calculate track density for 1951-2020
 df = sourcedf[sourcedf.season >= 1951]
