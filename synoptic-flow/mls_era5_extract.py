@@ -34,7 +34,7 @@ for i, row in enumerate(list(df.itertuples())[:]):
     long_slice = slice(lon_cntr - 6.25, lon_cntr + 6.25)
     time_slice = slice(timestamp, timestamp + np.timedelta64(5, 'h'))
 
-    mslfile = f"{prefix}/msl/{year}/msl_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
+    mslfile = f"{prefix}/msl/{year}/msl_era5_oper_sfc_{year}{month:02d}01-{year}{month:02d}{days}.nc"
 
     mslds = xr.open_dataset(mslfile, chunks='auto')
     arr = mslds.u.sel(time=timestamp, longitude=long_slice, latitude=lat_slice).compute()
