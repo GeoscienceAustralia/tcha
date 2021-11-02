@@ -97,7 +97,7 @@ for row in list(df.itertuples())[:]:
         # find the vortex
         long_mesh, lat_mesh,  = np.meshgrid(u_env.coords['longitude'], u_env.coords['latitude'])
         dists = [
-            vincenty((lats[-1], lons[-1]), (lat_mesh.flatten()[i], long_mesh.flatten()[i]))
+            geodesic((lats[-1], lons[-1]), (lat_mesh.flatten()[i], long_mesh.flatten()[i])).km
             for i in range(len(long_mesh.flatten()))
         ]
         dists = np.array(dists).reshape(long_mesh.shape)
