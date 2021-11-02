@@ -37,7 +37,7 @@ for i, row in enumerate(list(df.itertuples())[:]):
     mslfile = f"{prefix}/msl/{year}/msl_era5_oper_sfc_{year}{month:02d}01-{year}{month:02d}{days}.nc"
 
     mslds = xr.open_dataset(mslfile, chunks='auto')
-    arr = mslds.u.sel(time=timestamp, longitude=long_slice, latitude=lat_slice).compute()
+    arr = mslds.msl.sel(time=timestamp, longitude=long_slice, latitude=lat_slice).compute()
     try:
         out[i] = arr
     except ValueError:
