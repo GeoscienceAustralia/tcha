@@ -15,8 +15,8 @@ df.Datetime = pd.to_datetime(df.Datetime)
 
 t0 = time.time()
 
-uout = np.empty(10, 161, 361)
-vout = np.empty(10, 161, 361)
+uout = np.empty((10, 161, 361))
+vout = np.empty((10, 161, 361))
 
 prev_eventid = None
 prev_month = None
