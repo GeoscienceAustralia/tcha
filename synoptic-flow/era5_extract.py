@@ -28,7 +28,7 @@ pressure = np.array(
 times = np.sort(df.Datetime)[:10]
 
 for i, timestamp in enumerate(np.sort(df.Datetime)[:10]):
-
+    timestamp = pd.to_datetime(timestamp)
     month = timestamp.month
     year = timestamp.year
     days = monthrange(year, month)[1]
