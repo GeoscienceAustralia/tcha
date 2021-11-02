@@ -15,9 +15,6 @@ df.Datetime = pd.to_datetime(df.Datetime)
 
 t0 = time.time()
 
-uout = np.empty((10, 161, 361))
-vout = np.empty((10, 161, 361))
-
 prev_eventid = None
 prev_month = None
 
@@ -25,9 +22,12 @@ pressure = np.array(
     [300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850]
 )
 
-times = np.sort(df.Datetime)[:10]
+times = np.sort(df.Datetime)[:]
 
-for i, timestamp in enumerate(np.sort(df.Datetime)[:10]):
+uout = np.empty((len(times), 161, 361))
+vout = np.empty((len(times), 161, 361))
+
+for i, timestamp in enumerate(times):
     timestamp = pd.to_datetime(timestamp)
     month = timestamp.month
     year = timestamp.year
