@@ -6,7 +6,6 @@ from calendar import monthrange
 import time
 import geopy
 from geopy.distance import geodesic
-from vincenty import vincenty
 
 
 def delete_vortex(arr, mask):
