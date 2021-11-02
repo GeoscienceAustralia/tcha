@@ -56,3 +56,11 @@ uout = xr.DataArray(
     dims=["time", "latitude", "longitude"],
     coords={"time": times, "latitude": uenv.coords["latitude"].data, "longitude": uenv.coords["longitude"].data},
 )
+uout.to_netcdf(os.path.expanduser("~/u_dlm.netcdf"))
+
+vout = xr.DataArray(
+    vout,
+    dims=["time", "latitude", "longitude"],
+    coords={"time": times, "latitude": venv.coords["latitude"].data, "longitude": venv.coords["longitude"].data},
+)
+vout.to_netcdf(os.path.expanduser("~/v_dlm.netcdf"))
