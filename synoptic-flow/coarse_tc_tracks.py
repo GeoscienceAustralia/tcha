@@ -123,6 +123,10 @@ for row in list(df.itertuples())[:]:
         lats.append(np.nan)
         lons.append(np.nan)
 
+    except ValueError:
+        lats.append(np.nan)
+        lons.append(np.nan)
+
 
 print(time.time() - t0, 's')
 

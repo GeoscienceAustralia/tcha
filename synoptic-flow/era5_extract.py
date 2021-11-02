@@ -15,49 +15,35 @@ df.Datetime = pd.to_datetime(df.Datetime)
 
 t0 = time.time()
 
-out = []
+uout = np.empty(len(df), 161, 361)
+vout = np.empty(len(df), 161, 361)
+
 prev_eventid = None
 prev_month = None
 
-for row in list(df.itertuples()):
-    timestamp = row.Datetime
+pressure = np.array(
+    [300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850]
+)
+
+for i, timestamp in enumerate(np.sort(df.Datetime)):
 
     month = timestamp.month
     year = timestamp.year
     days = monthrange(year, month)[1]
 
-    lat_slice = slice(row.Latitude + 0.5, row.Latitude - 0.5)
-    long_slice = slice(row.Longitude - 0.5, row.Longitude + 0.5)
+    lat_slice = slice(0, -40)
+    long_slice = slice(80, 170)
+    pslice = pslice = slice(300, 850)
 
     ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
     vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
 
     uds = xr.open_dataset(ufile, chunks='auto')
-    uds_850 = uds.u.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
-    uds_250 = uds.u.sel(time=timestamp, level=250, longitude=long_slice, latitude=lat_slice).compute()
+    uenv = uds.u.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
+    udlm = np.trapz(uenv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
+    uout[i] = udlm
 
     vds = xr.open_dataset(vfile, chunks='auto')
-    vds_850 = vds.v.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute()
-    vds_250 = vds.v.sel(time=timestamp, level=250, longitude=long_slice, latitude=lat_slice).compute()
-
-    try:
-        uds_interp_850 = uds_850.interp(latitude=row.Latitude, longitude=row.Longitude)
-        vds_interp_850 = vds_850.interp(latitude=row.Latitude, longitude=row.Longitude)
-
-        uds_interp_250 = uds_250.interp(latitude=row.Latitude, longitude=row.Longitude)
-        vds_interp_250 = vds_250.interp(latitude=row.Latitude, longitude=row.Longitude)
-        out.append([uds_interp_250, vds_interp_250, uds_interp_850, vds_interp_850])
-    except IndexError:
-        print(timestamp)
-        print(long_slice)
-        print()
-        out.append([np.nan] * 4)
-
-
-print(time.time() - t0, 's')
-out = np.array(out)
-df['u_250'] = out[:, 0]
-df['v_250'] = out[:, 1]
-df['u_850'] = out[:, 2]
-df['v_850'] = out[:, 3]
-df.to_csv("jtwc_era5.csv")
+    venv = vds.v.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
+    vdlm = np.trapz(venv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
+    vout[i] = vdlm
