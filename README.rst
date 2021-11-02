@@ -16,12 +16,28 @@ station observations
 TC frequency
 ~~~~~~~~~~~~
 
-frequency/tc_frequency.py
-frequency/jtwc_frequency.py
+frequency/tc_frequency.py - calculates mean frequency and trends for a range of
+TC datasets and time periods of those datasets.
+frequency/jtwc_frequency.py - Uses JTWC data to evaluate frequency
+frequency/frequency_distribution.py - fits a negative binomial distribution to
+annual frequency, for consideration as the source model for TCRM. Negative
+binomial initially selected over poisson distribution, as the distribution is
+very slightly overdispersed ([mu / sigma] < 1).
 
 
 Track density
 ~~~~~~~~~~~~~
+
+density/track_density.py - calculates TC frequency on a grid, counting the
+number of unique events intersecting each grid point. Currently uses the BoM
+best track dataset (IDCKMSTM0S.csv) as input, and a 0.5x0.5 degree grid over the
+simulation domain.
+
+Compares 1981-2020 and 1951-2020 periods.
+
+Uses jackknife (leave-one-out) bootstrap resampling to evaluate mean track
+density, by iteratively excluding seasons from the dataset for calculating track
+density.
 
 
 TC landfall rates
