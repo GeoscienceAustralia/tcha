@@ -17,7 +17,7 @@ from  statsmodels.discrete.discrete_model import Poisson
 from scipy.stats import nbinom, poisson
 
 sns.set_style('whitegrid')
-
+sns.set_context('paper')
 
 mpl.rcParams['grid.linestyle'] = ':'
 mpl.rcParams['grid.linewidth'] = 0.5
@@ -132,7 +132,7 @@ print("Best fit:", best_fit)
 print(f"NLL: {likelihoods[best_fit]:.2f}")
 
 bins = np.arange(0, 30, 1)
-ax.plot(bins, nbinom.pmf(bins, r, p), label="Negative binomial", path_effects=[patheffects.withStroke(linewidth=3, foreground='white')])
+ax.plot(bins, nbinom.pmf(bins, r, p), label="Negative binomial", color='k', path_effects=[patheffects.withStroke(linewidth=3, foreground='white')])
 #ax.plot(bins, poisson.pmf(bins, mu), label="Poisson", path_effects=[patheffects.withStroke(linewidth=3, foreground='white')])
 ax.legend(fontsize='small')
 ax.set_xlabel("Annual TC count")
