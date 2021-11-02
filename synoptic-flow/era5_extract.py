@@ -8,7 +8,7 @@ import time
 
 
 prefix = "/g/data/rt52/era5/pressure-levels/reanalysis"
-df = pd.read_csv("jtwc_clean.csv")
+df = pd.read_csv(os.path.expanduser("~/jtwc_clean.csv"))
 
 dt = pd.Timedelta(1, units='hours')
 df.Datetime = pd.to_datetime(df.Datetime)
