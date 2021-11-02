@@ -111,20 +111,17 @@ def gridDensityBootstrap(tracks: gpd.GeoDataFrame, grid: gpd.GeoDataFrame,
     Use a jackknife bootstrap approach to calculate a mean track density
 
     """
-    seasons = tracks.season.values
+    seasons = tracks.season
     # Remember we are leaving out one season each time...
     nseasons = seasons.max() - seasons.min() - 2
-    outputframes = []
-    for season in seasons:
+    outframes = []
+    for season in seasons.unique():
         dfcount = gridDensity(tracks[tracks.season!=season], grid, grid_id_field, storm_id_field)
         retval = dfcount['storm_count'] / nseasons
-        outputframes.append(retval)
+        outframes.append(retval)
 
-    outdf = pd.concat(outputframes)
-    outdf['mean'] = outdf.mean(axis=1)
-    outdf['std'] = outdf.std(axis=1)
-    return outdf[['mean', 'std']]
-    breakpoint()
+    outdf = pd.concat(outframes, axis=1).apply(['mean', 'std'], axis=1)
+    return outdf
 
 def plot_density(dataArray: xr.DataArray, source: str, outputFile: str):
     """
@@ -262,14 +259,14 @@ plot_density(da, "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv", pjoin(outputP
 dfjk = gridDensityBootstrap(dfstorm, dfgrid, grid_id_field, storm_id_field)
 mdarray = dfjk['mean'].values.reshape(dims)
 sdarray = dfjk['std'].values.reshape(dims)
-da = xr.DataArray(mdarray, coords=[lon, lat], dims=['lon', 'lat'],
+dabs = xr.DataArray(mdarray, coords=[lon, lat], dims=['lon', 'lat'],
                   attrs=dict(long_name='Mean annual TC frequency',
                              units='TCs/year'))
-dc = xr.DataArray(sdarray, coords=[lon, lat], dims=['lon', 'lat'],
+dcbs = xr.DataArray(sdarray, coords=[lon, lat], dims=['lon', 'lat'],
                   attrs=dict(long_name='Std dev of TC density',
                              units=''))
-ds = xr.Dataset({'density': da,
-                 'std': dc},
+ds = xr.Dataset({'density': dabs,
+                 'std': dcbs},
                 attrs=dict(
                     description="Mean annual TC frequency evaluated using bootstrap resampling",
                     start_year=1981,
@@ -279,6 +276,8 @@ ds = xr.Dataset({'density': da,
                 ))
 
 ds.to_netcdf(pjoin(outputPath, "mean_track_density.bootstrap.nc"))
+plot_density(dabs, "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv", pjoin(outputPath, "mean_track_density.bootstrap.png"))
+
 
 # Calculate track density for 1951-2020
 df = sourcedf[sourcedf.season >= 1951]
@@ -310,7 +309,30 @@ ds = xr.Dataset({'density': da1951,
 ds.to_netcdf(pjoin(outputPath, "mean_track_density.1951-2020.nc"))
 plot_density(da1951, "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv", pjoin(outputPath, "mean_track_density.1951-2020.png"))
 
-diffda = da - da1951
+
+dfjk1951 = gridDensityBootstrap(dfstorm, dfgrid, grid_id_field, storm_id_field)
+mdarray1951 = dfjk1951['mean'].values.reshape(dims)
+sdarray1951 = dfjk1951['std'].values.reshape(dims)
+dabs1951 = xr.DataArray(mdarray1951, coords=[lon, lat], dims=['lon', 'lat'],
+                  attrs=dict(long_name='Mean annual TC frequency',
+                             units='TCs/year'))
+dcbs1951 = xr.DataArray(sdarray1951, coords=[lon, lat], dims=['lon', 'lat'],
+                  attrs=dict(long_name='Std dev of TC density',
+                             units=''))
+ds = xr.Dataset({'density': dabs1951,
+                 'std': dcbs1951},
+                attrs=dict(
+                    description="Mean annual TC frequency evaluated using bootstrap resampling",
+                    start_year=1951,
+                    end_year=2020,
+                    source="http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv",
+                    history=f"{datetime.now():%Y-%m-%d %H:%M}: {sys.argv[0]}"
+                ))
+
+ds.to_netcdf(pjoin(outputPath, "mean_track_density.1951-2020.bootstrap.nc"))
+plot_density(dabs, "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv", pjoin(outputPath, "mean_track_density.1951-2020.bootstrap.png"))
+
+diffda = dabs - dabs1951
 ds = xr.Dataset({'density': diffda},
                 attrs=dict(
                     description="Difference in mean annual TC frequency",
@@ -321,6 +343,7 @@ ds = xr.Dataset({'density': diffda},
                 ))
 ds.to_netcdf(pjoin(outputPath, "mean_track_density_difference.nc"))
 plot_density_difference(diffda, "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv", pjoin(outputPath, "mean_track_density_difference.png"))
+
 
 # Process Objective TC Reanalysis
 dataFile = pjoin(inputPath, r"Objective Tropical Cyclone Reanalysis - QC.csv")
