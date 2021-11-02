@@ -77,7 +77,7 @@ for row in list(df.itertuples())[:]:
         arr[4] = vds.v.sel(time=timestamp, level=500, longitude=long_slice, latitude=lat_slice).compute().mean()
         arr[5] = vds.v.sel(time=timestamp, level=850, longitude=long_slice, latitude=lat_slice).compute().mean()
 
-        vel = mat.dot(arr) + beta_drift
+        vel = mat.dot(3.6 * arr) + beta_drift
         u = vel[0]
         v = vel[1]
 
