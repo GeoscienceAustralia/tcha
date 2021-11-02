@@ -28,6 +28,8 @@ uout = np.empty((len(times), 161, 361))
 vout = np.empty((len(times), 161, 361))
 
 for i, timestamp in enumerate(times):
+    if i % 10 == 0:
+        print(f"Processed {i} out of {len(times)}")
     timestamp = pd.to_datetime(timestamp)
     month = timestamp.month
     year = timestamp.year
