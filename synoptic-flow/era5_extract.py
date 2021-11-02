@@ -15,8 +15,8 @@ df.Datetime = pd.to_datetime(df.Datetime)
 
 t0 = time.time()
 
-uout = np.empty(len(df), 161, 361)
-vout = np.empty(len(df), 161, 361)
+uout = np.empty(10, 161, 361)
+vout = np.empty(10, 161, 361)
 
 prev_eventid = None
 prev_month = None
@@ -25,7 +25,9 @@ pressure = np.array(
     [300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850]
 )
 
-for i, timestamp in enumerate(np.sort(df.Datetime)):
+times = np.sort(df.Datetime)[:10]
+
+for i, timestamp in enumerate(np.sort(df.Datetime)[:10]):
 
     month = timestamp.month
     year = timestamp.year
@@ -47,3 +49,10 @@ for i, timestamp in enumerate(np.sort(df.Datetime)):
     venv = vds.v.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
     vdlm = np.trapz(venv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
     vout[i] = vdlm
+
+
+uout = xr.DataArray(
+    uout,
+    dims=["time", "latitude", "longitude"],
+    coords={"time": times, "latitude": uenv.coords["latitude"].data, "longitude": uenv.coords["longitude"].data},
+)
