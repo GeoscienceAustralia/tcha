@@ -108,7 +108,7 @@ for row in list(df.itertuples())[:]:
 
         # calculate TC velocity and time step
         u = 0.95 * u_dlm.mean() - 3.987
-        v = 0.81 * v_dlm - 1.66
+        v = 0.81 * v_dlm.mean() - 1.66
 
         dt = 6 # hours
         bearing = np.arctan(u / v) * 180 / np.pi
