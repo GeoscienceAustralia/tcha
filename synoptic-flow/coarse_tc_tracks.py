@@ -29,8 +29,9 @@ def delete_vortex(arr, mask):
     interpolated += (dy1 * arr[maxrow, cols] + dy2 * arr[minrow, cols]) / (dy1 + dy2)
     return 0.5 * interpolated
 
+
 prefix = "/g/data/rt52/era5/pressure-levels/reanalysis"
-df = pd.read_csv(os.path.expanduser("~/jtwc_clean.csv"))
+df = pd.read_csv(os.path.expanduser("~/geoscience/data/jtwc_clean.csv"))
 
 dt = pd.Timedelta(1, units='hours')
 df.Datetime = pd.to_datetime(df.Datetime)
@@ -39,19 +40,14 @@ t0 = time.time()
 
 out = []
 prev_eventid = None
-prev_month = None
 
 lats = [None]
 lons = [None]
 ids = set()
 
-pressure = np.array(
-    [300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850]
-)
-
-df.Datetime = pd.to_datetime(df.Datetime)
-dts = df.groupby('eventid').agg({'Datetime': max}) - df.groupby('eventid').agg({'Datetime': min})
-dts.Datetime = (dts.Datetime.astype('timedelta64[h]') // 6) + 1
+uds = xr.open_dataset(os.path.expanduser("~/geoscience/data/u_dlm.netcdf"))
+vds = xr.open_dataset(os.path.expanduser("~/geoscience/data/v_dlm.netcdf"))
+var = list(uds.data_vars.keys())[0]
 
 for row in list(df.itertuples())[:]:
 
@@ -78,40 +74,45 @@ for row in list(df.itertuples())[:]:
     lon_cntr = 0.25 * np.round(lons[-1] * 4)
     lat_slice = slice(lat_cntr + 6.25, lat_cntr - 6.25)
     long_slice = slice(lon_cntr - 6.25, lon_cntr + 6.25)
-    pslice = slice(300, 850)
-
-    ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
-    vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
-
-    uds = xr.open_dataset(ufile, chunks='auto')
-    vds = xr.open_dataset(vfile, chunks='auto')
 
     try:
         # calculate the DML
-        u_env = uds.u.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
-        v_env = vds.v.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
-        u_dlm = 3.6 * np.trapz(u_env.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
-        v_dlm = 3.6 * np.trapz(v_env.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
+        u_dlm = 3.6 * uds[var].sel(time=timestamp, longitude=long_slice, latitude=lat_slice)
+        v_dlm = 3.6 * vds[var].sel(time=timestamp, longitude=long_slice, latitude=lat_slice)
 
         # find the vortex
-        long_mesh, lat_mesh,  = np.meshgrid(u_env.coords['longitude'], u_env.coords['latitude'])
-        dists = [
-            geodesic((lats[-1], lons[-1]), (lat_mesh.flatten()[i], long_mesh.flatten()[i])).km
-            for i in range(len(long_mesh.flatten()))
-        ]
+        c = np.pi / 180
+        long_mesh, lat_mesh = np.meshgrid(u_dlm.coords['longitude'], u_dlm.coords['latitude'])
+        hav = np.sin(0.5 * c * (lats[-1] - lat_mesh)) ** 2
+        hav += np.cos(c * lat_mesh) * np.cos(c * lats[-1]) * np.sin(0.5 * c * (lons[-1] - long_mesh)) ** 2
+        dists = 2 * 6378.137 * np.arcsin(np.sqrt(hav))
+
         dists = np.array(dists).reshape(long_mesh.shape)
         mask = dists > row.rMax
 
+        u_dlm = u_dlm.data
+        v_dlm = v_dlm.data
+
+        if len(u_dlm.shape) == 3:
+            u_dlm = u_dlm[0]
+            v_dlm = v_dlm[0]
         # delete the vortex
-        u_dlm = delete_vortex(u_dlm, mask)
-        v_dlm = delete_vortex(v_dlm, mask)
+        u_dlm[~mask] = delete_vortex(u_dlm, mask)
+        v_dlm[~mask] = delete_vortex(v_dlm, mask)
 
         # calculate TC velocity and time step
         u = 0.95 * u_dlm.mean() - 3.987
         v = 0.81 * v_dlm.mean() - 1.66
 
-        dt = 6 # hours
-        bearing = np.arctan(u / v) * 180 / np.pi
+        dt = 6  # hours
+        if (u >= 0) and (v >= 0):
+            bearing = np.arctan(u / v) * 180 / np.pi
+        elif (u >= 0) and (v < 0):
+            bearing = 180 + np.arctan(u / v) * 180 / np.pi
+        elif (u < 0) and (v < 0):
+            bearing = 180 + np.arctan(u / v) * 180 / np.pi
+        else:
+            bearing = 360 + np.arctan(u / v) * 180 / np.pi
         distance = np.sqrt(u ** 2 + v ** 2) * dt
 
         origin = geopy.Point(lats[-1], lons[-1])
@@ -119,14 +120,15 @@ for row in list(df.itertuples())[:]:
         lats.append(destination.latitude)
         lons.append(destination.longitude)
 
-    except IndexError:
+    except IndexError as e:
+        print(e)
         lats.append(np.nan)
         lons.append(np.nan)
 
-    except ValueError:
+    except ValueError as e:
+        print(e)
         lats.append(np.nan)
         lons.append(np.nan)
-
 
 print(time.time() - t0, 's')
 
@@ -136,4 +138,4 @@ lons = lons[:len(df)]
 
 df['lats_sim'] = np.array(lats)
 df['lons_sim'] = np.array(lons)
-df.to_csv(os.path.expanduser("~/coarse_tc_tracks.csv"))
+df.to_csv(os.path.expanduser("~/geoscience/data/coarse_tc_tracks.csv"))

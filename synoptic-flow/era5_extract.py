@@ -22,7 +22,7 @@ pressure = np.array(
     [300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850]
 )
 
-times = np.sort(df.Datetime)[:]
+times = np.sort(pd.unique(df.Datetime))[:]
 
 uout = np.empty((len(times), 161, 361))
 vout = np.empty((len(times), 161, 361))
