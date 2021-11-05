@@ -70,6 +70,7 @@ for idxs in groups.values():
     vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
 
     uds = xr.open_dataset(ufile, chunks='auto')
+    print(uds)
     uenv = uds.u.sel(time=month_times, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
     udlm = np.trapz(uenv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
     uout[out_idxs] = udlm
