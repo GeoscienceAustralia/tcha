@@ -9,7 +9,7 @@ import time
 
 prefix = "/g/data/rt52/era5/pressure-levels/reanalysis"
 
-dataFile = os.path.expanduser("~/geoscience/data/OTCR_alldata_final_external.csv")
+dataFile = os.path.expanduser("~/OTCR_alldata_final_external.csv")
 source="http://www.bom.gov.au/cyclone/history/database/OTCR_alldata_final_external.csv"
 usecols = [0, 1, 2, 7, 8, 11, 12]
 colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
@@ -22,7 +22,7 @@ df = df[~pd.isnull(df.TM)]
 df['season'] = pd.DatetimeIndex(df['TM']).year - (pd.DatetimeIndex(df['TM']).month < 6)
 df = df[df.season >= 1981]
 
-dataFile = os.path.expanduser("IDCKMSTM0S.csv")
+dataFile = os.path.expanduser("~/IDCKMSTM0S.csv")
 usecols = [0, 1, 2, 7, 8, 16, 49, 53]
 colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
             'CENTRAL_PRES', 'MAX_WIND_SPD', 'MAX_WIND_GUST']
