@@ -17,7 +17,7 @@ colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
 dtypes = [str, str, str, float, float, float, float]
 
 df = pd.read_csv(dataFile, usecols=usecols, dtype=dict(zip(colnames, dtypes)), na_values=[' '], nrows=13743)
-df['TM']= pd.to_datetime(df.TM, format="%d/%m/%Y %H:%M", errors='coerce')\
+df['TM']= pd.to_datetime(df.TM, format="%d/%m/%Y %H:%M", errors='coerce')
 df = df[~pd.isnull(df.TM)]
 df['season'] = pd.DatetimeIndex(df['TM']).year - (pd.DatetimeIndex(df['TM']).month < 6)
 df = df[df.season >= 1981]
