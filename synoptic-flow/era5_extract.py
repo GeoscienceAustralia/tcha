@@ -8,10 +8,35 @@ import time
 
 
 prefix = "/g/data/rt52/era5/pressure-levels/reanalysis"
-df = pd.read_csv(os.path.expanduser("~/jtwc_clean.csv"))
 
-dt = pd.Timedelta(1, units='hours')
-df.Datetime = pd.to_datetime(df.Datetime)
+dataFile = os.path.expanduser("~/geoscience/data/OTCR_alldata_final_external.csv")
+source="http://www.bom.gov.au/cyclone/history/database/OTCR_alldata_final_external.csv"
+usecols = [0, 1, 2, 7, 8, 11, 12]
+colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
+            'adj. ADT Vm (kn)', 'CP(CKZ(Lok R34,LokPOCI, adj. Vm),hPa)']
+dtypes = [str, str, str, float, float, float, float]
+
+df = pd.read_csv(dataFile, usecols=usecols, dtype=dict(zip(colnames, dtypes)), na_values=[' '], nrows=13743)
+df['TM']= pd.to_datetime(df.TM, format="%d/%m/%Y %H:%M", errors='coerce')\
+df = df[~pd.isnull(df.TM)]
+df['season'] = pd.DatetimeIndex(df['TM']).year - (pd.DatetimeIndex(df['TM']).month < 6)
+df = df[df.season >= 1981]
+
+dataFile = os.path.expanduser("IDCKMSTM0S.csv")
+usecols = [0, 1, 2, 7, 8, 16, 49, 53]
+colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
+            'CENTRAL_PRES', 'MAX_WIND_SPD', 'MAX_WIND_GUST']
+dtypes = [str, str, str, float, float, float, float, float]
+
+bomdf = pd.read_csv(dataFile, skiprows=4, usecols=usecols, dtype=dict(zip(colnames, dtypes)), na_values=[' '])
+bomdf['TM']= pd.to_datetime(bomdf.TM, format="%Y-%m-%d %H:%M", errors='coerce')
+bomdf = bomdf[~pd.isnull(bomdf.TM)]
+bomdf['season'] = pd.DatetimeIndex(bomdf['TM']).year - (pd.DatetimeIndex(bomdf['TM']).month < 6)
+bomdf = bomdf[bomdf.season >= 1981]
+
+times = np.sort(pd.unique(np.concatenate([df.TM.values, bomdf.TM.values])))[:100]
+year_month = pd.DatetimeIndex(times).year * 100 +  pd.DatetimeIndex(times).month
+timedf = pd.DataFrame([times, year_month])
 
 t0 = time.time()
 
@@ -22,7 +47,6 @@ pressure = np.array(
     [300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850]
 )
 
-times = np.sort(pd.unique(df.Datetime))[:]
 
 uout = np.empty((len(times), 161, 361))
 vout = np.empty((len(times), 161, 361))
