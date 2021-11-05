@@ -63,17 +63,19 @@ for i, timestamp in enumerate(times):
 
     ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
     vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
+    try:
+        uds = xr.open_dataset(ufile, chunks='auto')
+        uenv = uds.u.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
+        udlm = np.trapz(uenv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
+        uout[i] = udlm
 
-    uds = xr.open_dataset(ufile, chunks='auto')
-    uenv = uds.u.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
-    udlm = np.trapz(uenv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
-    uout[i] = udlm
-
-    vds = xr.open_dataset(vfile, chunks='auto')
-    venv = vds.v.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
-    vdlm = np.trapz(venv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
-    vout[i] = vdlm
-
+        vds = xr.open_dataset(vfile, chunks='auto')
+        venv = vds.v.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
+        vdlm = np.trapz(venv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
+        vout[i] = vdlm
+    except KeyError as e:
+        print(e)
+        print(timestamp)
 
 uout = xr.DataArray(
     uout,
