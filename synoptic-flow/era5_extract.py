@@ -54,37 +54,12 @@ vout = np.empty((len(times), 161, 361))
 
 groups = timedf.groupby('ym').groups
 
-# for idxs in groups.values():
-#     year = timedf.iloc[idxs[0]][0].year
-#     month = timedf.iloc[idxs[0]][0].month
-#     month_times = timedf.iloc[idxs].time.values
-#     out_idxs = np.where(timedf.time.isin(month_times).values)[0]
-#
-#     days = monthrange(year, month)[1]
-#
-#     lat_slice = slice(0, -40)
-#     long_slice = slice(80, 170)
-#     pslice = pslice = slice(300, 850)
-#
-#     ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
-#     vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
-#
-#     uds = xr.open_dataset(ufile, chunks='auto')
-#     uenv = uds.u.sel(time=month_times, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
-#     udlm = np.trapz(uenv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
-#     uout[out_idxs] = udlm
-#
-#     vds = xr.open_dataset(vfile, chunks='auto')
-#     venv = vds.v.sel(time=month_times, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
-#     vdlm = np.trapz(venv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
-#     vout[out_idxs] = vdlm
-#
-for i, timestamp in enumerate(times):
-    if i % 10 == 0:
-        print(f"Processed {i} out of {len(times)}")
-    timestamp = pd.to_datetime(timestamp)
-    month = timestamp.month
-    year = timestamp.year
+for idxs in groups.values():
+    year = timedf.iloc[idxs[0]][0].year
+    month = timedf.iloc[idxs[0]][0].month
+    month_times = timedf.iloc[idxs].time.values
+    out_idxs = np.where(timedf.time.isin(month_times).values)[0]
+
     days = monthrange(year, month)[1]
 
     lat_slice = slice(0, -40)
@@ -95,14 +70,39 @@ for i, timestamp in enumerate(times):
     vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
 
     uds = xr.open_dataset(ufile, chunks='auto')
-    uenv = uds.u.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
-    udlm = np.trapz(uenv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
-    uout[i] = udlm
+    uenv = uds.u.sel(time=month_times, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
+    udlm = np.trapz(uenv.data * pressure[None, :, None, None], pressure, axis=1) / np.trapz(pressure, pressure)
+    uout[out_idxs] = udlm
 
     vds = xr.open_dataset(vfile, chunks='auto')
-    venv = vds.v.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
-    vdlm = np.trapz(venv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
-    vout[i] = vdlm
+    venv = vds.v.sel(time=month_times, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
+    vdlm = np.trapz(venv.data * pressure[None, :, None, None], pressure, axis=1) / np.trapz(pressure, pressure)
+    vout[out_idxs] = vdlm
+
+# for i, timestamp in enumerate(times):
+#     if i % 10 == 0:
+#         print(f"Processed {i} out of {len(times)}")
+#     timestamp = pd.to_datetime(timestamp)
+#     month = timestamp.month
+#     year = timestamp.year
+#     days = monthrange(year, month)[1]
+#
+#     lat_slice = slice(0, -40)
+#     long_slice = slice(80, 170)
+#     pslice = pslice = slice(300, 850)
+#
+#     ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
+#     vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
+#
+#     uds = xr.open_dataset(ufile, chunks='auto')
+#     uenv = uds.u.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
+#     udlm = np.trapz(uenv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
+#     uout[i] = udlm
+#
+#     vds = xr.open_dataset(vfile, chunks='auto')
+#     venv = vds.v.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
+#     vdlm = np.trapz(venv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
+#     vout[i] = vdlm
 
 
 uout = xr.DataArray(
