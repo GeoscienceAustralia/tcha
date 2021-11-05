@@ -34,7 +34,7 @@ bomdf = bomdf[~pd.isnull(bomdf.TM)]
 bomdf['season'] = pd.DatetimeIndex(bomdf['TM']).year - (pd.DatetimeIndex(bomdf['TM']).month < 6)
 bomdf = bomdf[bomdf.season >= 1981]
 
-times = np.sort(pd.unique(np.concatenate([df.TM.values, bomdf.TM.values])))[""]
+times = np.sort(pd.unique(np.concatenate([df.TM.values, bomdf.TM.values])))[:]
 
 t0 = time.time()
 
