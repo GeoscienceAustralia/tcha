@@ -4,8 +4,9 @@ import xarray as xr
 import pandas as pd
 from calendar import monthrange
 import time
-# import dask
+from mpi4py import MPI
 
+comm = MPI.COMM_WORLD
 
 prefix = "/g/data/rt52/era5/pressure-levels/reanalysis"
 
@@ -45,48 +46,52 @@ pressure = np.array(
     [300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850]
 )
 
+years = np.sort(np.unique(pd.DatetimeIndex(times).year))
+rank = comm.Get_rank()
+rank_years = years[(years % 48) == rank]
 
-uout = np.empty((len(times), 161, 361))
-vout = np.empty((len(times), 161, 361))
+for year in rank_years:
+    mask = pd.DatetimeIndex(times).year == 2011
+    year_times = times[mask]
+    uout = np.empty((len(year_times), 161, 361))
+    vout = np.empty((len(year_times), 161, 361))
+    for i, timestamp in enumerate(year_times[:10]):
 
-for i, timestamp in enumerate(times):
-    if i % 50 == 0:
-        print(f"Processed {i} out of {len(times)}")
-    timestamp = pd.to_datetime(timestamp)
-    month = timestamp.month
-    year = timestamp.year
-    days = monthrange(year, month)[1]
+        timestamp = pd.to_datetime(timestamp)
+        month = timestamp.month
+        year = timestamp.year
+        days = monthrange(year, month)[1]
 
-    lat_slice = slice(0, -40)
-    long_slice = slice(80, 170)
-    pslice = pslice = slice(300, 850)
+        lat_slice = slice(0, -40)
+        long_slice = slice(80, 170)
+        pslice = pslice = slice(300, 850)
 
-    ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
-    vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
-    try:
-        uds = xr.open_dataset(ufile, chunks='auto')
-        uenv = uds.u.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
-        udlm = np.trapz(uenv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
-        uout[i] = udlm
+        ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
+        vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
+        try:
+            uds = xr.open_dataset(ufile, chunks='auto')
+            uenv = uds.u.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
+            udlm = np.trapz(uenv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
+            uout[i] = udlm
 
-        vds = xr.open_dataset(vfile, chunks='auto')
-        venv = vds.v.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
-        vdlm = np.trapz(venv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
-        vout[i] = vdlm
-    except KeyError as e:
-        print(e)
-        print(timestamp)
+            vds = xr.open_dataset(vfile, chunks='auto')
+            venv = vds.v.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
+            vdlm = np.trapz(venv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
+            vout[i] = vdlm
+        except KeyError as e:
+            print(e)
+            print(timestamp)
 
-uout = xr.DataArray(
-    uout,
-    dims=["time", "latitude", "longitude"],
-    coords={"time": times, "latitude": uenv.coords["latitude"].data, "longitude": uenv.coords["longitude"].data},
-)
-uout.to_netcdf(os.path.expanduser("~/u_dlm.netcdf"))
+    uout = xr.DataArray(
+        uout,
+        dims=["time", "latitude", "longitude"],
+        coords={"time": times, "latitude": uenv.coords["latitude"].data, "longitude": uenv.coords["longitude"].data},
+    )
+    uout.to_netcdf(os.path.expanduser(f"~/u_dlm_{year}.netcdf"))
 
-vout = xr.DataArray(
-    vout,
-    dims=["time", "latitude", "longitude"],
-    coords={"time": times, "latitude": venv.coords["latitude"].data, "longitude": venv.coords["longitude"].data},
-)
-vout.to_netcdf(os.path.expanduser("~/v_dlm.netcdf"))
+    vout = xr.DataArray(
+        vout,
+        dims=["time", "latitude", "longitude"],
+        coords={"time": times, "latitude": venv.coords["latitude"].data, "longitude": venv.coords["longitude"].data},
+    )
+    vout.to_netcdf(os.path.expanduser(f"~/v_dlm_{year}.netcdf"))
