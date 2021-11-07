@@ -27,4 +27,4 @@ export PYTHONPATH=$PYTHONPATH:$HOME/pylib/python
 
 cd $HOME/tcha/synoptic-flow
 
-mpiexec -n 48 python era_5_extract.py
+mpiexec -n 48 python3 era_5_extract.py
