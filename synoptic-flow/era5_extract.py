@@ -81,8 +81,8 @@ for year in rank_years:
         except KeyError as e:
             t0 = timestamp - pd.Timedelta(minutes=timestamp.minute)
             t1 = t0 + pd.Timedelta(hours=1)
-            dt0 = (timestamp - t0).minutes()
-            dt1 = (t1 - timestamp).minutes()
+            dt0 = (timestamp - t0).seconds
+            dt1 = (t1 - timestamp).seconds
 
             uenv = uds.u.sel(time=t0, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
             udlm_0 = np.trapz(uenv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
