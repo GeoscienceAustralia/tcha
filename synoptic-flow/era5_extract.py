@@ -79,23 +79,26 @@ for year in rank_years:
             vdlm = np.trapz(venv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
             vout[i] = vdlm
         except KeyError as e:
-            t0 = timestamp
-            t1 = timestamp
+            t0 = timestamp - pd.Timedelta(minutes=timestamp.minute)
+            t1 = t0 + pd.Timedelta(hours=1)
+            dt0 = (timestamp - t0).minutes()
+            dt1 = (t1 - timestamp).minutes()
+
             uenv = uds.u.sel(time=t0, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
             udlm_0 = np.trapz(uenv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
             uenv = uds.u.sel(time=t1, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
             udlm_1 = np.trapz(uenv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
 
-            uout[i] = udlm_0 * (t1 - timestamp) + udlm_1 * (timestamp - t0)
-            uout[i] /= t1 - t0
+            uout[i] = udlm_0 * dt1 + udlm_1 * dt0
+            uout[i] /= dt0 + dt1
 
             venv = vds.v.sel(time=t0, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
             vdlm_0 = np.trapz(venv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
             venv = vds.v.sel(time=t1, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
             vdlm_1 = np.trapz(venv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
 
-            vout[i] = vdlm_0 * (t1 - timestamp) + vdlm_1 * (timestamp - t0)
-            vout[i] /= t1 - t0
+            vout[i] = vdlm_0 * dt1 + vdlm_1 * dt0
+            vout[i] /= dt0 + dt1
 
     uout = xr.DataArray(
         uout,
