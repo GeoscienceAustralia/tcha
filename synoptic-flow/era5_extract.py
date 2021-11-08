@@ -55,7 +55,7 @@ for year in rank_years:
     year_times = times[mask]
     uout = np.empty((len(year_times), 161, 361))
     vout = np.empty((len(year_times), 161, 361))
-    for i, timestamp in enumerate(year_times[:10]):
+    for i, timestamp in enumerate(year_times):
 
         timestamp = pd.to_datetime(timestamp)
         month = timestamp.month
