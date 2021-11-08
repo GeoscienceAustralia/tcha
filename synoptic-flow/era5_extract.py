@@ -79,8 +79,23 @@ for year in rank_years:
             vdlm = np.trapz(venv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
             vout[i] = vdlm
         except KeyError as e:
-            print(e)
-            print(timestamp)
+            t0 = timestamp
+            t1 = timestamp
+            uenv = uds.u.sel(time=t0, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
+            udlm_0 = np.trapz(uenv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
+            uenv = uds.u.sel(time=t1, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
+            udlm_1 = np.trapz(uenv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
+
+            uout[i] = udlm_0 * (t1 - timestamp) + udlm_1 * (timestamp - t0)
+            uout[i] /= t1 - t0
+
+            venv = vds.v.sel(time=t0, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
+            vdlm_0 = np.trapz(venv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
+            venv = vds.v.sel(time=t1, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
+            vdlm_1 = np.trapz(venv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
+
+            vout[i] = vdlm_0 * (t1 - timestamp) + vdlm_1 * (timestamp - t0)
+            vout[i] /= t1 - t0
 
     uout = xr.DataArray(
         uout,
