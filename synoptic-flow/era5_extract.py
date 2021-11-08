@@ -85,13 +85,13 @@ for year in rank_years:
     uout = xr.DataArray(
         uout,
         dims=["time", "latitude", "longitude"],
-        coords={"time": times, "latitude": uenv.coords["latitude"].data, "longitude": uenv.coords["longitude"].data},
+        coords={"time": year_times, "latitude": uenv.coords["latitude"].data, "longitude": uenv.coords["longitude"].data},
     )
     uout.to_netcdf(os.path.expanduser(f"~/u_dlm_{year}.netcdf"))
 
     vout = xr.DataArray(
         vout,
         dims=["time", "latitude", "longitude"],
-        coords={"time": times, "latitude": venv.coords["latitude"].data, "longitude": venv.coords["longitude"].data},
+        coords={"time": year_times, "latitude": venv.coords["latitude"].data, "longitude": venv.coords["longitude"].data},
     )
     vout.to_netcdf(os.path.expanduser(f"~/v_dlm_{year}.netcdf"))
