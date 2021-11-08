@@ -19,6 +19,9 @@ module use /g/data/dk92/apps/Modules/modulefiles
 module load NCI-data-analysis/2021.09
 module load openmpi/4.1.0
 
+module use /g/data/v10/public/modules/modulefiles
+module load dea/20210527
+
 # This is where mpi4py is installed:
 export PYTHONPATH=$PYTHONPATH:/g/data/w85/.local/lib/python3.8/site-packages/
 
