@@ -5,7 +5,7 @@
 #PBS -N era5dlm
 #PBS -m abe
 #PBS -M kieran.ricardo@ga.gov.au
-#PBS -lwalltime=1:00:00
+#PBS -lwalltime=5:00:00
 #PBS -lmem=128GB,ncpus=48,jobfs=4000MB
 #PBS -W umask=0002
 #PBS -joe

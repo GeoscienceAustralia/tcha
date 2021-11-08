@@ -51,11 +51,11 @@ rank = comm.Get_rank()
 rank_years = years[(years % 48) == rank]
 
 for year in rank_years:
-    mask = pd.DatetimeIndex(times).year == 2011
+    mask = pd.DatetimeIndex(times).year == year
     year_times = times[mask]
     uout = np.empty((len(year_times), 161, 361))
     vout = np.empty((len(year_times), 161, 361))
-    for i, timestamp in enumerate(year_times[:10]):
+    for i, timestamp in enumerate(year_times):
 
         timestamp = pd.to_datetime(timestamp)
         month = timestamp.month
