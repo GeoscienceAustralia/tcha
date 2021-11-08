@@ -48,14 +48,14 @@ pressure = np.array(
 
 years = np.sort(np.unique(pd.DatetimeIndex(times).year))
 rank = comm.Get_rank()
-rank_years = years[(years % 48) == rank]
+rank_years = years[(years % 16) == rank]
 
 for year in rank_years:
     mask = pd.DatetimeIndex(times).year == year
     year_times = times[mask]
     uout = np.empty((len(year_times), 161, 361))
     vout = np.empty((len(year_times), 161, 361))
-    for i, timestamp in enumerate(year_times):
+    for i, timestamp in enumerate(year_times[:10]):
 
         timestamp = pd.to_datetime(timestamp)
         month = timestamp.month
@@ -87,11 +87,12 @@ for year in rank_years:
         dims=["time", "latitude", "longitude"],
         coords={"time": year_times, "latitude": uenv.coords["latitude"].data, "longitude": uenv.coords["longitude"].data},
     )
-    uout.to_netcdf(os.path.expanduser(f"~/u_dlm_{year}.netcdf"))
+    uout.to_netcdf(os.path.expanduser(f"/scratch/w85/kr4383/era5dlm/u_dlm_{year}.netcdf"))
 
     vout = xr.DataArray(
         vout,
         dims=["time", "latitude", "longitude"],
         coords={"time": year_times, "latitude": venv.coords["latitude"].data, "longitude": venv.coords["longitude"].data},
     )
-    vout.to_netcdf(os.path.expanduser(f"~/v_dlm_{year}.netcdf"))
+    vout.to_netcdf(os.path.expanduser(f"/scratch/w85/kr4383/era5dlm/v_dlm_{year}.netcdf"))
+    print("Finished: ", year)
