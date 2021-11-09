@@ -153,6 +153,7 @@ def load_jtwc_data(path):
     filter_ &= (df['rMax'] > 0.0)
     filter_ &= (df['Poci'] > 0.0)
     filter_ &= (df['dP'] > 0.0)
+    filter_ &= (df['RAD'] == 34) | (df['RAD'] == 35)
     df = df[filter_].copy()
 
     # create time variables
