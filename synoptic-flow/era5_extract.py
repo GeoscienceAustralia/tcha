@@ -71,12 +71,12 @@ for year in rank_years:
         try:
             uds = xr.open_dataset(ufile, chunks='auto')
             uenv = uds.u.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
-            udlm = np.trapz(uenv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
+            udlm = np.trapz(uenv.data, pressure, axis=0) / 550
             uout[i] = udlm
 
             vds = xr.open_dataset(vfile, chunks='auto')
             venv = vds.v.sel(time=timestamp, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
-            vdlm = np.trapz(venv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
+            vdlm = np.trapz(venv.data, pressure, axis=0) / 550
             vout[i] = vdlm
         except KeyError as e:
             try:
@@ -86,17 +86,17 @@ for year in rank_years:
                 dt1 = (t1 - timestamp).seconds
 
                 uenv = uds.u.sel(time=t0, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
-                udlm_0 = np.trapz(uenv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
+                udlm_0 = np.trapz(uenv.data, pressure, axis=0) / 550
                 uenv = uds.u.sel(time=t1, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
-                udlm_1 = np.trapz(uenv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
+                udlm_1 = np.trapz(uenv.data, pressure, axis=0) / 550
 
                 uout[i] = udlm_0 * dt1 + udlm_1 * dt0
                 uout[i] /= dt0 + dt1
 
                 venv = vds.v.sel(time=t0, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
-                vdlm_0 = np.trapz(venv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
+                vdlm_0 = np.trapz(venv.data, pressure, axis=0) / 550
                 venv = vds.v.sel(time=t1, level=pslice, longitude=long_slice, latitude=lat_slice).compute()
-                vdlm_1 = np.trapz(venv.data * pressure[:, None, None], pressure, axis=0) / np.trapz(pressure, pressure)
+                vdlm_1 = np.trapz(venv.data, pressure, axis=0) / 550
 
                 vout[i] = vdlm_0 * dt1 + vdlm_1 * dt0
                 vout[i] /= dt0 + dt1
