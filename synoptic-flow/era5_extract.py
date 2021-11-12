@@ -51,6 +51,7 @@ rank = comm.Get_rank()
 rank_years = years[(years % 16) == rank]
 
 for year in rank_years:
+    print("Starting:", year)
     mask = pd.DatetimeIndex(times).year == year
     year_times = times[mask]
     uout = np.empty((len(year_times), 161, 361))
