@@ -10,7 +10,7 @@ import geopy
 from geopy.distance import geodesic as gdg
 import sys
 
-sys.path.insert(0, "")
+sys.path.insert(0, sys.path.insert(0, os.path.expanduser('~/tcrm')))
 
 from StatInterface.SamplingOrigin import SamplingOrigin
 
