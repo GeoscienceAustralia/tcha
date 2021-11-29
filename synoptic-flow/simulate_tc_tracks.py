@@ -6,6 +6,7 @@ from calendar import monthrange
 import time
 import scipy.stats as stats
 from mpi4py import MPI
+import logging
 import geopy
 from geopy.distance import geodesic as gdg
 import sys
@@ -13,6 +14,8 @@ import sys
 sys.path.insert(0, sys.path.insert(0, os.path.expanduser('~/tcrm')))
 
 from StatInterface.SamplingOrigin import SamplingOrigin
+
+logging.basicConfig(filename='simulate_tc_tracks.log', encoding='utf-8', level=logging.DEBUG)
 
 
 def load_dlm(year, month):
@@ -104,17 +107,18 @@ month_rates = {
     5: 0.3659, 10: 0.122, 7: 0.0488, 6: 0.0488, 8: 0.0244, 9: 0.0
 }
 
+rows = []
 
 for year in rank_years[:1]:
     t0 = time.time()
-    print(f"Loading data for {1}/{year}")
+    logging.info(f"Loading data for {1}/{year}")
     udlm, vdlm = load_dlm(year, 1)
-    print(f"Finished loading data for {1}/{year}. Time taken: {time.time() - t0}s")
+    logging.info(f"Finished loading data for {1}/{year}. Time taken: {time.time() - t0}s")
     for month in range(1, 2):
         t0 = time.time()
         # sufficient repeats that the sum should be equal to the mean * number of repeats
         num_events = int(np.round(month_rates[month] * repeats))
-        print(f"Simulating tracks for {month}/{year}")
+        logging.info(f"Simulating tracks for {month}/{year}")
         revisit = []
 
         days = monthrange(year, month)[1]
@@ -150,12 +154,12 @@ for year in rank_years[:1]:
                 longitudes[idx].append(dest.longitude)
 
         t1 = time.time()
-        print(f"Finished simulating tracks for {month}/{year}. Time taken: {t1 - t0}s")
+        logging.info(f"Finished simulating tracks for {month}/{year}. Time taken: {t1 - t0}s")
 
         # in case TC track exceeds 1 month
-        print(f"Loading data for {month + 1}/{year}")
+        logging.info(f"Loading data for {month + 1}/{year}")
         udlm, vdlm = load_dlm(year, month + 1)
-        print(f"Finished loading data for {1}/{year}. Time taken: {time.time() - t1}s")
+        logging.info(f"Finished loading data for {1}/{year}. Time taken: {time.time() - t1}s")
 
         for idx, timestamp, duration in revisit:
             uid = f"{idx}-{month}-{year}"
@@ -175,4 +179,13 @@ for year in rank_years[:1]:
                 latitudes[idx].append(dest.latitude)
                 longitudes[idx].append(dest.longitude)
 
+        rows.extend(
+            (f"{idx}-{month}-{year}", lat, long)
+            for idx, run in enumerate(zip(latitudes, longitudes))
+            for lat, long in run
+        )
+
+
+df = pd.DataFrame(rows, columns=["uid", "latitude", "longitude"])
+df.to_csv(os.path.expanduser('~/simulated_tc_tracks'))
 # import xarray as xr; prefix = "/g/data/rt52/era5/pressure-levels/reanalysis"; days, month, year = 31, 10, 2000; ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
