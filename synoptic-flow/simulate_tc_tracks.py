@@ -142,7 +142,11 @@ for year in rank_years[:1]:
 
                 # calculate TC velocity and time step
                 u, v = tc_velocity(udlm, vdlm, latitudes[idx][-1], longitudes[idx][-1])
-                dest = timestep(latitudes[idx][-1], longitudes[idx][-1], u, v, dt=1)
+                try:
+                    dest = timestep(latitudes[idx][-1], longitudes[idx][-1], u, v, dt=1)
+                except ValueError as e:
+                    print(e)
+                    break
                 latitudes[idx].append(dest.latitude)
                 longitudes[idx].append(dest.longitude)
 
@@ -159,7 +163,11 @@ for year in rank_years[:1]:
 
                 # calculate TC velocity and time step
                 u, v = tc_velocity(udlm, vdlm, latitudes[idx][-1], longitudes[idx][-1])
-                dest = timestep(latitudes[idx][-1], longitudes[idx][-1], u, v, dt=1)
+                try:
+                    dest = timestep(latitudes[idx][-1], longitudes[idx][-1], u, v, dt=1)
+                except ValueError as e:
+                    print(e)
+                    break
                 latitudes[idx].append(dest.latitude)
                 longitudes[idx].append(dest.longitude)
 
