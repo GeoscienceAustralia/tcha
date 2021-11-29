@@ -60,9 +60,8 @@ def tc_velocity(udlm, vdlm, latitude, longitude):
     lat_slice = slice(lat_cntr + 6.25, lat_cntr - 6.25)
     long_slice = slice(lon_cntr - 6.25, lon_cntr + 6.25)
 
-    u = udlm.sel(time=timestamp, longitude=long_slice, latitude=lat_slice).mean()
-    v = vdlm.sel(time=timestamp, longitude=long_slice, latitude=lat_slice).mean()
-
+    u = -4.5205 + 0.8978 * udlm.sel(time=timestamp, longitude=long_slice, latitude=lat_slice).mean()
+    v = -1.2542 + 0.7877 * vdlm.sel(time=timestamp, longitude=long_slice, latitude=lat_slice).mean()
     return u, v
 
 
