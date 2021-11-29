@@ -182,10 +182,9 @@ for year in rank_years[:1]:
         rows.extend(
             (f"{idx}-{month}-{year}", lat, long)
             for idx, run in enumerate(zip(latitudes, longitudes))
-            for lat, long in run
+            for lat, long in zip(*run)
         )
 
 
 df = pd.DataFrame(rows, columns=["uid", "latitude", "longitude"])
 df.to_csv(os.path.expanduser('~/simulated_tc_tracks'))
-# import xarray as xr; prefix = "/g/data/rt52/era5/pressure-levels/reanalysis"; days, month, year = 31, 10, 2000; ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
