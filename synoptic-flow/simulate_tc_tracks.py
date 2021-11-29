@@ -25,11 +25,11 @@ def load_dlm(year, month):
     ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
     vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
 
-    uds = xr.open_dataset(ufile)  # xr.open_dataset(ufile, chunks='auto')
+    uds = xr.open_dataset(ufile, engine='h5netcdf')  # xr.open_dataset(ufile, chunks='auto')
     uenv = uds.u.sel(level=pslice, longitude=long_slice, latitude=lat_slice)  #.compute(scheduler='single-threaded')
     udlm = np.trapz(uenv.data, pressure, axis=1) / 550
 
-    vds = xr.open_dataset(vfile)  #, chunks='auto')
+    vds = xr.open_dataset(vfile, engine='h5netcdf')  #, chunks='auto')
     venv = vds.v.sel(level=pslice, longitude=long_slice, latitude=lat_slice)  #.compute(scheduler='single-threaded')
     vdlm = np.trapz(venv.data, pressure, axis=1) / 550
 
