@@ -98,7 +98,7 @@ pressure = np.array(
 
 years = np.arange(1981, 2021)
 rank = comm.Get_rank()
-rank_years = years[(years % 16) == rank]
+rank_years = years[(years % comm.size) == rank]
 
 repeats = 10_000 / 40  # repeat the catalogue of 40s years until a total of 10_000 years have been simulated
 
