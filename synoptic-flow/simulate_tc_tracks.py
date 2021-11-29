@@ -29,7 +29,7 @@ def load_dlm(year, month):
     uenv = uds.u.sel(level=pslice, longitude=long_slice, latitude=lat_slice)  #.compute(scheduler='single-threaded')
     udlm = np.trapz(uenv.data, pressure, axis=1) / 550
 
-    vds = xr.open_dataset(vfile, engine='h5netcdf')  #, chunks='auto')
+    vds = xr.open_dataset(vfile)  #, chunks='auto')
     venv = vds.v.sel(level=pslice, longitude=long_slice, latitude=lat_slice)  #.compute(scheduler='single-threaded')
     vdlm = np.trapz(venv.data, pressure, axis=1) / 550
 
