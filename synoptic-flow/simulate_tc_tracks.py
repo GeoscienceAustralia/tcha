@@ -106,11 +106,11 @@ month_rates = {
 }
 
 
-for year in rank_years:
+for year in rank_years[1:]:
     print(f"Loading data for {month}/{year}")
     udlm, vdlm = load_dlm(year, 1)
     print(f"Finished loading data for {month}/{year}. Time taken: {t1 - t0}s")
-    for month in range(1, 13):
+    for month in range(1, 2):
 
         t0 = time.time()
         # sufficient repeats that the sum should be equal to the mean * number of repeats
