@@ -105,18 +105,16 @@ month_rates = {
 }
 
 
-for year in rank_years[1:]:
+for year in rank_years[:1]:
+    t0 = time.time()
     print(f"Loading data for {1}/{year}")
     udlm, vdlm = load_dlm(year, 1)
+    t1 = time.time()
     print(f"Finished loading data for {1}/{year}. Time taken: {t1 - t0}s")
     for month in range(1, 2):
 
-        t0 = time.time()
         # sufficient repeats that the sum should be equal to the mean * number of repeats
         num_events = int(np.round(month_rates[month] * repeats))
-
-        t1 = time.time()
-
         print(f"Simulating tracks for {month}/{year}")
         revisit = []
 
@@ -165,3 +163,6 @@ for year in rank_years[1:]:
                 latitudes[idx].append(dest.latitude)
                 longitudes[idx].append(dest.longitude)
 
+
+
+# import xarray as xr; prefix = "/g/data/rt52/era5/pressure-levels/reanalysis"; days, month, year = 31, 10, 2000; ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
