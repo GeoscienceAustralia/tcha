@@ -15,7 +15,7 @@ sys.path.insert(0, sys.path.insert(0, os.path.expanduser('~/tcrm')))
 
 from StatInterface.SamplingOrigin import SamplingOrigin
 
-logging.basicConfig(filename='simulate_tc_tracks.log', encoding='utf-8', level=logging.DEBUG)
+logging.basicConfig(filename='simulate_tc_tracks.log', level=logging.DEBUG)
 
 
 def load_dlm(year, month):
