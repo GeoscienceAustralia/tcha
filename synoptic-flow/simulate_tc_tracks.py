@@ -131,8 +131,8 @@ for year in rank_years[:1]:
             duration = int(np.round(stats.lognorm.rvs(0.5491, 0., 153.27)))  # duration of cyclone in hours
 
             origin = genesis_sampler.generateSamples(1)
-            latitudes[idx].append(origin[1])
-            longitudes[idx].append(origin[0])
+            latitudes[idx].append(origin[0, 1])
+            longitudes[idx].append(origin[0, 0])
 
             for step in range(duration):
 
