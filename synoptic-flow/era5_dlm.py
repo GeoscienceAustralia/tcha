@@ -67,7 +67,7 @@ def load_dlm(year, month):
 
 print("Starting simulation.")
 for year in range(1981, 2021):
-    for month in range(1, 2):
+    for month in range(1, 13):
         t0 = time.time()
         logging.info(f"Loading data for {month}/{year}")
         print(f"Loading data for {month}/{year}")
@@ -86,3 +86,5 @@ for year in range(1981, 2021):
 
         logging.info(f"Finished saving data for {month}/{year}. Time taken: {time.time() - t1}s")
         print(f"Finished saving data for {month}/{year}. Time taken: {time.time() - t1}s")
+        break
+    break
