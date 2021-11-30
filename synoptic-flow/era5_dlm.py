@@ -71,14 +71,14 @@ years = np.arange(1981, 2021)
 rank = comm.Get_rank()
 rank_years = years[(years % comm.size) == rank]
 print("Starting simulation.")
-
+print()
 for year in years:
     for month in range(1, 13):
         t0 = time.time()
         logging.info(f"Loading data for {month}/{year}")
         print(f"Loading data for {month}/{year}")
 
-        udlm, vdlm = load_dlm(year, 1)
+        udlm, vdlm = load_dlm(year, month)
         t1 = time.time()
 
         logging.info(f"Finished loading data for {month}/{year}. Time taken: {time.time() - t0}s")
