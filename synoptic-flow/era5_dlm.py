@@ -71,26 +71,28 @@ years = np.arange(1981, 2021)
 rank = comm.Get_rank()
 rank_years = years[(years % comm.size) == rank]
 print("Starting simulation.")
-print()
-for year in years:
-    for month in range(1, 13):
-        t0 = time.time()
-        logging.info(f"Loading data for {month}/{year}")
-        print(f"Loading data for {month}/{year}")
-
-        udlm, vdlm = load_dlm(year, month)
-        t1 = time.time()
-
-        logging.info(f"Finished loading data for {month}/{year}. Time taken: {time.time() - t0}s")
-        print(f"Finished loading data for {month}/{year}. Time taken: {time.time() - t0}s")
-
-        logging.info(f"Saving data for {month}/{year}")
-        print(f"Saving data for {month}/{year}")
-
-        udlm.to_netcdf(f"/scratch/w85/kr4383/era5dlm/u_dlm_{month}_{year}.netcdf")
-        vdlm.to_netcdf(f"/scratch/w85/kr4383/era5dlm/u_dlm_{month}_{year}.netcdf")
-
-        logging.info(f"Finished saving data for {month}/{year}. Time taken: {time.time() - t1}s")
-        print(f"Finished saving data for {month}/{year}. Time taken: {time.time() - t1}s")
-        break
-    break
+print(rank, comm.size)
+print(rank_years)
+#
+# for year in years:
+#     for month in range(1, 13):
+#         t0 = time.time()
+#         logging.info(f"Loading data for {month}/{year}")
+#         print(f"Loading data for {month}/{year}")
+#
+#         udlm, vdlm = load_dlm(year, month)
+#         t1 = time.time()
+#
+#         logging.info(f"Finished loading data for {month}/{year}. Time taken: {time.time() - t0}s")
+#         print(f"Finished loading data for {month}/{year}. Time taken: {time.time() - t0}s")
+#
+#         logging.info(f"Saving data for {month}/{year}")
+#         print(f"Saving data for {month}/{year}")
+#
+#         udlm.to_netcdf(f"/scratch/w85/kr4383/era5dlm/u_dlm_{month}_{year}.netcdf")
+#         vdlm.to_netcdf(f"/scratch/w85/kr4383/era5dlm/u_dlm_{month}_{year}.netcdf")
+#
+#         logging.info(f"Finished saving data for {month}/{year}. Time taken: {time.time() - t1}s")
+#         print(f"Finished saving data for {month}/{year}. Time taken: {time.time() - t1}s")
+#         break
+#     break
