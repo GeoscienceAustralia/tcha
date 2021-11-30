@@ -17,4 +17,4 @@ module load dea/20210527
 
 cd $HOME/tcha/synoptic-flow
 
-mpiexec -n 1 python3 simulate_tc_tracks.py
+python3 simulate_tc_tracks.py
