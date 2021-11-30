@@ -9,7 +9,7 @@
 #PBS -l mem=128GB,ncpus=48,jobfs=4000MB
 #PBS -W umask=0002
 #PBS -joe
-#PBS -lstorage=gdata/w85+scratch/w85+gdata/rt52+gdata/v10
+#PBS -lstorage=gdata/w85+scratch/w85+gdata/rt52+gdata/v10+gdata/v10/fj6
 
 module purge
 module use /g/data/v10/public/modules/modulefiles
