@@ -9,7 +9,7 @@ import logging
 print("Imports dones. Setting up logs.")
 
 
-logging.basicConfig(filename='simulate_tc_tracks.log', level=logging.DEBUG)
+logging.basicConfig(filename='era5_dlm.log', level=logging.DEBUG)
 
 
 def load_dlm(year, month):
@@ -65,7 +65,6 @@ def load_dlm(year, month):
     return udlm, vdlm
 
 
-rows = []
 print("Starting simulation.")
 for year in range(1981, 2021):
     for month in range(1, 2):
