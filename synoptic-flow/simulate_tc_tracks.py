@@ -41,12 +41,12 @@ def load_dlm(year, month):
 
     uenv = uds.u.sel(level=pslice, longitude=long_slice, latitude=lat_slice)
     # udlm = np.trapz(uenv.data, pressure, axis=1) / 550
-    udlm = (coeff * uenv).sum(axis=1).compute(scheduler='single-threaded')
+    udlm = (coeff * uenv).sum(axis=1).compute() # (scheduler='single-threaded')
 
     vds = xr.open_dataset(vfile, chunks={'time': 24})
     venv = vds.v.sel(level=pslice, longitude=long_slice, latitude=lat_slice)  #.compute(scheduler='single-threaded')
     # vdlm = np.trapz(venv.data, pressure, axis=1) / 550
-    vdlm = (coeff * venv).sum(axis=1).compute(scheduler='single-threaded')
+    vdlm = (coeff * venv).sum(axis=1).compute() #(scheduler='single-threaded')
 
     udlm = xr.DataArray(
         udlm,
