@@ -5,7 +5,7 @@
 #PBS -N simulate_tc_tracks
 #PBS -m abe
 #PBS -M kieran.ricardo@ga.gov.au
-#PBS -l walltime=5:00:00
+#PBS -l walltime=0:20:00
 #PBS -l mem=128GB,ncpus=48,jobfs=4000MB
 #PBS -W umask=0002
 #PBS -joe
