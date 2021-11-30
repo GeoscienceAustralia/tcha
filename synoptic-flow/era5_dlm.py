@@ -5,6 +5,8 @@ import xarray as xr
 from calendar import monthrange
 import time
 import logging
+from mpi4py import MPI
+
 
 print("Imports dones. Setting up logs.")
 
@@ -37,12 +39,12 @@ def load_dlm(year, month):
 
     uenv = uds.u.sel(level=pslice, longitude=long_slice, latitude=lat_slice)
     # udlm = np.trapz(uenv.data, pressure, axis=1) / 550
-    udlm = (coeff * uenv).sum(axis=1).compute()  # (scheduler='single-threaded')
+    udlm = (coeff * uenv).sum(axis=1).compute(scheduler='threads', num_workers=20)  # (scheduler='single-threaded')
 
     vds = xr.open_dataset(vfile, chunks={'time': 24})
     venv = vds.v.sel(level=pslice, longitude=long_slice, latitude=lat_slice)  #.compute(scheduler='single-threaded')
     # vdlm = np.trapz(venv.data, pressure, axis=1) / 550
-    vdlm = (coeff * venv).sum(axis=1).compute()  # (scheduler='single-threaded')
+    vdlm = (coeff * venv).sum(axis=1).compute(scheduler='threads', num_workers=20)  # (scheduler='single-threaded')
 
     udlm = xr.DataArray(
         udlm,
@@ -64,9 +66,13 @@ def load_dlm(year, month):
 
     return udlm, vdlm
 
-
+comm = MPI.COMM_WORLD
+years = np.arange(1981, 2021)
+rank = comm.Get_rank()
+rank_years = years[(years % comm.size) == rank]
 print("Starting simulation.")
-for year in range(1981, 2021):
+
+for year in years:
     for month in range(1, 13):
         t0 = time.time()
         logging.info(f"Loading data for {month}/{year}")
