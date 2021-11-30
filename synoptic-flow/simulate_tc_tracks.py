@@ -1,3 +1,4 @@
+print("Importing.")
 import numpy as np
 import os
 import xarray as xr
@@ -11,6 +12,7 @@ import geopy
 from geopy.distance import geodesic as gdg
 import sys
 
+print("Imports dones. Setting up logs.")
 sys.path.insert(0, sys.path.insert(0, os.path.expanduser('~/tcrm')))
 
 from StatInterface.SamplingOrigin import SamplingOrigin
@@ -88,7 +90,7 @@ def timestep(latitude, longitude, u, v, dt):
 comm = MPI.COMM_WORLD
 
 prefix = "/g/data/rt52/era5/pressure-levels/reanalysis"
-
+print("Loading genesis distribution")
 genesis_sampler = SamplingOrigin(
     kdeOrigin="/g/data/fj6/TCRM/TCHA18/process/originPDF.nc"
 )
@@ -108,10 +110,11 @@ month_rates = {
 }
 
 rows = []
-
+print("Starting simulation.")
 for year in rank_years[:1]:
     t0 = time.time()
     logging.info(f"Loading data for {1}/{year}")
+    print(f"Loading data for {1}/{year}")
     udlm, vdlm = load_dlm(year, 1)
     logging.info(f"Finished loading data for {1}/{year}. Time taken: {time.time() - t0}s")
     for month in range(1, 2):
@@ -119,6 +122,7 @@ for year in rank_years[:1]:
         # sufficient repeats that the sum should be equal to the mean * number of repeats
         num_events = int(np.round(month_rates[month] * repeats))
         logging.info(f"Simulating tracks for {month}/{year}")
+        print(f"Simulating tracks for {month}/{year}")
         revisit = []
 
         days = monthrange(year, month)[1]
@@ -155,11 +159,14 @@ for year in rank_years[:1]:
 
         t1 = time.time()
         logging.info(f"Finished simulating tracks for {month}/{year}. Time taken: {t1 - t0}s")
+        print(f"Finished simulating tracks for {month}/{year}. Time taken: {t1 - t0}s")
 
         # in case TC track exceeds 1 month
         logging.info(f"Loading data for {month + 1}/{year}")
+        print(f"Loading data for {month + 1}/{year}")
         udlm, vdlm = load_dlm(year, month + 1)
         logging.info(f"Finished loading data for {1}/{year}. Time taken: {time.time() - t1}s")
+        print(f"Finished loading data for {1}/{year}. Time taken: {time.time() - t1}s")
 
         for idx, timestamp, duration in revisit:
             uid = f"{idx}-{month}-{year}"
