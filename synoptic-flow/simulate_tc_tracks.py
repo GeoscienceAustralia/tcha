@@ -23,19 +23,22 @@ logging.basicConfig(filename='simulate_tc_tracks.log', level=logging.DEBUG)
 def load_dlm(year, month):
     days = monthrange(year, month)[1]
 
-    lat_slice = slice(0, -2)
-    long_slice = slice(80, 90)
+    lat_slice = slice(0, -40)
+    long_slice = slice(80, 170)
     pslice = slice(300, 850)
 
+    prefix = "/g/data/rt52/era5/pressure-levels/reanalysis"
     ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
     vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
 
-    uds = xr.open_dataset(ufile, engine='h5netcdf')  # xr.open_dataset(ufile, chunks='auto')
-    uenv = uds.u.sel(level=pslice, longitude=long_slice, latitude=lat_slice)  #.compute(scheduler='single-threaded')
+    uds = xr.open_dataset(ufile, chunks=(days, -1, -1, -1))  # xr.open_dataset(ufile, chunks='auto')
+    time_slice = slice(uds.coords['time'].data[0], uds.coords['time'].data[24])
+
+    uenv = uds.u.sel(time=time_slice, level=pslice, longitude=long_slice, latitude=lat_slice).compute(scheduler='single-threaded')
     udlm = np.trapz(uenv.data, pressure, axis=1) / 550
 
-    vds = xr.open_dataset(vfile, engine='h5netcdf')  #, chunks='auto')
-    venv = vds.v.sel(level=pslice, longitude=long_slice, latitude=lat_slice)  #.compute(scheduler='single-threaded')
+    vds = xr.open_dataset(vfile, chunks=(days, -1, -1, -1))
+    venv = vds.v.sel(time=time_slice, level=pslice, longitude=long_slice, latitude=lat_slice).compute(scheduler='single-threaded')
     vdlm = np.trapz(venv.data, pressure, axis=1) / 550
 
     udlm = xr.DataArray(
@@ -89,7 +92,6 @@ def timestep(latitude, longitude, u, v, dt):
 
 comm = MPI.COMM_WORLD
 
-prefix = "/g/data/rt52/era5/pressure-levels/reanalysis"
 print("Loading genesis distribution")
 genesis_sampler = SamplingOrigin(
     kdeOrigin="/g/data/fj6/TCRM/TCHA18/process/originPDF.nc"
