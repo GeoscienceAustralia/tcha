@@ -204,4 +204,4 @@ for year in rank_years[:1]:
 
 
 df = pd.DataFrame(rows, columns=["uid", "latitude", "longitude"])
-df.to_csv(os.path.expanduser('~/simulated_tc_tracks'))
+df.to_csv(os.path.expanduser('/scratch/w85/kr4383/simulated_tc_tracks.csv'))
