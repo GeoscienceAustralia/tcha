@@ -2,14 +2,14 @@
 
 #PBS -Pw85
 #PBS -qnormal
-#PBS -N era5dlm
+#PBS -N simulate_tc_tracks
 #PBS -m abe
 #PBS -M kieran.ricardo@ga.gov.au
-#PBS -lwalltime=5:00:00
-#PBS -lmem=128GB,ncpus=48,jobfs=4000MB
+#PBS -l walltime=5:00:00
+#PBS -l mem=128GB,ncpus=48,jobfs=4000MB
 #PBS -W umask=0002
 #PBS -joe
-#PBS -lstorage=gdata/w85+scratch/w85+gdata/rt52
+#PBS -lstorage=gdata/w85+scratch/w85+gdata/rt52+gdata/v10
 
 module purge
 module use /g/data/v10/public/modules/modulefiles
