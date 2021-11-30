@@ -23,8 +23,8 @@ logging.basicConfig(filename='simulate_tc_tracks.log', level=logging.DEBUG)
 def load_dlm(year, month):
     days = monthrange(year, month)[1]
 
-    lat_slice = slice(0, -40)
-    long_slice = slice(80, 170)
+    lat_slice = slice(0, -2)
+    long_slice = slice(80, 90)
     pslice = slice(300, 850)
 
     ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
@@ -117,6 +117,7 @@ for year in rank_years[:1]:
     print(f"Loading data for {1}/{year}")
     udlm, vdlm = load_dlm(year, 1)
     logging.info(f"Finished loading data for {1}/{year}. Time taken: {time.time() - t0}s")
+    break
     for month in range(1, 2):
         t0 = time.time()
         # sufficient repeats that the sum should be equal to the mean * number of repeats
