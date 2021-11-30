@@ -126,6 +126,7 @@ for year in rank_years[:1]:
     print(f"Loading data for {1}/{year}")
     udlm, vdlm = load_dlm(year, 1)
     logging.info(f"Finished loading data for {1}/{year}. Time taken: {time.time() - t0}s")
+    print(f"Finished loading data for {1}/{year}. Time taken: {time.time() - t0}s")
     break
     for month in range(1, 2):
         t0 = time.time()
