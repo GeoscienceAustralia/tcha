@@ -17,4 +17,4 @@ module load dea/20210527
 
 cd $HOME/tcha/synoptic-flow
 
-mpiexec -n 2 python3 era5_dlm.py
+mpiexec -n 4 python3 era5_dlm.py
