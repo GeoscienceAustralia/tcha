@@ -92,5 +92,4 @@ for year in rank_years:
 
         logging.info(f"Finished saving data for {month}/{year}. Time taken: {time.time() - t1}s")
         print(f"Finished saving data for {month}/{year}. Time taken: {time.time() - t1}s")
-        break
-    break
+
