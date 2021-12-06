@@ -42,6 +42,15 @@ def load_dlm(year, month):
     udlm = xr.open_dataset(ufile)
     vdlm = xr.open_dataset(vfile)
 
+    ufile = f"/scratch/w85/kr4383/era5dlm/u_dlm_{(month % 12) + 1}_{year + (month // 12)}.netcdf"
+    vfile = f"/scratch/w85/kr4383/era5dlm/v_dlm_{(month % 12) + 1}_{year + (month // 12)}.netcdf"
+
+    udlm1 = xr.open_dataset(ufile)
+    vdlm1 = xr.open_dataset(vfile)
+
+    udlm = xr.concat([udlm, udlm1], dim='time')
+    vdlm = xr.concat([vdlm, vdlm1], dim='time')
+
     return udlm, vdlm
 
 
