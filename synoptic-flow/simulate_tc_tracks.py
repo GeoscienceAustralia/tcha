@@ -163,8 +163,8 @@ for year in rank_years[:1]:
             longitudes[step + 1, :] = dest[1]
 
             timestamps += np.timedelta64(1, 'h')
-            latitudes[step][timestamps > durations] = np.nan
-            longitudes[step][timestamps > durations] = np.nan
+            latitudes[step][step > durations] = np.nan
+            longitudes[step][step > durations] = np.nan
 
         t1 = time.time()
 
