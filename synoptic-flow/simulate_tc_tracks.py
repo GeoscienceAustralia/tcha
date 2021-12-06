@@ -118,8 +118,8 @@ time_offset = np.zeros((1, 2500))
 
 rows = []
 print("Starting simulation.")
-for year in rank_years[:1]:
-    for month in range(1, 2):
+for year in rank_years:
+    for month in range(1, 13):
         udlm, vdlm = load_dlm(year, month)
         # udlm_2, vdlm_2 = load_dlm(year + (month // 12), (month % 12) + 1)
 
