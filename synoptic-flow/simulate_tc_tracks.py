@@ -120,7 +120,7 @@ for year in rank_years[:1]:
         longitudes = []
 
         num_events = int(np.round(month_rates[month] * repeats))
-        durations = int(np.round(stats.lognorm.rvs(0.5491, 0., 153.27, size=num_events)))
+        durations = (np.round(stats.lognorm.rvs(0.5491, 0., 153.27, size=num_events))).astype(int)
 
         year_month = np.datetime64(f'{year}-{month:02d}')
         days = np.random.randint(1, days_in_month + 1, size=num_events) * np.timedelta64(1, 'D')
