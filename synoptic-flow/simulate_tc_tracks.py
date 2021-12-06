@@ -129,9 +129,12 @@ for year in rank_years[:1]:
 
         origin = genesis_sampler.generateSamples(num_events)
 
-        latitudes = np.zeros((durations.max(), num_events))
+        coords = np.zeros((2, durations.max(), num_events))
+
+        latitudes = coords[0, ...]
         latitudes[0, :] = origin[:, 1]
-        longitudes = np.zeros((durations.max(), num_events))
+
+        longitudes = coords[1, ...]
         longitudes[0, :] = origin[:, 0]
 
         for step in range(durations.max() - 1):
@@ -156,44 +159,19 @@ for year in rank_years[:1]:
             bearing[mask3] = 180 + np.arctan(u / v) * 180 / np.pi
 
             dest = destination(latitudes[step], longitudes[step], dist, bearing)
-            latitudes[idx + 1, :] = dest[0]
-            longitudes[idx + 1, :] = dest[1]
+            latitudes[step + 1, :] = dest[0]
+            longitudes[step + 1, :] = dest[1]
+
+            timestamps += np.timedelta64(1, 'h')
+            latitudes[step][timestamps > durations] = np.nan
+            longitudes[step][timestamps > durations] = np.nan
 
         t1 = time.time()
+
         logging.info(f"Finished simulating tracks for {month}/{year}. Time taken: {t1 - t0}s")
         print(f"Finished simulating tracks for {month}/{year}. Time taken: {t1 - t0}s")
 
-        # in case TC track exceeds 1 month
-        logging.info(f"Loading data for {month + 1}/{year}")
-        print(f"Loading data for {month + 1}/{year}")
-
-
-        logging.info(f"Finished loading data for {1}/{year}. Time taken: {time.time() - t1}s")
-        print(f"Finished loading data for {1}/{year}. Time taken: {time.time() - t1}s")
-
-        for idx, timestamp, duration in revisit:
-            uid = f"{idx}-{month}-{year}"
-
-            for step in range(duration):
-
-                if timestamp.month != month + 1:
-                    break
-
-                # calculate TC velocity and time step
-                u, v = tc_velocity(udlm, vdlm, latitudes[idx][-1], longitudes[idx][-1])
-                try:
-                    dest = timestep(latitudes[idx][-1], longitudes[idx][-1], u, v, dt=1)
-                except ValueError as e:
-                    print(e)
-                    break
-                latitudes[idx].append(dest.latitude)
-                longitudes[idx].append(dest.longitude)
-
-        rows.extend(
-            (f"{idx}-{month}-{year}", lat, long)
-            for idx, run in enumerate(zip(latitudes, longitudes))
-            for lat, long in zip(*run)
-        )
+        np.save(f"/scratch/w85/kr4383/tracks/tracks_{month}_{year}.npy")
 
 
 df = pd.DataFrame(rows, columns=["uid", "latitude", "longitude"])
