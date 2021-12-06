@@ -45,21 +45,20 @@ def load_dlm(year, month):
     return udlm, vdlm
 
 
-def tc_velocity(udlm_1, vdlm_1, udlm_2, vdlm_2, latitude, longitude, t):
-    lat_cntr = 0.25 * np.round(latitude * 4)
-    lon_cntr = 0.25 * np.round(longitude * 4)
-    lat_slice = slice(lat_cntr + 6.25, lat_cntr - 6.25)
-    long_slice = slice(lon_cntr - 6.25, lon_cntr + 6.25)
+def tc_velocity(udlm, vdlm, long_idxs, lat_idxs, time_idxs):
 
-    try:
-        u = -4.5205 + 0.8978 * udlm_1.sel(time=t, longitude=long_slice, latitude=lat_slice).mean()
-        v = -1.2542 + 0.7877 * vdlm_1.sel(time=t, longitude=long_slice, latitude=lat_slice).mean()
+    sz2 = udlm.u.data.shape[2]
+    sz1 = sz2 * udlm.u.data.shape[1]
 
-    except KeyError:
-        u = -4.5205 + 0.8978 * udlm_2.sel(time=t, longitude=long_slice, latitude=lat_slice).mean()
-        v = -1.2542 + 0.7877 * vdlm_2.sel(time=t, longitude=long_slice, latitude=lat_slice).mean()
+    idxs = time_idxs * sz1 + lat_idxs * sz2 + long_idxs
 
-    return u.u.data, v.v.data
+    u = udlm.u.data.flatten().take(idxs.astype(int)).mean(axis=1) * 3.6  # convert to km/hr
+    v = vdlm.v.data.flatten().take(idxs.astype(int)).mean(axis=1) * 3.6
+
+    u = -4.5205 + 0.8978 * u
+    v = -1.2542 + 0.7877 * v
+
+    return u, v
 
 
 def timestep(latitude, longitude, u, v, dt):
@@ -100,12 +99,20 @@ month_rates = {
     5: 0.3659, 10: 0.122, 7: 0.0488, 6: 0.0488, 8: 0.0244, 9: 0.0244
 }
 
+lat_offset = np.arange(-25, 25)
+long_offset = np.arange(-25, 25)
+lat_offset, long_offset = np.meshgrid(lat_offset, long_offset)
+
+lat_offset = lat_offset.flatten()[None, :]
+long_offset = long_offset.flatten()[None, :]
+time_offset = np.zeros((1, 2500))
+
 rows = []
 print("Starting simulation.")
 for year in rank_years[:1]:
     for month in range(1, 2):
-        udlm_1, vdlm_1 = load_dlm(year, month)
-        udlm_2, vdlm_2 = load_dlm(year + (month // 12), (month % 12) + 1)
+        udlm, vdlm = load_dlm(year, month)
+        # udlm_2, vdlm_2 = load_dlm(year + (month // 12), (month % 12) + 1)
 
         t0 = time.time()
 
@@ -129,7 +136,7 @@ for year in rank_years[:1]:
 
         origin = genesis_sampler.generateSamples(num_events)
 
-        coords = np.zeros((2, durations.max(), num_events))
+        coords = np.empty((2, durations.max(), num_events))
 
         latitudes = coords[0, ...]
         latitudes[0, :] = origin[:, 1]
@@ -137,15 +144,21 @@ for year in rank_years[:1]:
         longitudes = coords[1, ...]
         longitudes[0, :] = origin[:, 0]
 
+        longitude_index = pd.Series(np.arange(len(udlm.coords['longitude'].data)), udlm.coords['longitude'].data)
+        latitude_index = pd.Series(np.arange(len(udlm.coords['latitude'].data)), udlm.coords['latitude'].data)
+        time_index = pd.Series(np.arange(len(udlm.coords['time'].data)), udlm.coords['time'].data)
+
         for step in range(durations.max() - 1):
 
-            u = np.zeros(num_events)
-            v = np.zeros(num_events)
-            for i in range(num_events):
-                u[i], v[i] = tc_velocity(
-                    udlm_1, vdlm_1, udlm_2, vdlm_2, latitudes[step, i],
-                    longitudes[step, i], timestamps[i] + np.timedelta64(step, 'h')
-                )
+            mask = (longitudes[step] <= 170) & (longitudes[step] >= 80)
+            mask &= (latitudes[step] >= -40) & (latitudes[step] <= 0)
+            mask &= timestamps <= udlm.coords['time'].data[-1]
+
+            long_idxs = long_offset + longitude_index.loc[np.round(4 * longitudes[step][mask]) / 4].values[:, None]
+            lat_idxs = lat_offset + latitude_index.loc[np.round(4 * latitudes[step][mask]) / 4].values[:, None]
+            time_idxs = time_offset + time_index.loc[timestamps[mask]].values[:, None]
+
+            u, v = tc_velocity(udlm, vdlm, long_idxs, lat_idxs, time_idxs)
 
             dist = np.sqrt(u ** 2 + v ** 2)  # km travelled in one hour
 
@@ -159,12 +172,12 @@ for year in rank_years[:1]:
             bearing[mask3] = (180 + np.arctan(u / v) * 180 / np.pi)[mask3]
 
             dest = destination(latitudes[step], longitudes[step], dist, bearing)
-            latitudes[step + 1, :] = dest[0]
-            longitudes[step + 1, :] = dest[1]
+            latitudes[step + 1, mask] = dest[0]
+            longitudes[step + 1, mask] = dest[1]
 
             timestamps += np.timedelta64(1, 'h')
-            latitudes[step][step > durations] = np.nan
-            longitudes[step][step > durations] = np.nan
+            latitudes[step + 1][step + 1 > durations] = np.nan
+            longitudes[step + 1][step + 1 > durations] = np.nan
 
         t1 = time.time()
 
