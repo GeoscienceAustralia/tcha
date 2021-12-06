@@ -154,9 +154,9 @@ for year in rank_years[:1]:
             mask3 = (u < 0) & (v < 0)
 
             bearing = 360 + np.arctan(u / v) * 180 / np.pi
-            bearing[mask1] = np.arctan(u / v) * 180 / np.pi
-            bearing[mask2] = 180 + np.arctan(u / v) * 180 / np.pi
-            bearing[mask3] = 180 + np.arctan(u / v) * 180 / np.pi
+            bearing[mask1] = (np.arctan(u / v) * 180 / np.pi)[mask1]
+            bearing[mask2] = (180 + np.arctan(u / v) * 180 / np.pi)[mask2]
+            bearing[mask3] = (180 + np.arctan(u / v) * 180 / np.pi)[mask3]
 
             dest = destination(latitudes[step], longitudes[step], dist, bearing)
             latitudes[step + 1, :] = dest[0]
