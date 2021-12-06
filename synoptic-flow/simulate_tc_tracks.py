@@ -184,8 +184,4 @@ for year in rank_years[:1]:
         logging.info(f"Finished simulating tracks for {month}/{year}. Time taken: {t1 - t0}s")
         print(f"Finished simulating tracks for {month}/{year}. Time taken: {t1 - t0}s")
 
-        np.save(f"/scratch/w85/kr4383/tracks/tracks_{month}_{year}.npy")
-
-
-df = pd.DataFrame(rows, columns=["uid", "latitude", "longitude"])
-df.to_csv(os.path.expanduser('/scratch/w85/kr4383/simulated_tc_tracks.csv'))
+        np.save(f"/scratch/w85/kr4383/tracks/tracks_{month}_{year}.npy", coords)
