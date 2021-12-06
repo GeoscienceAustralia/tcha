@@ -162,7 +162,7 @@ for year in rank_years:
             mask = (longitudes[step] <= 170) & (longitudes[step] >= 80)
             mask &= (latitudes[step] >= -40) & (latitudes[step] <= 0)
             mask &= timestamps <= udlm.coords['time'].data[-1]
-            mask &= timestamps <= durations
+            mask &= step <= durations
 
             long_idxs = long_offset + longitude_index.loc[np.round(4 * longitudes[step][mask]) / 4].values[:, None]
             lat_idxs = lat_offset + latitude_index.loc[np.round(4 * latitudes[step][mask]) / 4].values[:, None]
