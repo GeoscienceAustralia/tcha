@@ -145,7 +145,7 @@ for year in rank_years:
 
         origin = genesis_sampler.generateSamples(num_events)
 
-        coords = np.empty((2, durations.max(), num_events))
+        coords = np.empty((2, durations.max(), num_events)) * np.nan
 
         latitudes = coords[0, ...]
         latitudes[0, :] = origin[:, 1]
@@ -162,6 +162,7 @@ for year in rank_years:
             mask = (longitudes[step] <= 170) & (longitudes[step] >= 80)
             mask &= (latitudes[step] >= -40) & (latitudes[step] <= 0)
             mask &= timestamps <= udlm.coords['time'].data[-1]
+            mask &= timestamps <= durations
 
             long_idxs = long_offset + longitude_index.loc[np.round(4 * longitudes[step][mask]) / 4].values[:, None]
             lat_idxs = lat_offset + latitude_index.loc[np.round(4 * latitudes[step][mask]) / 4].values[:, None]
@@ -185,8 +186,6 @@ for year in rank_years:
             longitudes[step + 1, mask] = dest[1]
 
             timestamps += np.timedelta64(1, 'h')
-            latitudes[step + 1][step + 1 > durations] = np.nan
-            longitudes[step + 1][step + 1 > durations] = np.nan
 
         t1 = time.time()
 
