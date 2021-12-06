@@ -20,64 +20,44 @@ from StatInterface.SamplingOrigin import SamplingOrigin
 logging.basicConfig(filename='simulate_tc_tracks.log', level=logging.DEBUG)
 
 
+def destination(lat1, lon1, dist, bearing):
+    lat1 = lat1 * np.pi / 180
+    lon1 = lon1 * np.pi / 180
+    bearing = bearing * (np.pi / 180)
+    # bearing = np.pi - bearing
+
+    rad = dist / 6371  # distance in radians
+    lat2 = np.arcsin(np.sin(lat1) * np.cos(rad) + np.cos(lat1) * np.sin(rad) * np.cos(bearing))
+    lon2 = lon1 - np.arcsin(np.sin(-bearing) * np.sin(rad) / np.cos(lat2)) + np.pi
+    lon2 = (lon2 % (2 * np.pi)) - np.pi
+
+    return lat2 * 180 / np.pi, lon2 * 180 / np.pi
+
+
 def load_dlm(year, month):
-    days = monthrange(year, month)[1]
 
-    lat_slice = slice(0, -40)
-    long_slice = slice(80, 170)
-    pslice = slice(300, 850)
+    ufile = f"/scratch/w85/kr4383/era5dlm/u_dlm_{month}_{year}.netcdf"
+    vfile = f"/scratch/w85/kr4383/era5dlm/v_dlm_{month}_{year}.netcdf"
 
-    # trapezoidal integration coefficients
-    coeff = np.zeros(len(pressure))
-    coeff[1:] += 0.5 * np.diff(pressure)
-    coeff[:-1] += 0.5 * np.diff(pressure)
-    coeff = coeff.reshape((1, -1, 1, 1))
-
-    prefix = "/g/data/rt52/era5/pressure-levels/reanalysis"
-    ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
-    vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
-
-    uds = xr.open_dataset(ufile, chunks={'time': 24})  # xr.open_dataset(ufile, chunks='auto')
-
-    uenv = uds.u.sel(level=pslice, longitude=long_slice, latitude=lat_slice)
-    # udlm = np.trapz(uenv.data, pressure, axis=1) / 550
-    udlm = (coeff * uenv).sum(axis=1).compute() # (scheduler='single-threaded')
-
-    vds = xr.open_dataset(vfile, chunks={'time': 24})
-    venv = vds.v.sel(level=pslice, longitude=long_slice, latitude=lat_slice)  #.compute(scheduler='single-threaded')
-    # vdlm = np.trapz(venv.data, pressure, axis=1) / 550
-    vdlm = (coeff * venv).sum(axis=1).compute() #(scheduler='single-threaded')
-
-    udlm = xr.DataArray(
-        udlm,
-        dims=["time", "latitude", "longitude"],
-        coords={
-            "time": uenv.coords["time"].data,
-            "latitude": uenv.coords["latitude"].data,
-            "longitude": uenv.coords["longitude"].data},
-    )
-
-    vdlm = xr.DataArray(
-        vdlm,
-        dims=["time", "latitude", "longitude"],
-        coords={
-            "time": uenv.coords["time"].data,
-            "latitude": uenv.coords["latitude"].data,
-            "longitude": uenv.coords["longitude"].data},
-    )
+    udlm = xr.open_dataset(ufile)
+    vdlm = xr.open_dataset(vfile)
 
     return udlm, vdlm
 
 
-def tc_velocity(udlm, vdlm, latitude, longitude):
+def tc_velocity(udlm, vdlm, latitude, longitude, t):
     lat_cntr = 0.25 * np.round(latitude * 4)
     lon_cntr = 0.25 * np.round(longitude * 4)
     lat_slice = slice(lat_cntr + 6.25, lat_cntr - 6.25)
     long_slice = slice(lon_cntr - 6.25, lon_cntr + 6.25)
 
-    u = -4.5205 + 0.8978 * udlm.sel(time=timestamp, longitude=long_slice, latitude=lat_slice).mean()
-    v = -1.2542 + 0.7877 * vdlm.sel(time=timestamp, longitude=long_slice, latitude=lat_slice).mean()
-    return u, v
+    try:
+        u = -4.5205 + 0.8978 * udlm.sel(time=t, longitude=long_slice, latitude=lat_slice).mean()
+        v = -1.2542 + 0.7877 * vdlm.sel(time=t, longitude=long_slice, latitude=lat_slice).mean()
+
+        return u.u.data, v.v.data
+    except KeyError:
+        return np.nan, np.nan
 
 
 def timestep(latitude, longitude, u, v, dt):
@@ -115,51 +95,65 @@ repeats = 10_000 / 40  # repeat the catalogue of 40s years until a total of 10_0
 
 month_rates = {
     1: 2.3415, 2: 2.0976, 3: 2.0, 12: 1.439, 4: 1.3659, 11: 0.5122,
-    5: 0.3659, 10: 0.122, 7: 0.0488, 6: 0.0488, 8: 0.0244, 9: 0.0
+    5: 0.3659, 10: 0.122, 7: 0.0488, 6: 0.0488, 8: 0.0244, 9: 0.0244
 }
 
 rows = []
 print("Starting simulation.")
-for year in rank_years:
+for year in rank_years[:1]:
     for month in range(1, 2):
+        udlm, vdlm = load_dlm(year, month)
+
         t0 = time.time()
+
         # sufficient repeats that the sum should be equal to the mean * number of repeats
-        num_events = int(np.round(month_rates[month] * repeats))
+
         logging.info(f"Simulating tracks for {month}/{year}")
         print(f"Simulating tracks for {month}/{year}")
+
         revisit = []
 
-        days = monthrange(year, month)[1]
-        latitudes = [[] for _ in range(num_events)]
-        longitudes = [[] for _ in range(num_events)]
-        for idx in range(num_events):
-            uid = f"{idx}-{month}-{year}"
-            # uniform random sample day of month and hour
-            day = np.random.randint(1, days + 1)
-            hour = np.random.randint(0, 24)
-            timestamp = pd.Timestamp(year=year, month=month, day=day, hour=hour)
+        days_in_month = monthrange(year, month)[1]
+        longitudes = []
 
-            duration = int(np.round(stats.lognorm.rvs(0.5491, 0., 153.27)))  # duration of cyclone in hours
+        num_events = int(np.round(month_rates[month] * repeats))
+        durations = int(np.round(stats.lognorm.rvs(0.5491, 0., 153.27, size=num_events)))
 
-            origin = genesis_sampler.generateSamples(1)
-            latitudes[idx].append(origin[0, 1])
-            longitudes[idx].append(origin[0, 0])
+        year_month = np.datetime64(f'{year}-{month:02d}')
+        days = np.random.randint(1, days_in_month + 1, size=num_events) * np.timedelta64(1, 'D')
+        hours = np.random.randint(0, 24, size=num_events) * np.timedelta64(1, 'h')
+        timestamps = year_month + hours + days
 
-            for step in range(duration):
+        origin = genesis_sampler.generateSamples(num_events)
 
-                if timestamp.month != month:
-                    revisit.append((idx, timestamp, duration - step))
-                    break
+        latitudes = np.zeros((durations.max(), num_events))
+        latitudes[0, :] = origin[:, 1]
+        longitudes = np.zeros((durations.max(), num_events))
+        longitudes[0, :] = origin[:, 0]
 
-                # calculate TC velocity and time step
-                u, v = tc_velocity(udlm, vdlm, latitudes[idx][-1], longitudes[idx][-1])
-                try:
-                    dest = timestep(latitudes[idx][-1], longitudes[idx][-1], u, v, dt=1)
-                except ValueError as e:
-                    print(e)
-                    break
-                latitudes[idx].append(dest.latitude)
-                longitudes[idx].append(dest.longitude)
+        for step in range(durations.max() - 1):
+
+            u = np.zeros(num_events)
+            v = np.zeros(num_events)
+            for i in range(num_events):
+                u[i], v[i] = tc_velocity(
+                    udlm, vdlm, latitudes[step, i], longitudes[step, i], timestamps[i] + np.timedelta64(step, 'h')
+                )
+
+            dist = np.sqrt(u ** 2 + v ** 2)  # km travelled in one hour
+
+            mask1 = (u >= 0) & (v >= 0)
+            mask2 = (u >= 0) & (v < 0)
+            mask3 = (u < 0) & (v < 0)
+
+            bearing = 360 + np.arctan(u / v) * 180 / np.pi
+            bearing[mask1] = np.arctan(u / v) * 180 / np.pi
+            bearing[mask2] = 180 + np.arctan(u / v) * 180 / np.pi
+            bearing[mask3] = 180 + np.arctan(u / v) * 180 / np.pi
+
+            dest = destination(latitudes[step], longitudes[step], dist, bearing)
+            latitudes[idx + 1, :] = dest[0]
+            longitudes[idx + 1, :] = dest[1]
 
         t1 = time.time()
         logging.info(f"Finished simulating tracks for {month}/{year}. Time taken: {t1 - t0}s")
@@ -168,6 +162,7 @@ for year in rank_years:
         # in case TC track exceeds 1 month
         logging.info(f"Loading data for {month + 1}/{year}")
         print(f"Loading data for {month + 1}/{year}")
+
         udlm, vdlm = load_dlm(year, month + 1)
         logging.info(f"Finished loading data for {1}/{year}. Time taken: {time.time() - t1}s")
         print(f"Finished loading data for {1}/{year}. Time taken: {time.time() - t1}s")
