@@ -193,3 +193,5 @@ for year in rank_years:
         print(f"Finished simulating tracks for {month}/{year}. Time taken: {t1 - t0}s")
 
         np.save(f"/scratch/w85/kr4383/tracks/tracks_{month}_{year}.npy", coords)
+        break
+    break
