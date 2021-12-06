@@ -45,19 +45,21 @@ def load_dlm(year, month):
     return udlm, vdlm
 
 
-def tc_velocity(udlm, vdlm, latitude, longitude, t):
+def tc_velocity(udlm_1, vdlm_1, udlm_2, vdlm_2, latitude, longitude, t):
     lat_cntr = 0.25 * np.round(latitude * 4)
     lon_cntr = 0.25 * np.round(longitude * 4)
     lat_slice = slice(lat_cntr + 6.25, lat_cntr - 6.25)
     long_slice = slice(lon_cntr - 6.25, lon_cntr + 6.25)
 
     try:
-        u = -4.5205 + 0.8978 * udlm.sel(time=t, longitude=long_slice, latitude=lat_slice).mean()
-        v = -1.2542 + 0.7877 * vdlm.sel(time=t, longitude=long_slice, latitude=lat_slice).mean()
+        u = -4.5205 + 0.8978 * udlm_1.sel(time=t, longitude=long_slice, latitude=lat_slice).mean()
+        v = -1.2542 + 0.7877 * vdlm_1.sel(time=t, longitude=long_slice, latitude=lat_slice).mean()
 
-        return u.u.data, v.v.data
     except KeyError:
-        return np.nan, np.nan
+        u = -4.5205 + 0.8978 * udlm_2.sel(time=t, longitude=long_slice, latitude=lat_slice).mean()
+        v = -1.2542 + 0.7877 * vdlm_2.sel(time=t, longitude=long_slice, latitude=lat_slice).mean()
+
+    return u.u.data, v.v.data
 
 
 def timestep(latitude, longitude, u, v, dt):
@@ -102,7 +104,8 @@ rows = []
 print("Starting simulation.")
 for year in rank_years[:1]:
     for month in range(1, 2):
-        udlm, vdlm = load_dlm(year, month)
+        udlm_1, vdlm_1 = load_dlm(year, month)
+        udlm_2, vdlm_2 = load_dlm(year + (month // 12), (month % 12) + 1)
 
         t0 = time.time()
 
@@ -137,7 +140,8 @@ for year in rank_years[:1]:
             v = np.zeros(num_events)
             for i in range(num_events):
                 u[i], v[i] = tc_velocity(
-                    udlm, vdlm, latitudes[step, i], longitudes[step, i], timestamps[i] + np.timedelta64(step, 'h')
+                    udlm_1, vdlm_1, udlm_2, vdlm_2, latitudes[step, i],
+                    longitudes[step, i], timestamps[i] + np.timedelta64(step, 'h')
                 )
 
             dist = np.sqrt(u ** 2 + v ** 2)  # km travelled in one hour
@@ -163,7 +167,7 @@ for year in rank_years[:1]:
         logging.info(f"Loading data for {month + 1}/{year}")
         print(f"Loading data for {month + 1}/{year}")
 
-        udlm, vdlm = load_dlm(year, month + 1)
+
         logging.info(f"Finished loading data for {1}/{year}. Time taken: {time.time() - t1}s")
         print(f"Finished loading data for {1}/{year}. Time taken: {time.time() - t1}s")
 
