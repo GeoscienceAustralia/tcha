@@ -61,8 +61,8 @@ def tc_velocity(udlm, vdlm, long_idxs, lat_idxs, time_idxs):
 
     idxs = time_idxs * sz1 + lat_idxs * sz2 + long_idxs
 
-    u = udlm.u.data.flatten().take(idxs.astype(int)).mean(axis=1) * 3.6  # convert to km/hr
-    v = vdlm.v.data.flatten().take(idxs.astype(int)).mean(axis=1) * 3.6
+    u = udlm.u.data.ravel().take(idxs.astype(int)).mean(axis=1) * 3.6  # convert to km/hr
+    v = vdlm.v.data.ravel().take(idxs.astype(int)).mean(axis=1) * 3.6
 
     u = -4.5205 + 0.8978 * u
     v = -1.2542 + 0.7877 * v
