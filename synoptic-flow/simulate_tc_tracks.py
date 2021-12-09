@@ -21,17 +21,16 @@ logging.basicConfig(filename='simulate_tc_tracks.log', level=logging.DEBUG)
 
 
 def destination(lat1, lon1, dist, bearing):
-    lat1 = lat1 * np.pi / 180
-    lon1 = lon1 * np.pi / 180
-    bearing = bearing * (np.pi / 180)
-    # bearing = np.pi - bearing
+    lon2 = np.zeros_like(lon1)
+    lat2 = np.zeros_like(lat1)
 
-    rad = dist / 6371  # distance in radians
-    lat2 = np.arcsin(np.sin(lat1) * np.cos(rad) + np.cos(lat1) * np.sin(rad) * np.cos(bearing))
-    lon2 = lon1 - np.arcsin(np.sin(-bearing) * np.sin(rad) / np.cos(lat2)) + np.pi
-    lon2 = (lon2 % (2 * np.pi)) - np.pi
+    for i in range(len(lat1)):
+        origin = geopy.Point(lat1[i], lon1[i])
+        dest = gdg(kilometers=dist[i]).destination(origin, bearing[i])
+        lon2[i] = dest.longitude
+        lat2[i] = dest.latitude
 
-    return lat2 * 180 / np.pi, lon2 * 180 / np.pi
+    return lat2, lon2
 
 
 def load_dlm(year, month):
@@ -55,14 +54,16 @@ def load_dlm(year, month):
 
 
 def tc_velocity(udlm, vdlm, long_idxs, lat_idxs, time_idxs):
+    mask = (0 <= long_idxs) & (long_idxs < len(udlm.coords['longitude'].data))
+    mask &= (0 <= lat_idxs) & (lat_idxs < len(udlm.coords['latitude'].data))
 
     sz2 = udlm.u.data.shape[2]
     sz1 = sz2 * udlm.u.data.shape[1]
 
     idxs = time_idxs * sz1 + lat_idxs * sz2 + long_idxs
 
-    u = udlm.u.data.ravel().take(idxs.astype(int)).mean(axis=1) * 3.6  # convert to km/hr
-    v = vdlm.v.data.ravel().take(idxs.astype(int)).mean(axis=1) * 3.6
+    u = 3.6 * (udlm.u.data.ravel().take(idxs.astype(int)) * mask).sum(axis=1) / mask.sum(axis=1)
+    v = 3.6 * (vdlm.v.data.ravel().take(idxs.astype(int)) * mask).sum(axis=1) / mask.sum(axis=1)
 
     u = -4.5205 + 0.8978 * u
     v = -1.2542 + 0.7877 * v
@@ -108,13 +109,13 @@ month_rates = {
     5: 0.3659, 10: 0.122, 7: 0.0488, 6: 0.0488, 8: 0.0244, 9: 0.0244
 }
 
-lat_offset = np.arange(-25, 25)
-long_offset = np.arange(-25, 25)
+lat_offset = np.arange(-25, 26)
+long_offset = np.arange(-25, 26)
 lat_offset, long_offset = np.meshgrid(lat_offset, long_offset)
 
 lat_offset = lat_offset.flatten()[None, :]
 long_offset = long_offset.flatten()[None, :]
-time_offset = np.zeros((1, 2500))
+time_offset = np.zeros_like(long_offset)
 
 rows = []
 print("Starting simulation.")
