@@ -165,11 +165,18 @@ for year in rank_years:
             mask &= timestamps <= udlm.coords['time'].data[-1]
             mask &= step <= durations
 
+            print(f"{(~((longitudes[step] <= 170) & (longitudes[step] >= 80))).sum()} finished from longitude.")
+            print(f"{(~((latitudes[step] >= -40) & (latitudes[step] <= 0))).sum()} finished from latitude.")
+            print(f"{(~(timestamps <= udlm.coords['time'].data[-1])).sum()} finished from time range.")
+            print(f"{(~(step <= durations)).sum()} finished from time durations.")
+
             long_idxs = long_offset + longitude_index.loc[np.round(4 * longitudes[step][mask]) / 4].values[:, None]
             lat_idxs = lat_offset + latitude_index.loc[np.round(4 * latitudes[step][mask]) / 4].values[:, None]
             time_idxs = time_offset + time_index.loc[timestamps[mask]].values[:, None]
 
             u, v = tc_velocity(udlm, vdlm, long_idxs, lat_idxs, time_idxs)
+
+            print(f"{np.isnan(u[mask]).sum()} finished from bad velocity.")
 
             dist = np.sqrt(u ** 2 + v ** 2)  # km travelled in one hour
 
@@ -183,6 +190,7 @@ for year in rank_years:
             bearing[mask3] = (180 + np.arctan(u / v) * 180 / np.pi)[mask3]
 
             dest = destination(latitudes[step, mask], longitudes[step, mask], dist, bearing)
+            print(f"{np.isnan(dest[0]).sum()} finished from bad destination.")
             latitudes[step + 1, mask] = dest[0]
             longitudes[step + 1, mask] = dest[1]
 
@@ -190,7 +198,9 @@ for year in rank_years:
 
         t1 = time.time()
 
-        logging.info(f"Finished simulating tracks for {month}/{year}. Time taken: {t1 - t0}s")
+        print(f"{np.isnan(latitudes[step + 1]).sum()} finished early.")
         print(f"Finished simulating tracks for {month}/{year}. Time taken: {t1 - t0}s")
-
+        break
+        logging.info(f"Finished simulating tracks for {month}/{year}. Time taken: {t1 - t0}s")
         np.save(f"/scratch/w85/kr4383/tracks/tracks_{month}_{year}.npy", coords)
+    break
