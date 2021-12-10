@@ -60,10 +60,10 @@ def tc_velocity(udlm, vdlm, long_idxs, lat_idxs, time_idxs):
     sz2 = udlm.u.data.shape[2]
     sz1 = sz2 * udlm.u.data.shape[1]
 
-    idxs = time_idxs * sz1 + lat_idxs * sz2 + long_idxs
+    idxs = (time_idxs * sz1 + lat_idxs * sz2 + long_idxs)[mask]
 
-    u = 3.6 * (udlm.u.data.ravel().take(idxs.astype(int)) * mask).sum(axis=1) / mask.sum(axis=1)
-    v = 3.6 * (vdlm.v.data.ravel().take(idxs.astype(int)) * mask).sum(axis=1) / mask.sum(axis=1)
+    u = 3.6 * udlm.u.data.ravel().take(idxs.astype(int)).sum(axis=1) / mask.sum(axis=1)
+    v = 3.6 * vdlm.v.data.ravel().take(idxs.astype(int)).sum(axis=1) / mask.sum(axis=1)
 
     u = -4.5205 + 0.8978 * u
     v = -1.2542 + 0.7877 * v
