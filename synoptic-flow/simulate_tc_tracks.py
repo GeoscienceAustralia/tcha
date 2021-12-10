@@ -145,6 +145,10 @@ for year in rank_years:
         timestamps = year_month + hours + days
 
         origin = genesis_sampler.generateSamples(num_events)
+        mask = (origin[:, 0] >= 170) | (origin[:, 0] <= 80)
+        while mask.any():
+            origin[mask, :] = genesis_sampler.generateSamples(mask.sum())
+            mask = (origin[:, 0] >= 170) | (origin[:, 0] <= 80)
 
         coords = np.empty((2, durations.max(), num_events)) * np.nan
 
