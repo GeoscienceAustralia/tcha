@@ -18,6 +18,25 @@ def load_dlm(year, month):
     return udlm, vdlm
 
 
+def smooth(xx):
+    ksize = 51
+
+    correction = cv2.blur(np.ones_like(xx[0]), ksize=(ksize, ksize), borderType=cv2.BORDER_ISOLATED)
+    correction = (1 / correction)[None, ...]
+
+    # annoying opencv bug means this must be split
+    xx_T = xx.transpose()
+    xx_smth = np.zeros_like(xx_T)
+    xx_smth[..., :500] = cv2.blur(xx_T[..., :500], ksize=(ksize, ksize), borderType=cv2.BORDER_ISOLATED)
+
+    if xx_smth.shape[-1] > 500:
+        xx_smth[..., 500:] = cv2.blur(xx_T[..., 500:], ksize=(ksize, ksize), borderType=cv2.BORDER_ISOLATED)
+
+    xx_smth = xx_smth.transpose() * correction
+
+    return xx_smth
+
+
 def tc_velocity(udlm, vdlm):
     """
     Perform an average over a 12.5 x 12.5 degree box of the deep layer mean flow using
@@ -82,8 +101,8 @@ u_next[:] = np.nan
 v_next[:] = np.nan
 
 for time_idx, t in enumerate(u.coords['time'].data[:-dt]):
-    lat = latitude + v.data[time_idx] * 180 / (np.pi * 6378)
-    long = longitude + u.data[time_idx] * 180 / (np.pi * 6378 * np.cos(np.pi * latitude / 180))
+    lat = latitude + v.data[time_idx] * dt * 180 / (np.pi * 6378)
+    long = longitude + u.data[time_idx] * dt * 180 / (np.pi * 6378 * np.cos(np.pi * latitude / 180))
 
     long = np.round(4 * long) / 4
     lat = np.round(4 * lat) / 4
