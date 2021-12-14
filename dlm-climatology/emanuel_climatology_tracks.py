@@ -34,7 +34,7 @@ def perturbation(t, N, T, phase):
     n = np.arange(1, N + 1)[None, :]
 
     n_inv_23 = n ** (-3 / 2)
-    a = np.sqrt(2) * np.linalg.norm(n_inv_23)
+    a = np.sqrt(2) / np.linalg.norm(n_inv_23)
 
     return a * (n_inv_23 * np.sin(2 * np.pi * (phase + n * t / T))).sum(axis=1)
 
@@ -77,7 +77,7 @@ years = np.arange(1981, 2021)
 rank = comm.Get_rank()
 rank_years = years[(years % comm.size) == rank]
 
-repeats = 10_000 / 40  # repeat the catalogue of 40s years until a total of 10_000 years have been simulated
+repeats = 10_000  # simulate a total of 10_000 years
 
 month_rates = {
     1: 2.3415, 2: 2.0976, 3: 2.0, 12: 1.439, 4: 1.3659, 11: 0.5122,
@@ -87,7 +87,7 @@ month_rates = {
 rows = []
 print("Starting simulation.")
 
-year = 2001 # arbitrary choice of non leap year
+year = 2001  # arbitrary choice of non leap year
 
 for month in range(1, 13):
     # udlm_2, vdlm_2 = load_dlm(year + (month // 12), (month % 12) + 1)
@@ -96,8 +96,8 @@ for month in range(1, 13):
 
     # sufficient repeats that the sum should be equal to the mean * number of repeats
 
-    logging.info(f"Simulating tracks for {month}}")
-    print(f"Simulating tracks for {month}}")
+    logging.info(f"Simulating tracks for {month}")
+    print(f"Simulating tracks for {month}")
 
     revisit = []
 
@@ -164,4 +164,4 @@ for month in range(1, 13):
 
     print(f"Finished simulating tracks for {month}/{year}. Time taken: {t1 - t0}s")
     logging.info(f"Finished simulating tracks for {month}/{year}. Time taken: {t1 - t0}s")
-    np.save(f"/scratch/w85/kr4383/tracks/tracks_{month}_{year}.npy", coords)
+    np.save(f"/scratch/w85/kr4383/climatology_tracks/climatology_tracks_{month}_{year}.npy", coords)
