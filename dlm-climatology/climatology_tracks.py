@@ -8,12 +8,28 @@ import logging
 from calendar import monthrange
 import sys
 import scipy.stats as stats
+from geopy.distance import geodesic as gdg
+import geopy
 
 sys.path.insert(0, sys.path.insert(0, os.path.expanduser('~/tcrm')))
 from StatInterface.SamplingOrigin import SamplingOrigin
 
 
 path = "/scratch/w85/kr4383/era5dlm"
+logging.basicConfig(filename='climatology_tc_tracks.log', level=logging.DEBUG)
+
+
+def destination(lat1, lon1, dist, bearing):
+    lon2 = np.zeros_like(lon1)
+    lat2 = np.zeros_like(lat1)
+
+    for i in range(len(lat1)):
+        origin = geopy.Point(lat1[i], lon1[i])
+        dest = gdg(kilometers=dist[i]).destination(origin, bearing[i])
+        lon2[i] = dest.longitude
+        lat2[i] = dest.latitude
+
+    return lat2, lon2
 
 
 def get_climatology(month):
