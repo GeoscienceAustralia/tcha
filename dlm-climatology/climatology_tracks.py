@@ -106,6 +106,10 @@ print("Starting simulation.")
 year = 2001  # arbitrary choice of non leap year
 
 for month in range(1, 13):
+
+    logging.info(f"Simulating tracks for {month}")
+    print(f"Simulating tracks for {month}")
+
     climatology = get_climatology(month)
     climatology = smooth(climatology)
     # udlm_2, vdlm_2 = load_dlm(year + (month // 12), (month % 12) + 1)
@@ -113,9 +117,6 @@ for month in range(1, 13):
     t0 = time.time()
 
     # sufficient repeats that the sum should be equal to the mean * number of repeats
-
-    logging.info(f"Simulating tracks for {month}")
-    print(f"Simulating tracks for {month}")
 
     revisit = []
 
