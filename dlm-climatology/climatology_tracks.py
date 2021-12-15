@@ -76,7 +76,9 @@ N = 15
 T = 15 * 24  # 15 days
 phase = np.random.random(N)
 
+print("Calculating climatology")
 climatology = np.array([get_climatology(month) for month in range(1, 13)])
+print("Smoothing climatology")
 climatology = smooth(climatology.reshape((-1,) + climatology.shape[-2:])).reshape(climatology.shape)
 
 u_mean = climatology[:, 0]
