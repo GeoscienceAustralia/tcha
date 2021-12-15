@@ -167,7 +167,7 @@ for month in range(1, 13):
         time_pd = pd.DatetimeIndex(timestamps)
         t = time_pd.dayofyear * 24 + time_pd.hour
 
-        u, v = tc_velocity(climatology, month, t, N, T, phase, idxs)
+        u, v = tc_velocity(climatology, month, t[mask], N, T, phase, idxs)
 
         dist = np.sqrt(u ** 2 + v ** 2)  # km travelled in one hour
 
