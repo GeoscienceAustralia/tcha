@@ -52,10 +52,10 @@ def get_climatology(month):
     v_mean = vdlm.mean(dim='time').compute(scheduler="single-threaded")
     v_std = vdlm.std(dim='time').compute(scheduler="single-threaded")
 
-    u_mean.name = "u_mean"
-    u_std.name = "u_std"
-    v_mean.name = "v_mean"
-    v_std.name = "v_std"
+    u_mean["name"] = "u_mean"
+    u_std["name"] = "u_std"
+    v_mean["name"] = "v_mean"
+    v_std["name"] = "v_std"
 
     ds = xr.merge([u_mean, u_std, v_mean, v_std])
     return ds
