@@ -52,29 +52,13 @@ def get_climatology(month):
     v_mean = vdlm.mean(dim='time').compute(scheduler="single-threaded")
     v_std = vdlm.std(dim='time').compute(scheduler="single-threaded")
 
-    ds = xr.merge({'u_mean': u_mean, 'u_std': u_std, 'v_mean': v_mean, 'v_std': v_std})
+    u_mean.name = "u_mean"
+    u_std.name = "u_std"
+    v_mean.name = "v_mean"
+    v_std.name = "v_std"
+
+    ds = xr.merge([u_mean, u_std, v_mean, v_std])
     return ds
-
-
-def perturbation(t, N, T, phase):
-    n = np.arange(1, N + 1)[None, :]
-
-    n_inv_23 = n ** (-3 / 2)
-    a = np.sqrt(2) / np.linalg.norm(n_inv_23)
-
-    return a * (n_inv_23 * np.sin(2 * np.pi * (phase + n * t[:, None] / T))).sum(axis=1)
-
-
-def tc_velocity(climatology, t, N, T, phase, idxs):
-    pert = perturbation(t, N, T, phase)
-
-    u = climatology[0].take(idxs) + climatology[1].take(idxs) * pert
-    v = climatology[2].take(idxs) + climatology[3].take(idxs) * pert
-
-    u = -4.5205 + 0.8978 * u * 3.6
-    v = -1.2542 + 0.7877 * v * 3.6
-
-    return u, v
 
 
 months = np.arange(1, 13)
