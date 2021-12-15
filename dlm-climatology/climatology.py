@@ -77,20 +77,6 @@ def tc_velocity(climatology, t, N, T, phase, idxs):
     return u, v
 
 
-N = 15
-T = 15 * 24  # 15 days
-phase = np.random.random(N)
-
-u_phase = np.random.random(N)
-v_phase = np.random.random(N)
-
-genesis_sampler = SamplingOrigin(
-    kdeOrigin="/g/data/fj6/TCRM/TCHA18/process/originPDF.nc"
-)
-pressure = np.array(
-    [300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850]
-)
-
 months = np.arange(1, 13)
 rank = comm.Get_rank()
 rank_months = months[(months % comm.size) == rank]
@@ -102,14 +88,10 @@ month_rates = {
     5: 0.3659, 10: 0.122, 7: 0.0488, 6: 0.0488, 8: 0.0244, 9: 0.0244
 }
 
-print("Starting simulation.")
-
-year = 2001  # arbitrary choice of non leap year
-
 for month in rank_months:
 
-    logging.info(f"Simulating tracks for {month}")
-    print(f"Simulating tracks for {month}")
+    logging.info(f"Calculating climatology for {month}")
+    print(f"Calculating climatology for {month}")
 
     climatology = get_climatology(month)
 
