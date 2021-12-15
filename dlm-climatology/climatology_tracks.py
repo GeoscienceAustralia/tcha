@@ -37,13 +37,18 @@ def get_climatology(month):
     ufile = os.path.join(path, "u_dlm_{}_{}.netcdf".format(month, "{}"))
     vfile = os.path.join(path, "v_dlm_{}_{}.netcdf".format(month, "{}"))
 
-    udlms = [xr.open_dataset(ufile.format(year)).u.data for year in range(1981, 2021)]
-    vdlms = [xr.open_dataset(vfile.format(year)).v.data for year in range(1980, 2021)]
+    udlms = [xr.open_dataset(ufile.format(year), chunks='auto') for year in range(1981, 2021)]
+    vdlms = [xr.open_dataset(vfile.format(year), chunks='auto') for year in range(1981, 2021)]
 
-    udlm = np.concatenate(udlms, axis=0)
-    vdlm = np.concatenate(vdlms, axis=0)
+    udlm = xr.concat(udlms, dim='time')
+    vdlm = xr.concat(vdlms, dim='time')
 
-    return np.array([udlm.mean(axis=0), np.std(udlm, axis=0), vdlm.mean(axis=0), np.std(vdlm, axis=0)])
+    u_mean = udlm.mean(dim='time').compute().u.data
+    u_std = udlm.std(dim='time').compute().u.data
+    v_mean = vdlm.mean(dim='time').compute().v.data
+    v_std = vdlm.std(dim='time').compute().v.data
+
+    return np.array([u_mean, u_std, v_mean, v_std])
 
 
 def perturbation(t, N, T, phase):
