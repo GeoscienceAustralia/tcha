@@ -60,7 +60,7 @@ def perturbation(t, N, T, phase):
     n_inv_23 = n ** (-3 / 2)
     a = np.sqrt(2) / np.linalg.norm(n_inv_23)
 
-    return a * (n_inv_23 * np.sin(2 * np.pi * (phase + n * t / T))).sum(axis=1)
+    return a * (n_inv_23 * np.sin(2 * np.pi * (phase + n * t[:, ] / T))).sum(axis=1)
 
 
 def tc_velocity(climatology, month, t, N, T, phase, idxs):
