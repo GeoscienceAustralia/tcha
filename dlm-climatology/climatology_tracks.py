@@ -17,6 +17,7 @@ sys.path.insert(0, sys.path.insert(0, os.path.expanduser('~/tcrm')))
 from StatInterface.SamplingOrigin import SamplingOrigin
 
 comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
 
 path = "/scratch/w85/kr4383/era5dlm"
 logging.basicConfig(filename='climatology_tc_tracks.log', level=logging.DEBUG)
@@ -63,11 +64,11 @@ def perturbation(t, N, T, phase):
     return a * (n_inv_23 * np.sin(2 * np.pi * (phase + n * t[:, None] / T))).sum(axis=1)
 
 
-def tc_velocity(climatology, month, t, N, T, phase, idxs):
+def tc_velocity(climatology, t, N, T, phase, idxs):
     pert = perturbation(t, N, T, phase)
 
-    u = climatology[month - 1, 0].take(idxs) + climatology[month - 1, 1].take(idxs) * pert
-    v = climatology[month - 1, 2].take(idxs) + climatology[month - 1, 3].take(idxs) * pert
+    u = climatology[0].take(idxs) + climatology[1].take(idxs) * pert
+    v = climatology[2].take(idxs) + climatology[3].take(idxs) * pert
 
     u = -4.5205 + 0.8978 * u * 3.6
     v = -1.2542 + 0.7877 * v * 3.6
@@ -79,16 +80,6 @@ N = 15
 T = 15 * 24  # 15 days
 phase = np.random.random(N)
 
-print("Calculating climatology")
-climatology = np.array([get_climatology(month) for month in range(1, 13)])
-print("Smoothing climatology")
-climatology = smooth(climatology.reshape((-1,) + climatology.shape[-2:])).reshape(climatology.shape)
-
-u_mean = climatology[:, 0]
-u_std = climatology[:, 1]
-v_mean = climatology[:, 2]
-v_std = climatology[:, 3]
-
 u_phase = np.random.random(N)
 v_phase = np.random.random(N)
 
@@ -99,9 +90,9 @@ pressure = np.array(
     [300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850]
 )
 
-years = np.arange(1981, 2021)
+months = np.arange(1, 13)
 rank = comm.Get_rank()
-rank_years = years[(years % comm.size) == rank]
+rank_months = months[(months % comm.size) == rank]
 
 repeats = 10_000  # simulate a total of 10_000 years
 
@@ -110,12 +101,13 @@ month_rates = {
     5: 0.3659, 10: 0.122, 7: 0.0488, 6: 0.0488, 8: 0.0244, 9: 0.0244
 }
 
-rows = []
 print("Starting simulation.")
 
 year = 2001  # arbitrary choice of non leap year
 
 for month in range(1, 13):
+    climatology = get_climatology(month)
+    climatology = smooth(climatology)
     # udlm_2, vdlm_2 = load_dlm(year + (month // 12), (month % 12) + 1)
 
     t0 = time.time()
@@ -167,7 +159,7 @@ for month in range(1, 13):
         time_pd = pd.DatetimeIndex(timestamps)
         t = time_pd.dayofyear * 24 + time_pd.hour
 
-        u, v = tc_velocity(climatology, month, t[mask], N, T, phase, idxs)
+        u, v = tc_velocity(climatology, t[mask], N, T, phase, idxs)
 
         dist = np.sqrt(u ** 2 + v ** 2)  # km travelled in one hour
 
