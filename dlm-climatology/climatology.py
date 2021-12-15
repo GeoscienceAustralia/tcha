@@ -20,7 +20,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 path = "/scratch/w85/kr4383/era5dlm"
-logging.basicConfig(filename='climatology_tc_tracks.log', level=logging.DEBUG)
+logging.basicConfig(filename='climatology.log', level=logging.DEBUG)
 
 
 def destination(lat1, lon1, dist, bearing):
@@ -113,4 +113,4 @@ for month in rank_months:
 
     climatology = get_climatology(month)
 
-    climatology.to_netcdf(f"/scratch/w85/kr4383/climatology/climatology_{month}.npy")
+    climatology.to_netcdf(f"/scratch/w85/kr4383/climatology/climatology_{month}.netcdf")
