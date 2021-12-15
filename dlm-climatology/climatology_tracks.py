@@ -66,8 +66,8 @@ def perturbation(t, N, T, phase):
 def tc_velocity(climatology, month, t, N, T, phase, idxs):
     pert = perturbation(t, N, T, phase)
 
-    u = climatology[month + 1, 0].take(idxs) + climatology[month + 1, 1].take(idxs) * pert
-    v = climatology[month + 1, 2].take(idxs) + climatology[month + 1, 3].take(idxs) * pert
+    u = climatology[month - 1, 0].take(idxs) + climatology[month - 1, 1].take(idxs) * pert
+    v = climatology[month - 1, 2].take(idxs) + climatology[month - 1, 3].take(idxs) * pert
 
     u = -4.5205 + 0.8978 * u * 3.6
     v = -1.2542 + 0.7877 * v * 3.6
