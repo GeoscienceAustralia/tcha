@@ -37,7 +37,7 @@ def get_climatology(month):
     ufile = os.path.join(path, "u_dlm_{}_{}.netcdf".format(month, "{}"))
     vfile = os.path.join(path, "v_dlm_{}_{}.netcdf".format(month, "{}"))
 
-    udlms = [xr.open_dataset(ufile.format(year)).u.data for year in range(1980, 2021)]
+    udlms = [xr.open_dataset(ufile.format(year)).u.data for year in range(1981, 2021)]
     vdlms = [xr.open_dataset(vfile.format(year)).v.data for year in range(1980, 2021)]
 
     udlm = np.concatenate(udlms, axis=0)
