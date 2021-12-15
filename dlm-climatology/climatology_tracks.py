@@ -10,10 +10,13 @@ import sys
 import scipy.stats as stats
 from geopy.distance import geodesic as gdg
 import geopy
+from mpi4py import MPI
+
 
 sys.path.insert(0, sys.path.insert(0, os.path.expanduser('~/tcrm')))
 from StatInterface.SamplingOrigin import SamplingOrigin
 
+comm = MPI.COMM_WORLD
 
 path = "/scratch/w85/kr4383/era5dlm"
 logging.basicConfig(filename='climatology_tc_tracks.log', level=logging.DEBUG)
