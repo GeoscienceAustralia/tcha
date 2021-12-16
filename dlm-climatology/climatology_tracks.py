@@ -64,11 +64,25 @@ def perturbation(t, N, T, phase):
     return a * (n_inv_23 * np.sin(2 * np.pi * (phase + n * t[:, None] / T))).sum(axis=1)
 
 
-def tc_velocity(climatology, t, N, T, phase, idxs):
+def tc_velocity(climatologies, t, N, T, phase, idxs):
     pert = perturbation(t, N, T, phase)
 
-    u = climatology[0].take(idxs) + climatology[1].take(idxs) * pert
-    v = climatology[2].take(idxs) + climatology[3].take(idxs) * pert
+    us = [climatology[0].take(idxs) + climatology[1].take(idxs) * pert for climatology in climatologies]
+    vs = [climatology[2].take(idxs) + climatology[3].take(idxs) * pert for climatology in climatologies]
+
+    # linearly interpolate climatology from months
+    time_pd = pd.DatetimeIndex(t)
+    month = time_pd.month
+    month_mask = (time_pd.day < 15)
+    w0 = abs(time_pd.day - 15)
+    w1 = abs(30 - w0)
+
+    u = w1 * us[month - 1] + w0 * month_mask * us[(month - 2) % 12]
+    u += w0 * (~month_mask) * us[month % 12]
+    u /= 30
+    v = w1 * vs[month - 1] + w0 * month_mask * vs[(month - 2) % 12]
+    v += w0 * (~month_mask) * vs[month % 12]
+    v /= 30
 
     u = -4.5205 + 0.8978 * u * 3.6
     v = -1.2542 + 0.7877 * v * 3.6
@@ -101,17 +115,17 @@ month_rates = {
     5: 0.3659, 10: 0.122, 7: 0.0488, 6: 0.0488, 8: 0.0244, 9: 0.0244
 }
 
-print("Starting simulation.")
+dss = [xr.open_dataset(f"/scratch/w85/kr4383/climatology/climatology_{month}.netcdf") for month in range(1, 13)]
+climatologies = [np.stack([ds.u_mean.data, ds.u_std.data, ds.v_mean.data, ds.v_std.data]) for ds in dss]
+climatologies = [smooth(xx) for xx in climatologies]
 
 year = 2001  # arbitrary choice of non leap year
 
-for month in range(1, 13):
+for month in rank_months:
 
     logging.info(f"Simulating tracks for {month}")
     print(f"Simulating tracks for {month}")
 
-    climatology = get_climatology(month)
-    climatology = smooth(climatology)
     # udlm_2, vdlm_2 = load_dlm(year + (month // 12), (month % 12) + 1)
 
     t0 = time.time()
@@ -146,21 +160,22 @@ for month in range(1, 13):
     longitudes[0, :] = origin[:, 0]
 
     for step in range(durations.max() - 1):
+        time_pd = pd.DatetimeIndex(timestamps)
 
         mask = (longitudes[step] <= 170) & (longitudes[step] >= 80)
         mask &= (latitudes[step] >= -40) & (latitudes[step] <= 0)
-        # mask &= timestamps <= udlm.coords['time'].data[-1]
+        # if as TC goes more than 15 days into the next month its killed
+        mask &= (timestamps.month < (month + 1)) | (timestamps.day <= 15)
         mask &= step <= durations
 
         long_idxs = np.round(4 * longitudes[step][mask]) - (4 * 80)
         lat_idxs = np.round(4 * latitudes[step][mask])
 
-        idxs = (lat_idxs * climatology.shape[-1] + long_idxs).astype(int)
+        idxs = (lat_idxs * climatologies[0].shape[-1] + long_idxs).astype(int)
 
-        time_pd = pd.DatetimeIndex(timestamps)
         t = time_pd.dayofyear * 24 + time_pd.hour
 
-        u, v = tc_velocity(climatology, t[mask], N, T, phase, idxs)
+        u, v = tc_velocity(climatologies, t[mask], N, T, phase, idxs)
 
         dist = np.sqrt(u ** 2 + v ** 2)  # km travelled in one hour
 
