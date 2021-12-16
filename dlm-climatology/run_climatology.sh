@@ -15,6 +15,6 @@ module purge
 module use /g/data/v10/public/modules/modulefiles
 module load dea/20210527
 
-cd $HOME/tcha/synoptic-flow
+cd $HOME/tcha/dlm-climatology
 
 mpiexec -n 12 python3 climatology.py
