@@ -26,10 +26,10 @@ from datetime import datetime
 # and gates.shp stored in the DATA_DIR folder
 
 geodesic = pyproj.Geod(ellps='WGS84')
-WIDTH = 6.25
+WIDTH = 4
 DATA_DIR = os.path.expanduser("~/geoscience/data")
 OUT_DIR = os.path.expanduser("~/geoscience/data/plots")
-NOISE = True
+NOISE = False
 
 
 def fit_plot(vel, steering, result, residuals, mask, data, component, source):
@@ -115,8 +115,9 @@ def load_otcr_df():
                 'adj. ADT Vm (kn)', 'CP(CKZ(Lok R34,LokPOCI, adj. Vm),hPa)']
     dtypes = [str, str, str, float, float, float, float]
 
-    df = pd.read_csv(dataFile, skiprows=4, usecols=usecols, dtype=dict(zip(colnames, dtypes)), na_values=[' '])
-    df['TM'] = pd.to_datetime(df.TM, format="%Y-%m-%d %H:%M", errors='coerce')
+    df = pd.read_csv(dataFile, usecols=usecols, dtype=dict(zip(colnames, dtypes)), na_values=[' '], nrows=13743)
+
+    df['TM']= pd.to_datetime(df.TM, format="%d/%m/%Y %H:%M", errors='coerce')
     df = df[~pd.isnull(df.TM)]
     df['season'] = pd.DatetimeIndex(df['TM']).year - (pd.DatetimeIndex(df['TM']).month < 6)
     df = df[df.season >= 1981]
@@ -270,9 +271,9 @@ def run(name, source):
 
     # load data
 
-    if name == 'bom':
+    if name == 'BoM':
         df = load_bom_df()
-    elif name == 'otcr':
+    elif name == 'OTCR':
         df = load_otcr_df()
 
     upath = os.path.join(DATA_DIR, "era5dlm/u_dlm_{}.netcdf")
@@ -513,4 +514,5 @@ def run(name, source):
 
 if __name__ == "__main__":
 
-    run("bom", "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv")
+    # run("BoM", "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv")
+    run("OTCR", "http://www.bom.gov.au/cyclone/history/database/OTCR_alldata_final_external.csv")
