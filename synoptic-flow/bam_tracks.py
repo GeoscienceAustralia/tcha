@@ -22,10 +22,8 @@ from geopy.distance import geodesic as gdg
 from datetime import datetime
 
 
-# this script requires the results of 'era5_dlm.py'
-# and ''
-# and ''
-# stored in DATA_DIR
+# this script requires the results of 'era5_dlm.py', bom best track, OCTR tracks
+# and gates.shp stored in the DATA_DIR folder
 
 geodesic = pyproj.Geod(ellps='WGS84')
 WIDTH = 6.25
