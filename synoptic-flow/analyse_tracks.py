@@ -40,8 +40,6 @@ if __name__ == '__main__':
     mask = ~pd.isnull(df.latitude)
     df = df[mask]
 
-    df = df.iloc[:10_000]
-
     storm_id_field = "eventid"
     grid_id_field = "gridid"
     minlon = 90
