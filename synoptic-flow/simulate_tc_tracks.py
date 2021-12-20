@@ -122,8 +122,8 @@ lat_offset = lat_offset.flatten()[None, :]
 long_offset = long_offset.flatten()[None, :]
 time_offset = np.zeros_like(long_offset)
 
-u_std = 8.564195979997336
-v_std = -1.1221709305486387
+u_std = 8.255397653571695
+v_std = 6.594986019503477
 auto = 0.5
 compl = np.sqrt(1 - auto ** 2)
 
