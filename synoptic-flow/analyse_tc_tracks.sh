@@ -2,7 +2,7 @@
 
 #PBS -Pw85
 #PBS -qnormal
-#PBS -N era5_dlm
+#PBS -N analyse_tc_tracks
 #PBS -m abe
 #PBS -M kieran.ricardo@ga.gov.au
 #PBS -l walltime=5:00:00
