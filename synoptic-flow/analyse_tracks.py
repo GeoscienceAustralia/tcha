@@ -104,7 +104,15 @@ if __name__ == '__main__':
 
     bom_df = pd.read_csv(dataFile, skiprows=4, usecols=usecols, dtype=dict(zip(colnames, dtypes)), na_values=[' '])
     bom_df.TM = pd.to_datetime(bom_df.TM)
+    bom_df['TM'] = pd.to_datetime(bom_df.TM, format="%Y-%m-%d %H:%M", errors='coerce')
+    bom_df = bom_df[~pd.isnull(bom_df['TM'])]
+    bom_df['TM'] = pd.to_datetime(bom_df.TM, format="%Y-%m-%d %H:%M", errors='coerce')
+    bom_df = bom_df[~pd.isnull(bom_df.TM)]
+    bom_df['season'] = pd.DatetimeIndex(bom_df['TM']).year - (pd.DatetimeIndex(bom_df['TM']).month < 6)
+    bom_df = bom_df[bom_df.season >= 1981]
+
     bom_gates = gpd.read_file(os.path.join("..", "data", "gates.shp"))
+
     bom_gates['sim'] = 0
     bom_gates['count'] = 0
 
