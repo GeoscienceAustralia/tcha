@@ -133,7 +133,7 @@ if __name__ == '__main__':
     bom_gatedf = countCrossings(bom_gatedf, bom_trackgdf, 0)
 
     fig, ax = plt.subplots(1, 1, figsize=(12, 6), sharex=True)
-    ax.plot(gatedf.gate, 3 * gatedf['count'] / 10_000, label="Simulated TC Tracks")
+    ax.plot(gatedf.gate, gatedf['count'] / 10_000, label="Simulated TC Tracks")
     ax.plot(bom_gatedf.gate, bom_gatedf['count'] / 40, label="BOM Best Track")
     plt.legend()
     ax.set_xlim((0,48))
