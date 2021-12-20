@@ -10,9 +10,9 @@ from track_utils import createGrid, countCrossings, filter_tracks_domain, addGeo
 import sys
 sys.path.insert(0, sys.path.insert(0, os.path.expanduser('~/tcrm')))
 
-
-DATA_DIR = os.path.expanduser("~/geoscience/data")
-OUT_DIR = os.path.expanduser("~/geoscience/data/plots")
+BASE_DIR = os.path.expanduser("~/geoscience/data")
+DATA_DIR = os.path.join(BASE_DIR, "tracks")
+OUT_DIR = os.path.join(BASE_DIR, "plots")
 
 if __name__ == '__main__':
 
@@ -21,7 +21,6 @@ if __name__ == '__main__':
               '#FF6600', '#FF0000', '#B30000', '#73264d']
     cmap = sns.blend_palette(colorseq, as_cmap=True)
 
-    DATA_DIR = os.path.expanduser("~/geoscience/data/tracks")
     files = [os.path.join(DATA_DIR, fn) for fn in os.listdir(DATA_DIR)]
     arrs = [np.load(fp) for fp in files]
     lens = np.zeros(len(arrs))
@@ -54,11 +53,8 @@ if __name__ == '__main__':
     lat = np.arange(minlat, maxlat, dy)
     xx, yy = np.meshgrid(lon, lat)
 
-
     dims = (int((maxlon - minlon)/dx), int((maxlat-minlat)/dy))
     dfgrid = createGrid(minlon, maxlon, minlat, maxlat, dx, dy)
-
-     # I think?
 
     dfstorm = addGeometry(df, storm_id_field, 'longitude', 'latitude')
     dfcount = gridDensity(dfstorm, dfgrid, grid_id_field, storm_id_field)
@@ -76,9 +72,10 @@ if __name__ == '__main__':
     plt.figure(figsize=(10, 10))
 
     plot_density(
-        da_obs, "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv", os.path.join(OUT_DIR, "10_000_track_density.png")
+        da_obs, "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv", os.path.join(OUT_DIR, "10_000_track_density.png"),
+        xx, yy
     )
-    gates = gpd.read_file("../data/gates.shp")
+    gates = gpd.read_file(os.path.join("..", "data", "gates.shp"))
     gates['sim'] = 0
     gates['count'] = 0
 
@@ -99,7 +96,7 @@ if __name__ == '__main__':
     gatedf = gates.copy()
     gatedf = countCrossings(gatedf, trackgdf, 0)
 
-    dataFile = os.path.expanduser("~/geoscience/data/IDCKMSTM0S.csv")
+    dataFile = os.path.join(BASE_DIR, "IDCKMSTM0S.csv")
     usecols = [0, 1, 2, 7, 8, 16, 49, 53]
     colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
                 'CENTRAL_PRES', 'MAX_WIND_SPD', 'MAX_WIND_GUST']
@@ -107,7 +104,7 @@ if __name__ == '__main__':
 
     bom_df = pd.read_csv(dataFile, skiprows=4, usecols=usecols, dtype=dict(zip(colnames, dtypes)), na_values=[' '])
     bom_df.TM = pd.to_datetime(bom_df.TM)
-    bom_gates = gpd.read_file(os.path.expanduser("~/geoscience/tcha/data/gates.shp"))
+    bom_gates = gpd.read_file(os.path.join("..", "data", "gates.shp"))
     bom_gates['sim'] = 0
     bom_gates['count'] = 0
 

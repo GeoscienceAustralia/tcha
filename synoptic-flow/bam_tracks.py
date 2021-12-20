@@ -26,7 +26,7 @@ from datetime import datetime
 # and gates.shp stored in the DATA_DIR folder
 
 geodesic = pyproj.Geod(ellps='WGS84')
-WIDTH = 4
+WIDTH = 6.25
 DATA_DIR = os.path.expanduser("~/geoscience/data")
 OUT_DIR = os.path.expanduser("~/geoscience/data/plots")
 NOISE = False
@@ -53,14 +53,14 @@ def fit_plot(vel, steering, result, residuals, mask, data, component, source):
     plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
              transform=ax1.transAxes, ha='right', fontsize='xx-small', )
     plt.text(0.0, -0.1, f"Source: {source}", transform=ax0.transAxes, fontsize='xx-small', ha='left', )
-    plt.savefig(os.path.join(OUT_DIR, f"BoM_BAM_{component}_residuals.png"))
+    plt.savefig(os.path.join(OUT_DIR, f"BoM_BAM_{component}_residuals_{WIDTH}_{NOISE}.png"))
 
     fct = sns.relplot(result.eval(x=steering[mask]), vel[mask])
     fct.ax.set_xlabel(f'{component} predicted')
     plt.text(1.0, -0.2, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
              transform=fct.ax.transAxes, ha='right', fontsize='xx-small', )
     plt.text(0.0, -0.2, f"Source: {source}", transform=fct.ax.transAxes, fontsize='xx-small', ha='left', )
-    plt.savefig(os.path.join(OUT_DIR, f"{data}_BAM_{component}_predicted.png"))
+    plt.savefig(os.path.join(OUT_DIR, f"{data}_BAM_{component}_predicted_{WIDTH}_{NOISE}.png"))
 
 
 def load_bom_df():
@@ -321,10 +321,10 @@ def run(name, source):
 
     df = simulation(df, uds, vds, uresult, vresult, u_std, v_std)
     plot_tracks(
-        df, "LAT", "LON", "DISTURBANCE_ID", f"{name} Best Tracks", source, os.path.join(OUT_DIR, f"{name}_tracks.png")
+        df, "LAT", "LON", "DISTURBANCE_ID", f"{name} Best Tracks", source, os.path.join(OUT_DIR, f"{name}_tracks_{WIDTH}_{NOISE}.png")
     )
     plot_tracks(
-        df, "lats_sim", "lons_sim", "DISTURBANCE_ID", "BAM Tracks", source, os.path.join(OUT_DIR, f"{name}_bam_tracks.png")
+        df, "lats_sim", "lons_sim", "DISTURBANCE_ID", "BAM Tracks", source, os.path.join(OUT_DIR, f"{name}_bam_tracks_{WIDTH}_{NOISE}.png")
     )
 
     ## plot the track density
@@ -368,7 +368,7 @@ def run(name, source):
         attrs=dict(long_name='Mean annual TC frequency', units='TCs/year')
     )
 
-    plot_density(da_bam, source, os.path.join(OUT_DIR, f"{name}_BAM_mean_track_density.bootstrap.png"), xx, yy)
+    plot_density(da_bam, source, os.path.join(OUT_DIR, f"{name}_BAM_mean_track_density.bootstrap_{WIDTH}_{NOISE}.png"), xx, yy)
 
     ## landfall
 
@@ -509,10 +509,10 @@ def run(name, source):
     plt.text(1.0, -0.3, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
              transform=ax.transAxes, ha='right', fontsize='x-small', )
     plt.text(0.0, -0.3, f"Source: {source}", transform=ax.transAxes, fontsize='x-small', ha='left', )
-    plt.savefig(os.path.join(OUT_DIR, f"{name}_landfall.png"))
+    plt.savefig(os.path.join(OUT_DIR, f"{name}_landfall_{WIDTH}_{NOISE}.png"))
 
 
 if __name__ == "__main__":
 
-    # run("BoM", "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv")
+    run("BoM", "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv")
     run("OTCR", "http://www.bom.gov.au/cyclone/history/database/OTCR_alldata_final_external.csv")
