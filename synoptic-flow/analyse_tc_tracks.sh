@@ -17,4 +17,4 @@ module load dea/20210527
 
 cd $HOME/tcha/synoptic-flow
 
-python3 analyse_tc_tracks.py
+python3 analyse_tracks.py
