@@ -10,7 +10,7 @@ from track_utils import createGrid, countCrossings, filter_tracks_domain, addGeo
 import sys
 sys.path.insert(0, sys.path.insert(0, os.path.expanduser('~/tcrm')))
 
-BASE_DIR = os.path.expanduser("~/geoscience/data")
+BASE_DIR = os.path.expanduser("/scratch/w85/kr4383")
 DATA_DIR = os.path.join(BASE_DIR, "tracks")
 OUT_DIR = os.path.join(BASE_DIR, "plots")
 
@@ -39,6 +39,8 @@ if __name__ == '__main__':
     df["longitude"] = longitudes
     mask = ~pd.isnull(df.latitude)
     df = df[mask]
+
+    df = df.iloc[:10_000]
 
     storm_id_field = "eventid"
     grid_id_field = "gridid"
