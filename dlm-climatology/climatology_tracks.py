@@ -13,13 +13,13 @@ import geopy
 from mpi4py import MPI
 
 
+DATA_DIR = os.path.expanduser("~/geoscience/data")
 sys.path.insert(0, sys.path.insert(0, os.path.expanduser('~/tcrm')))
 from StatInterface.SamplingOrigin import SamplingOrigin
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
-path = "/scratch/w85/kr4383/era5dlm"
 logging.basicConfig(filename='climatology_tc_tracks.log', level=logging.DEBUG)
 
 
@@ -37,22 +37,9 @@ def destination(lat1, lon1, dist, bearing):
 
 
 def get_climatology(month):
+    ds = xr.load_dataset(os.path.join(DATA_DIR, "climatology", f"climatology_{month}.netcdf"))
 
-    ufile = os.path.join(path, "u_dlm_{}_{}.netcdf".format(month, "{}"))
-    vfile = os.path.join(path, "v_dlm_{}_{}.netcdf".format(month, "{}"))
-
-    udlms = [xr.open_dataset(ufile.format(year), chunks='auto') for year in range(1981, 1983)]
-    vdlms = [xr.open_dataset(vfile.format(year), chunks='auto') for year in range(1981, 1983)]
-
-    udlm = xr.concat(udlms, dim='time')
-    vdlm = xr.concat(vdlms, dim='time')
-
-    u_mean = udlm.mean(dim='time').compute().u.data
-    u_std = udlm.std(dim='time').compute().u.data
-    v_mean = vdlm.mean(dim='time').compute().v.data
-    v_std = vdlm.std(dim='time').compute().v.data
-
-    return np.array([u_mean, u_std, v_mean, v_std])
+    return np.array([ds.u_mean, ds.u_std, ds.v_mean, ds.v_std])
 
 
 def perturbation(t, N, T, phase):
@@ -64,13 +51,14 @@ def perturbation(t, N, T, phase):
     return a * (n_inv_23 * np.sin(2 * np.pi * (phase + n * t[:, None] / T))).sum(axis=1)
 
 
-def tc_velocity(climatologies, t, N, T, phase, idxs1, idxs2, weights1, weights2):
-    pert = perturbation(t, N, T, phase)
+def tc_velocity(climatologies, t, N, T, u_phase, v_phase, idxs1, idxs2, weights1, weights2):
+    u_pert = perturbation(t, N, T, u_phase)
+    v_pert = perturbation(t, N, T, v_phase)
 
-    u1 = climatologies[0].take(idxs1) + climatologies[1].take(idxs1)
-    v1 = climatologies[2].take(idxs1) + climatologies[3].take(idxs1)
-    u2 = climatologies[0].take(idxs2) + climatologies[1].take(idxs2)
-    v2 = climatologies[2].take(idxs2) + climatologies[3].take(idxs2)
+    u1 = climatologies[0].take(idxs1) + climatologies[1].take(idxs1) * u_pert
+    v1 = climatologies[2].take(idxs1) + climatologies[3].take(idxs1) * v_pert
+    u2 = climatologies[0].take(idxs2) + climatologies[1].take(idxs2) * u_pert
+    v2 = climatologies[2].take(idxs2) + climatologies[3].take(idxs2) * v_pert
 
     u = (u1 * weights1 + u2 * weights2) / (weights1 + weights2)
     v = (v1 * weights1 + v2 * weights2) / (weights1 + weights2)
@@ -83,12 +71,12 @@ def tc_velocity(climatologies, t, N, T, phase, idxs1, idxs2, weights1, weights2)
 
 N = 15
 T = 15 * 24  # 15 days
-phase = np.random.random(N)
 
 u_phase = np.random.random(N)
 v_phase = np.random.random(N)
 
-dataFile = os.path.join("/scratch/w85/kr4383/IDCKMSTM0S.csv")
+# build space time genesis distribution
+dataFile = os.path.join(DATA_DIR, "IDCKMSTM0S.csv")
 usecols = [0, 1, 2, 7, 8, 16, 49, 53]
 colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
             'CENTRAL_PRES', 'MAX_WIND_SPD', 'MAX_WIND_GUST']
@@ -106,37 +94,20 @@ genesis_points['TM'] = (tm.dayofyear * 24.0 + tm.hour)
 genesis_points = np.row_stack([genesis_points[c] for c in genesis_points.columns])
 pde = stats.gaussian_kde(genesis_points)
 
-pressure = np.array(
-    [300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850]
-)
-
-months = np.arange(1, 13)
-rank = comm.Get_rank()
-rank_months = months[(months % comm.size) == rank]
-
-repeats = 10_000  # simulate a total of 10_000 years
-
-month_rates = {
-    1: 2.3415, 2: 2.0976, 3: 2.0, 12: 1.439, 4: 1.3659, 11: 0.5122,
-    5: 0.3659, 10: 0.122, 7: 0.0488, 6: 0.0488, 8: 0.0244, 9: 0.0244
-}
-
+# sample from distribution
 print("Starting simulation.")
 
 year = 2001  # arbitrary choice of non leap year
-
 climatologies = np.array([smooth(get_climatology(month)) for month in range(1, 13)]).swapaxes(0, 1)
-# udlm_2, vdlm_2 = load_dlm(year + (month // 12), (month % 12) + 1)
 
 t0 = time.time()
 
 # sufficient repeats that the sum should be equal to the mean * number of repeats
-
-revisit = []
-
-days_in_month = monthrange(year, month)[1]
-longitudes = []
-
+repeats = 10_000  # simulate a total of 10_000 years
+month_rates = {
+    1: 2.3415, 2: 2.0976, 3: 2.0, 12: 1.439, 4: 1.3659, 11: 0.5122,
+    5: 0.3659, 10: 0.122, 7: 0.0488, 6: 0.0488, 8: 0.0244, 9: 0.0244
+}
 num_events = int(sum(month_rates.values()) * repeats)
 
 durations = (np.round(stats.lognorm.rvs(0.5491, 0., 153.27, size=num_events))).astype(int)
@@ -171,7 +142,7 @@ for step in range(durations.max() - 1):
 
     idxs = (lat_idxs * climatologies.shape[-1] + long_idxs).astype(int)
 
-    time_pd = pd.DatetimeIndex(timestamps)
+    time_pd = pd.DatetimeIndex(timestamps[mask])
     t = time_pd.dayofyear * 24 + time_pd.hour
 
     c = (time_pd.day < 15)  # if less than 30 days use current and previous month
@@ -181,9 +152,9 @@ for step in range(durations.max() - 1):
     idxs2 += (~c) * (month % 12) * climatologies[0, 0].size
 
     weights2 = np.abs(time_pd.day - 15)
-    weights1 = 30 - weights1
+    weights1 = 30 - weights2
 
-    u, v = tc_velocity(climatologies, t[mask], N, T, phase, idxs1, idxs2, weights1, weights2)
+    u, v = tc_velocity(climatologies, t, N, T, u_phase, v_phase, idxs1, idxs2, weights1, weights2)
 
     dist = np.sqrt(u ** 2 + v ** 2)  # km travelled in one hour
 
@@ -192,6 +163,7 @@ for step in range(durations.max() - 1):
     mask3 = (u < 0) & (v < 0)
 
     bearing = 360 + np.arctan(u / v) * 180 / np.pi
+    bearing = np.asarray(bearing)
     bearing[mask1] = (np.arctan(u / v) * 180 / np.pi)[mask1]
     bearing[mask2] = (180 + np.arctan(u / v) * 180 / np.pi)[mask2]
     bearing[mask3] = (180 + np.arctan(u / v) * 180 / np.pi)[mask3]
@@ -206,4 +178,4 @@ t1 = time.time()
 
 print(f"Finished simulating tracks for {month}/{year}. Time taken: {t1 - t0}s")
 logging.info(f"Finished simulating tracks for {month}/{year}. Time taken: {t1 - t0}s")
-np.save(f"/scratch/w85/kr4383/climatology_tracks/climatology_tracks_{month}_{year}.npy", coords)
+np.save(f"{DATA_DIR}/climatology_tracks/climatology_tracks_{month}_{year}.npy", coords)
