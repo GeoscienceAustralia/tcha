@@ -70,8 +70,8 @@ def tc_velocity(udlm, vdlm, long_idxs, lat_idxs, time_idxs):
     tmp[mask] = 3.6 * vdlm.v.data.ravel().take(idxs[mask])
     v = 3.6 * tmp.sum(axis=1) / mask.sum(axis=1)
 
-    u = -4.5205 + 0.8978 * u
-    v = -1.2542 + 0.7877 * v
+    u = u + 3.6 * 1 * np.cos(udlm.coords['latitude'].data[lat_idxs])  # -4.5205 + 0.8978 * u
+    v = v + 3.6 * 2.5 * np.cos(udlm.coords['latitude'].data[lat_idxs])  # -1.2542 + 0.7877 * v
 
     return u, v
 
