@@ -122,6 +122,11 @@ lat_offset = lat_offset.flatten()[None, :]
 long_offset = long_offset.flatten()[None, :]
 time_offset = np.zeros_like(long_offset)
 
+u_std = 8.255397653571695
+v_std = 6.594986019503477
+auto = 0.5
+compl = np.sqrt(1 - auto ** 2)
+
 rows = []
 print("Starting simulation.")
 for year in rank_years:
@@ -167,7 +172,12 @@ for year in rank_years:
         latitude_index = pd.Series(np.arange(len(udlm.coords['latitude'].data)), udlm.coords['latitude'].data)
         time_index = pd.Series(np.arange(len(udlm.coords['time'].data)), udlm.coords['time'].data)
 
+        u_noise = np.random.normal(scale=u_std, size=longitudes.shape)
+        v_noise = np.random.normal(scale=v_std, size=longitudes.shape)
+
         for step in range(durations.max() - 1):
+            u_noise = auto * u_noise + compl * np.random.normal(scale=u_std, size=longitudes.shape)
+            v_noise = auto * v_noise + compl * np.random.normal(scale=v_std, size=longitudes.shape)
 
             mask = (longitudes[step] <= 170) & (longitudes[step] >= 80)
             mask &= (latitudes[step] >= -40) & (latitudes[step] <= 0)
@@ -179,6 +189,8 @@ for year in rank_years:
             time_idxs = time_offset + time_index.loc[timestamps[mask]].values[:, None]
 
             u, v = tc_velocity(udlm, vdlm, long_idxs, lat_idxs, time_idxs)
+            u += u_noise[mask]
+            v += v_noise[mask]
 
             dist = np.sqrt(u ** 2 + v ** 2)  # km travelled in one hour
 
