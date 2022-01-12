@@ -113,11 +113,23 @@ num_events = int(sum(month_rates.values()) * repeats)
 durations = (np.round(stats.lognorm.rvs(0.5491, 0., 153.27, size=num_events))).astype(int)
 
 samples = pde.resample(num_events)
-mask = (samples[2, :] >= 170) | (samples[2, :] <= 80)
 
+genesis_sampler = SamplingOrigin(
+    kdeOrigin=os.path.join(DATA_DIR, "originPDF.nc")
+)
+origin = genesis_sampler.generateSamples(samples.shape[1])
+mask = (origin[:, 0] >= 170) | (origin[:, 0] <= 80)
 while mask.any():
-    samples[:, mask] = pde.resample(mask.sum())
-    mask = (samples[2, :] >= 170) | (samples[2, :] <= 80)
+    origin[mask, :] = genesis_sampler.generateSamples(mask.sum())
+    mask = (origin[:, 0] >= 170) | (origin[:, 0] <= 80)
+
+samples[1, :] = origin[:, 1]
+samples[2, :] = origin[:, 0]
+# mask = (samples[2, :] >= 170) | (samples[2, :] <= 80)
+#
+# while mask.any():
+#     samples[:, mask] = pde.resample(mask.sum())
+#     mask = (samples[2, :] >= 170) | (samples[2, :] <= 80)
 
 coords = np.empty((2, durations.max(), num_events)) * np.nan
 
