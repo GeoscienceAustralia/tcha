@@ -11,6 +11,8 @@ import scipy.stats as stats
 from geopy.distance import geodesic as gdg
 import geopy
 from mpi4py import MPI
+from statsmodels.nonparametric.kernel_density import KDEMultivariate
+
 
 
 DATA_DIR = os.path.expanduser("~/geoscience/data")
@@ -21,6 +23,11 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 logging.basicConfig(filename='climatology_tc_tracks.log', level=logging.DEBUG)
+
+
+def get_bandwidth(data):
+    dens = KDEMultivariate(data=data, var_type='ccc', bw='cv_ml')
+    return np.diag(dens.bw)
 
 
 def destination(lat1, lon1, dist, bearing):
@@ -90,6 +97,8 @@ tm = pd.DatetimeIndex(genesis_points.TM)
 genesis_points['TM'] = (tm.dayofyear * 24.0 + tm.hour)
 genesis_points = np.row_stack([genesis_points[c] for c in genesis_points.columns])
 pde = stats.gaussian_kde(genesis_points)
+pde.covariance = get_bandwidth(genesis_points)
+pde.inv_cov = np.linalg.inv(pde.covariance)
 
 # sample from distribution
 print("Starting simulation.")
