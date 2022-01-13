@@ -72,9 +72,6 @@ def tc_velocity(climatologies, t, N, T, u_phase, v_phase, idxs1, idxs2, weights1
 N = 15
 T = 15 * 24  # 15 days
 
-u_phase = np.random.random(N)
-v_phase = np.random.random(N)
-
 # build space time genesis distribution
 dataFile = os.path.join(DATA_DIR, "IDCKMSTM0S.csv")
 usecols = [0, 1, 2, 7, 8, 16, 49, 53]
@@ -109,6 +106,9 @@ month_rates = {
     5: 0.3659, 10: 0.122, 7: 0.0488, 6: 0.0488, 8: 0.0244, 9: 0.0244
 }
 num_events = int(sum(month_rates.values()) * repeats)
+
+u_phase = np.random.random((num_events, N))
+v_phase = np.random.random((num_events, N))
 
 durations = (np.round(stats.lognorm.rvs(0.5491, 0., 153.27, size=num_events))).astype(int)
 
@@ -166,7 +166,7 @@ for step in range(durations.max() - 1):
     weights2 = np.abs(time_pd.day - 15)
     weights1 = 30 - weights2
 
-    u, v = tc_velocity(climatologies, t, N, T, u_phase, v_phase, idxs1, idxs2, weights1, weights2)
+    u, v = tc_velocity(climatologies, t, N, T, u_phase[mask], v_phase[mask], idxs1, idxs2, weights1, weights2)
 
     dist = np.sqrt(u ** 2 + v ** 2)  # km travelled in one hour
 
