@@ -140,3 +140,4 @@ if __name__ == "__main__":
 
     print("Correlation in zonal velocity:", np.corrcoef(u_flat, u_next_flat)[0, 1])
     print("Correlation in meridional velocity:", np.corrcoef(v_flat, v_next_flat)[0, 1])
+    print("Correlation in between zonal and meridional velocity:", np.corrcoef(u_flat, v_flat)[0, 1])
