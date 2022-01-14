@@ -22,8 +22,8 @@ from geopy.distance import geodesic as gdg
 from datetime import datetime
 
 
-# this script requires the results of 'era5_dlm.py', bom best track, OCTR tracks
-# and gates.shp stored in the DATA_DIR folder
+# this script requires the results of 'era5_dlm.py', bom best track,
+# and OCTR tracks are stored in the DATA_DIR folder
 
 geodesic = pyproj.Geod(ellps='WGS84')
 WIDTH = 6.25
@@ -64,6 +64,10 @@ def fit_plot(vel, steering, result, residuals, mask, data, component, source):
 
 
 def load_bom_df():
+    """
+    Helper function to load the BoM best track database
+    """
+
     dataFile = os.path.join(DATA_DIR, "IDCKMSTM0S.csv")
     usecols = [0, 1, 2, 7, 8, 16, 49, 53]
     colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
@@ -109,6 +113,9 @@ def load_bom_df():
 
 
 def load_otcr_df():
+    """
+    Helper function to load the OTCR database
+    """
     dataFile = os.path.join(DATA_DIR, "OTCR_alldata_final_external.csv")
     usecols = [0, 1, 2, 7, 8, 11, 12]
     colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
@@ -155,6 +162,11 @@ def load_otcr_df():
 
 
 def load_steering(uds, vds, df):
+    """
+    This function loads the DLM for a 12.5 x 12.5 degreee box around each time and
+    location in the historical TC record (df) and calculates the spatial average. This
+    enables a BAM model to be fit to the historical record.
+    """
     u_steering = []
     v_steering = []
     var = "__xarray_dataarray_variable__"
@@ -183,6 +195,9 @@ def lin_model(x, alpha, beta):
 
 
 def simulation(df, uds, vds, uresult, vresult, u_std, v_std):
+    """
+    Run the simulation with the fitted model
+    """
 
     var = "__xarray_dataarray_variable__"
     lats = [None]
@@ -268,14 +283,28 @@ def simulation(df, uds, vds, uresult, vresult, u_std, v_std):
 
 
 def run(name, source):
+    """
+    This function:
 
+    - loads the historical data (BoM best track or OTCR)
+    - loads the steering flow at each historical location
+    - fits a BAM model
+    - simulates TC tracks starting from historical origin points (space and time)
+    - analyzes the results and saves plots
+
+    """
+    ####
+    ###
+    ##
     # load data
 
+    # load the historical data
     if name == 'BoM':
         df = load_bom_df()
     elif name == 'OTCR':
         df = load_otcr_df()
 
+    # open DLM files (lazy - does not load into memory)
     upath = os.path.join(DATA_DIR, "era5dlm/u_dlm_{}.netcdf")
     vpath = os.path.join(DATA_DIR, "era5dlm/v_dlm_{}.netcdf")
 
@@ -285,10 +314,13 @@ def run(name, source):
     vdss = [xr.open_dataset((vpath.format(year))) for year in range(1981, 2022)]
     vds = xr.concat(vdss, dim='time')
 
+    # extract steering current from DLM
     u_steering, v_steering = load_steering(uds, vds, df)
 
-    ## fit the BAM model
-
+    ####
+    ###
+    ##
+    # fit the BAM model
     mask = ~np.isnan(u_steering)
 
     rmod = Model(lin_model)
@@ -318,7 +350,6 @@ def run(name, source):
     fit_plot(df.v, v_steering, vresult, v_residuals, mask, name, "v", source)
 
     # run the track simulation and plot the tracks
-
     df = simulation(df, uds, vds, uresult, vresult, u_std, v_std)
     plot_tracks(
         df, "LAT", "LON", "DISTURBANCE_ID", f"{name} Best Tracks", source, os.path.join(OUT_DIR, f"{name}_tracks_{WIDTH}_{NOISE}.png")
@@ -327,8 +358,10 @@ def run(name, source):
         df, "lats_sim", "lons_sim", "DISTURBANCE_ID", "BAM Tracks", source, os.path.join(OUT_DIR, f"{name}_bam_tracks_{WIDTH}_{NOISE}.png")
     )
 
-    ## plot the track density
-
+    ####
+    ###
+    ##
+    # plot the track density
     storm_id_field = "DISTURBANCE_ID"
     grid_id_field = "gridid"
     minlon = 90
@@ -370,7 +403,10 @@ def run(name, source):
 
     plot_density(da_bam, source, os.path.join(OUT_DIR, f"{name}_BAM_mean_track_density.bootstrap_{WIDTH}_{NOISE}.png"), xx, yy)
 
-    ## landfall
+    ####
+    ###
+    ##
+    # plot the landfall rates
 
     gates = gpd.read_file("../data/gates.shp")
     gates['sim'] = 0

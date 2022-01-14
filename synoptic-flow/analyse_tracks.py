@@ -14,6 +14,8 @@ BASE_DIR = os.path.expanduser("/scratch/w85/kr4383")
 DATA_DIR = os.path.join(BASE_DIR, "tracks")
 OUT_DIR = os.path.join(BASE_DIR, "plots")
 
+# script analyzes the results of the `simulate_tc_tracks.py` script and saves the resulting plots
+
 if __name__ == '__main__':
 
     colorseq=['#FFFFFF', '#ceebfd', '#87CEFA', '#4969E1', '#228B22',
