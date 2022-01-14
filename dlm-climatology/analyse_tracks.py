@@ -6,7 +6,7 @@ from shapely.geometry import LineString, Polygon, box as sbox
 from matplotlib import pyplot as plt
 import xarray as xr
 import seaborn as sns
-from track_utils import createGrid, countCrossings, filter_tracks_domain, addGeometry, gridDensity, plot_density
+from track_utils import createGrid, countCrossings, filter_tracks_domain, addGeometry, gridDensity, plot_density, plot_tracks
 import sys
 sys.path.insert(0, sys.path.insert(0, os.path.expanduser('~/tcrm')))
 
@@ -15,7 +15,7 @@ DATA_DIR = os.path.join(BASE_DIR, "climatology_tracks")
 OUT_DIR = os.path.join(BASE_DIR, "climatology_plots")
 
 if __name__ == '__main__':
-
+    # load data
     colorseq=['#FFFFFF', '#ceebfd', '#87CEFA', '#4969E1', '#228B22',
               '#90EE90', '#FFDD66', '#FFCC00', '#FF9933',
               '#FF6600', '#FF0000', '#B30000', '#73264d']
@@ -39,6 +39,16 @@ if __name__ == '__main__':
     df["longitude"] = longitudes
     mask = ~pd.isnull(df.latitude)
     df = df[mask]
+
+    # plot a random subset of tracks
+    unique_eventids = pd.unique(df.eventid.values)
+    num_samples = len(unique_eventids) * 50 / 10_000
+    sample_eventids = np.random.choice(unique_eventids, size=int(num_samples), replace=False)
+    sample_df = df[df.eventid.isin(sample_eventids)]
+    filepath = os.path.join(OUT_DIR, "tracks.png")
+    plot_tracks(sample_df, "latitude", "longitude", "eventid", "50 years of climatological tracks", filepath)
+
+    # plot density
 
     storm_id_field = "eventid"
     grid_id_field = "gridid"
@@ -75,6 +85,8 @@ if __name__ == '__main__':
         da_obs, "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv", os.path.join(OUT_DIR, "10_000_track_density.png"),
         xx, yy
     )
+
+    # plot landfall
     gates = gpd.read_file(os.path.join("..", "data", "gates.shp"))
     gates['sim'] = 0
     gates['count'] = 0

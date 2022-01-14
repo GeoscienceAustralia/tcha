@@ -14,7 +14,6 @@ from mpi4py import MPI
 from statsmodels.nonparametric.kernel_density import KDEMultivariate
 
 
-
 DATA_DIR = os.path.expanduser("~/geoscience/data")
 sys.path.insert(0, sys.path.insert(0, os.path.expanduser('~/tcrm')))
 from StatInterface.SamplingOrigin import SamplingOrigin

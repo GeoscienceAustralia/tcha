@@ -247,16 +247,16 @@ def countCrossings(gates, tracks, sim):
     return gates
 
 
-def plot_tracks(df, latfield, longfield, idfield, title, source, filepath):
+def plot_tracks(df, latfield, longfield, idfield, title, filepath):
     singulars = []
-    for group in df.groupby('DISTURBANCE_ID'):
+    for group in df.groupby(idfield):
         if len(group[1]) == 1:
             singulars.append(group[0])
 
-    df = df[~df.DISTURBANCE_ID.isin(singulars)]
-    mask = (pd.isnull(df.lons_sim)) | (pd.isnull(df.lats_sim))
-    badids = pd.unique(df[mask].DISTURBANCE_ID)
-    df = df[~df.DISTURBANCE_ID.isin(badids)]
+    df = df[~df[idfield].isin(singulars)]
+    mask = (pd.isnull(df[longfield])) | (pd.isnull(df[latfield]))
+    badids = pd.unique(df[mask][idfield])
+    df = df[~df[idfield].isin(badids)]
 
     len(df)
 
@@ -284,5 +284,4 @@ def plot_tracks(df, latfield, longfield, idfield, title, source, filepath):
     ax.set_extent((80, 170, -40, 0), crs=ccrs.PlateCarree())
     plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
              transform=ax.transAxes, ha='right', fontsize='small', )
-    plt.text(0.0, -0.1, f"Source: {source}", transform=ax.transAxes, fontsize='small', ha='left', )
     plt.savefig(filepath)
