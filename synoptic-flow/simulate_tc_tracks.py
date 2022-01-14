@@ -12,8 +12,16 @@ import geopy
 from geopy.distance import geodesic as gdg
 import sys
 
+# whether to use noise of not
+USE_NOISE = False
+
 print("Imports dones. Setting up logs.")
 sys.path.insert(0, sys.path.insert(0, os.path.expanduser('~/tcrm')))
+
+print("Loading genesis distribution")
+genesis_sampler = SamplingOrigin(
+    kdeOrigin="/g/data/fj6/TCRM/TCHA18/process/originPDF.nc"
+)
 
 from StatInterface.SamplingOrigin import SamplingOrigin
 
@@ -21,6 +29,17 @@ logging.basicConfig(filename='simulate_tc_tracks.log', level=logging.DEBUG)
 
 
 def destination(lat1, lon1, dist, bearing):
+    """
+    Calculates the resulting location (latitude and longitude)
+    after travelling a given distance and bearing from a starting location
+    using the WGS-84 ellipsoid model of the earth.
+
+    :param lat1: starting latitute
+    :param lon1: starting longitude
+    :param dist: distance travelled in kilometers
+    :param bearing: bearing of travel direction in degrees
+
+    """
     lon2 = np.zeros_like(lon1)
     lat2 = np.zeros_like(lat1)
 
@@ -54,29 +73,57 @@ def load_dlm(year, month):
 
 
 def tc_velocity(udlm, vdlm, long_idxs, lat_idxs, time_idxs):
+    """
+    Calculate the tropical cyclone velocity from the deep layer mean flow, and
+    the indexes of each point in the box surrounding the cyclone centre. The box around each TC
+    centre is averaged is plugged into the BAM model. Note that indexes for each axis
+    are given separately (latitude, time, and longitude)
+
+    :param udlm: zonal deep layer mean flow
+    :param vdlm: meridional deep layer mean flow
+    :param long_idxs: array of longitude indices in the shape (num_cyclones, box_size)
+    :param lat_idxs: array of latitude indices in the shape (num_cyclones, box_size)
+    :param time_idxs: array of time indices in the shape (num_cyclones, box_size)
+    """
+
+    # mask out indices that aren't in the domain
     mask = (0 <= long_idxs) & (long_idxs < len(udlm.coords['longitude'].data))
     mask &= (0 <= lat_idxs) & (lat_idxs < len(udlm.coords['latitude'].data))
 
     sz2 = udlm.u.data.shape[2]
     sz1 = sz2 * udlm.u.data.shape[1]
 
+    # convert separate axis indices into indices for float array
     idxs = (time_idxs * sz1 + lat_idxs * sz2 + long_idxs).astype(int)
 
+    # take the average over each box being careful to exclude points outside the domain
     tmp = np.zeros(idxs.shape)
     tmp[mask] = 3.6 * udlm.u.data.ravel().take(idxs[mask])
-    u = tmp.sum(axis=1) / mask.sum(axis=1)
+    u = tmp.sum(axis=1) / mask.sum(axis=1)  # convert to km/h
 
+    # do the same for the meridional flow
     tmp[:] = 0.0
     tmp[mask] = 3.6 * vdlm.v.data.ravel().take(idxs[mask])
-    v = 3.6 * tmp.sum(axis=1) / mask.sum(axis=1)
+    v = 3.6 * tmp.sum(axis=1) / mask.sum(axis=1)  # convert to km/h
 
-    u = -4.5205 + 0.8978 * u
-    v = -1.2542 + 0.7877 * v
+    # plug into BAM model
+    u = u + 3.6 * 1 * np.cos(udlm.coords['latitude'].data[lat_idxs])  # -4.5205 + 0.8978 * u
+    v = v + 3.6 * 2.5 * np.cos(udlm.coords['latitude'].data[lat_idxs])  # -1.2542 + 0.7877 * v
 
     return u, v
 
 
 def timestep(latitude, longitude, u, v, dt):
+    """
+    Calculate the next cyclone locations from the current locations, TC velovity, and timestep.
+
+    :param latitude: array of latitude values of TC centres
+    :param longitude: array of longitude values of TC centres
+    :param u: array of zonal TC velocities in km/h
+    :param v: array of meridional TC velocities in km/h
+    :param dt: timestep in hours
+    """
+
     if (u >= 0) and (v >= 0):
         bearing = np.arctan(u / v) * 180 / np.pi
     elif (u >= 0) and (v < 0):
@@ -95,10 +142,6 @@ def timestep(latitude, longitude, u, v, dt):
 
 comm = MPI.COMM_WORLD
 
-print("Loading genesis distribution")
-genesis_sampler = SamplingOrigin(
-    kdeOrigin="/g/data/fj6/TCRM/TCHA18/process/originPDF.nc"
-)
 pressure = np.array(
     [300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850]
 )
@@ -109,11 +152,14 @@ rank_years = years[(years % comm.size) == rank]
 
 repeats = 10_000 / 40  # repeat the catalogue of 40s years until a total of 10_000 years have been simulated
 
+# monthly cyclogenesis rates
 month_rates = {
     1: 2.3415, 2: 2.0976, 3: 2.0, 12: 1.439, 4: 1.3659, 11: 0.5122,
     5: 0.3659, 10: 0.122, 7: 0.0488, 6: 0.0488, 8: 0.0244, 9: 0.0244
 }
 
+# useful constants to help calculate the indices of the boxes
+# around TC centres
 lat_offset = np.arange(-25, 26)
 long_offset = np.arange(-25, 26)
 lat_offset, long_offset = np.meshgrid(lat_offset, long_offset)
@@ -154,8 +200,11 @@ for year in rank_years:
         hours = np.random.randint(0, 24, size=num_events) * np.timedelta64(1, 'h')
         timestamps = year_month + hours + days
 
+        # sample cyclogensis locations
         origin = genesis_sampler.generateSamples(num_events)
         mask = (origin[:, 0] >= 170) | (origin[:, 0] <= 80)
+
+        # resample till all origin points are inside domain
         while mask.any():
             origin[mask, :] = genesis_sampler.generateSamples(mask.sum())
             mask = (origin[:, 0] >= 170) | (origin[:, 0] <= 80)
@@ -168,6 +217,7 @@ for year in rank_years:
         longitudes = coords[1, ...]
         longitudes[0, :] = origin[:, 0]
 
+        # fast lookup tables to get indices for each axis
         longitude_index = pd.Series(np.arange(len(udlm.coords['longitude'].data)), udlm.coords['longitude'].data)
         latitude_index = pd.Series(np.arange(len(udlm.coords['latitude'].data)), udlm.coords['latitude'].data)
         time_index = pd.Series(np.arange(len(udlm.coords['time'].data)), udlm.coords['time'].data)
@@ -179,6 +229,7 @@ for year in rank_years:
             u_noise = auto * u_noise + compl * np.random.normal(scale=u_std, size=longitudes.shape)
             v_noise = auto * v_noise + compl * np.random.normal(scale=v_std, size=longitudes.shape)
 
+            # check if TC in domain and not exceeded its duration
             mask = (longitudes[step] <= 170) & (longitudes[step] >= 80)
             mask &= (latitudes[step] >= -40) & (latitudes[step] <= 0)
             mask &= timestamps <= udlm.coords['time'].data[-1]
@@ -189,8 +240,9 @@ for year in rank_years:
             time_idxs = time_offset + time_index.loc[timestamps[mask]].values[:, None]
 
             u, v = tc_velocity(udlm, vdlm, long_idxs, lat_idxs, time_idxs)
-            u += u_noise[mask]
-            v += v_noise[mask]
+            if USE_NOISE:
+                u += u_noise[mask]
+                v += v_noise[mask]
 
             dist = np.sqrt(u ** 2 + v ** 2)  # km travelled in one hour
 

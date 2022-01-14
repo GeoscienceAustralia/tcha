@@ -15,12 +15,19 @@ logging.basicConfig(filename='era5_dlm.log', level=logging.DEBUG)
 
 
 def load_dlm(year, month):
-    days = monthrange(year, month)[1]
+    """
+    Loads the pressure level u and v ERA5 files and calculate the DLM.
 
+    This using dask to lazily load the minimum data needed.
+    """
+
+    days = monthrange(year, month)[1]
+     # Australian region
     lat_slice = slice(0, -40)
     long_slice = slice(80, 170)
     pslice = slice(300, 850)
 
+    # the pressure levels to integrate
     pressure = np.array(
         [300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850]
     )
@@ -35,6 +42,7 @@ def load_dlm(year, month):
     ufile = f"{prefix}/u/{year}/u_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
     vfile = f"{prefix}/v/{year}/v_era5_oper_pl_{year}{month:02d}01-{year}{month:02d}{days}.nc"
 
+    # load data and calculate DLM lazily
     uds = xr.open_dataset(ufile, chunks={'time': 24})  # xr.open_dataset(ufile, chunks='auto')
 
     uenv = uds.u.sel(level=pslice, longitude=long_slice, latitude=lat_slice)
@@ -65,6 +73,7 @@ def load_dlm(year, month):
     )
 
     return udlm, vdlm
+
 
 comm = MPI.COMM_WORLD
 years = np.arange(1981, 2021)
