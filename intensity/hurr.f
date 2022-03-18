@@ -92,18 +92,22 @@ c
 
 	close(unit=11,status='keep')
 	print *, "time: ", time
-	call sim(nrd, time, vdisp, dtg, rog, rst, vm, rm, r0, ts, to,
-     & h_a, alat, tshear, vext, tland, surface, hs, om, ut, eddytime,
-     & heddy, rwide, dim, fmt, nr, dt, ro, ahm, pa, cd, cd1, cdcap,
-     & cecd, pnu, taur, radmax, tauc, efrac, dpb, hm dsst, gm)
+	pmin = tc_intensity(nrd, time, vdisp, dtg, rog, rst, vm, rm, r0,
+     & ts, to, h_a, alat, tshear, vext, tland, surface, hs, om, ut,
+     & eddytime, heddy, rwide, dim, fmt, nr, dt, ro, ahm, pa, cd,
+     & cd1, cdcap, cecd, pnu, taur, radmax, tauc,
+     & efrac, dpb, hm, dsst, gm)
+
+      print *, "pmin: ", pmin
 
 	stop
 	end
-c     fix line break issue
-	subroutine sim(nrd, time, vdisp, dtg, rog, rst, vm, rm, r0, ts, to
-     & ,h_a, alat, tshear, vext, tland, surface, hs, om, ut, eddytime,
-     & heddy, rwide, dim, fmt, nr, dt, ro, ahm, pa, cd, cd1, cdcap,
-     & cecd, pnu, taur, radmax, tauc, efrac, dpb, hm dsst, gm)
+
+	function tc_intensity(nrd, time, vdisp, dtg, rog, rst, vm,
+     & rm, r0, ts, to, h_a, alat, tshear, vext, tland, surface,
+     & hs, om, ut, eddytime, heddy, rwide, dim, fmt, nr,
+     & dt, ro, ahm, pa, cd, cd1, cdcap,
+     & cecd, pnu, taur, radmax, tauc, efrac, dpb, hm, dsst, gm)
 
 	real h_a, meq, mf, mt, mumax, mdmin
 	real time,dtg,rog,vm,rm,r0,ts,to,alat,tland,tshear,vext,ut
@@ -136,13 +140,17 @@ c
 	real vis(nrd), vis2(nrd), xvis(nrd), dv(nrd), af(nrd)
 	real q2(nrd), q3(nrd), xmvis(nrd), rmm2(nrd), epre(nrd)
 
-	print *, "time: ", time
-
 	if(hs.lt.0.2.and.surface.eq.'swmp')then
 	 print*, 'swamp depth must be at least 0.2 meters'
 	 print*, 'setting depth to 0.2 meters and proceeding'
 	 hs=max(hs,0.2)
 	end if
+
+!print *, nrd, time, vdisp, dtg, rog, rst, vm,
+!    & rm, r0, ts, to, h_a, alat, tshear, vext, tland, surface,
+!    & hs, om, ut, eddytime, heddy, rwide, dim, fmt, nr,
+!    & dt, ro, ahm, pa, cd, cd1, cdcap,
+!    & cecd, pnu, taur, radmax, tauc, efrac, dpb, hm, dsst, gm
 c
 c      *** non-dimensionalize parameters and initial conditions  ***
 c
@@ -318,6 +326,7 @@ c
 
    77 continue
 	tt=tt+dt
+
 	if(tt.gt.time)goto 705
 c
 c            *** set boundary values for and advection terms ***
@@ -816,7 +825,6 @@ c
 	do i=1, nr
 		pmin = min(pmin, p(i))
 	end do
-	print *, "pmin: ", pmin
-	print *, "time: ", time
+	tc_intensity = pmin
 710 	continue
 	end
