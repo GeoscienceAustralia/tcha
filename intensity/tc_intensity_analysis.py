@@ -3,6 +3,7 @@ import tcint
 def pytc_intensity(
         vm, rm, r0, ts, h_a, alat, nr, dt, ahm, pa, hm=30.0, dsst=0.6, gm=8.0
 ):
+
     nrd = 200
     time = 10  # days
     vdisp = 's'  # plotting param
@@ -44,5 +45,8 @@ def pytc_intensity(
 
 
 if __name__ == "__main__":
-    pmin = pytc_intensity(15, 80, 350, 27, 80, 20, 50, 20, 45, 1005, hm=30)
+    import time
+    t0  = time.time()
+    pmin = pytc_intensity(15, 80, 350, 27, 80, 20, nr=50, dt=20, ahm=45, pa=1005, hm=30)
     print(pmin)
+    print("time: ", time.time() - t0, "s")
