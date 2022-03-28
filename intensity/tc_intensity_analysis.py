@@ -1,9 +1,28 @@
 import tcint
 
-def pytc_intensity(
-        vm, rm, r0, ts, h_a, alat, nr, dt, ahm, pa, hm=30.0, dsst=0.6, gm=8.0
-):
+def pytc_intensity(vm, rm, r0, ts, h_a, alat, nr, dt, ahm, pa, hm=30.0, dsst=0.6, gm=8.0):
+    """
 
+    Parameters
+    ----------
+    vm : maximum wind speed (m/s)
+    rm : radius of maximum winds (km)
+    r0 : radius of zero wind speed (km)
+    ts : sea surface temperature (C)
+    h_a : undisturbed humidity of environmental air near the surface (percent)
+    alat : latitude (degrees)
+    nr : number of radial nodes
+    dt : time step (s)
+    ahm : undisturbed relative humidity of undisturbed lower and middle troposphere
+    pa : undisturbed sea surface pressure (hPa)
+    hm : undisturbed ocean mixed layer depth (m)
+    dsst : temperature jump at base of mixed layer (C)
+    gm : Sub mixed layer ocean thermal stratification (C/100m)
+
+    Returns
+    -------
+
+    """
     nrd = 200
     time = 10  # days
     vdisp = 's'  # plotting param
