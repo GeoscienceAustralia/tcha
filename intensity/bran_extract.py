@@ -40,7 +40,7 @@ def load_data(time, lat, lon):
         y = y.sel(Time=time)
         temp = y.temp.data.copy()
         depth = y.st_ocean.data.copy()
-        temp = depth[depth < 1000]
+        temp = temp[depth < 1000]
         depth = depth[depth < 1000]
 
         # calculate mixed layer depth averaged temperature 
@@ -52,10 +52,12 @@ def load_data(time, lat, lon):
         m, b, *_ = linregress(depth[mask], temp[mask])
         dsst = ml_tmp - (m * hm + b)
         gm = -100 * m
-        print(hm, dsst, gm)
-        
+        # print(hm, dsst, gm)
 
-    except KeyError as e:
+    except Error as e:
+        print(e)
+        print(time)
+        print()
         hm = np.nan
         dsst = np.nan
         gm = np.nan
@@ -66,6 +68,7 @@ def load_data(time, lat, lon):
 
 if __name__ == "__main__":
     df = load_otcr_df()
+    df.TM = df.TM - pd.Timedelta(days=1)
 
     bran = []
 
