@@ -4,10 +4,11 @@ import numpy as np
 import pandas as pd
 import os
 import pyproj
+from tqdm import tqdm
 
 
 geodesic = pyproj.Geod(ellps='WGS84')
-DATA_DIR = os.path.expanduser("~/geoscience/data")
+DATA_DIR = os.path.expanduser("~")
 
 
 def load_otcr_df():
@@ -30,8 +31,8 @@ def load_otcr_df():
 
     # calculate translation velocity
     fwd_azimuth, _, distances = geodesic.inv(
-        df.LON[:-1], df.LAT[:-1],
-        df.LON[1:], df.LAT[1:],
+        df.LON[:-1].values, df.LAT[:-1].values,
+        df.LON[1:].values, df.LAT[1:].values,
     )
 
     df['new_index'] = np.arange(len(df))
@@ -53,7 +54,7 @@ def load_data(time, lat, lon):
 
     This using dask to lazily load the minimum data needed.
     """
-    year = time.month
+    year = time.year
     month = time.month
     days = monthrange(year, month)[1]
     lat_slice = slice(lat + 2.5, lat - 2.5)
@@ -65,9 +66,14 @@ def load_data(time, lat, lon):
     for var in vars:
         fp = f"{prefix}/{var}/{year}/{var}_era5_oper_sfc_{year}{month:02d}01-{year}{month:02d}{days}.nc"
         ds = xr.open_dataset(fp, chunks={'time': 24})
-        y = ds.sel(time=time, longitude=long_slice, latitude=lat_slice).mean().compute(scheduler='single-threaded')
-        out.append(y[var].data)
 
+        try:
+            y = ds.sel(time=time, longitude=long_slice, latitude=lat_slice).mean().compute(scheduler='single-threaded')
+            k = list(ds.data_vars.keys())[0]
+            out.append(y[k].data)
+        except KeyError as e:
+            out.append(np.nan)
+        
     return np.array(out)
 
 
@@ -76,5 +82,12 @@ if __name__ == "__main__":
 
     era5 = []
 
-    for row in df.itertuples():
+    for i in tqdm(range(len(df))):
+        row = df.iloc[i]
         era5.append(load_data(row.TM, row.LAT, row.LON))
+
+    era5 = np.array(era5)
+    np.save(os.path.join(DATA_DIR, "tc_intensity_era5.npy"), era5)
+
+    arr = np.load(os.path.join(DATA_DIR, "tc_intensity_era5.npy"))
+    print("Array saved correctly:", np.allclose(arr, era5))
