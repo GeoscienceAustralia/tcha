@@ -34,25 +34,25 @@ def load_data(time, lat, lon):
         y = y.sel(Time=time) #interp
         hm = y['mld'].data
 
-        fp = f"{prefix}/ocean_temp_{year}_{month:02d}.nc"
-        ds = xr.open_dataset(fp, chunks={'Time': 24})
-        y = ds.sel(xt_ocean=long_slice, yt_ocean=lat_slice).mean(dim=["xt_ocean", "yt_ocean"]).compute()
-        y = y.sel(Time=time)
-        temp = y.temp.data.copy()
-        depth = y.st_ocean.data.copy()
-        temp = temp[depth < 1000]
-        depth = depth[depth < 1000]
+        # fp = f"{prefix}/ocean_temp_{year}_{month:02d}.nc"
+        # ds = xr.open_dataset(fp, chunks={'Time': 24})
+        # y = ds.sel(xt_ocean=long_slice, yt_ocean=lat_slice).mean(dim=["xt_ocean", "yt_ocean"]).compute()
+        # y = y.sel(Time=time)
+        # temp = y.temp.data.copy()
+        # depth = y.st_ocean.data.copy()
+        # temp = temp[depth < 1000]
+        # depth = depth[depth < 1000]
 
-        # calculate mixed layer depth averaged temperature 
-        mask = depth < hm
-        ml_tmp = np.trapz(temp[mask], depth[mask]) / (depth[mask][-1] - depth[0])
+        # # calculate mixed layer depth averaged temperature 
+        # mask = depth < hm
+        # ml_tmp = np.trapz(temp[mask], depth[mask]) / (depth[mask][-1] - depth[0])
 
-        # calculate temperature lapse rate and jump across mixed layer boundary
-        mask = (depth > hm)
-        m, b, *_ = linregress(depth[mask], temp[mask])
-        dsst = ml_tmp - (m * hm + b)
-        gm = -100 * m
-        # print(hm, dsst, gm)
+        # # calculate temperature lapse rate and jump across mixed layer boundary
+        # mask = (depth > hm)
+        # m, b, *_ = linregress(depth[mask], temp[mask])
+        # dsst = ml_tmp - (m * hm + b)
+        # gm = -100 * m
+        # # print(hm, dsst, gm)
 
     except Error as e:
         print(e)
@@ -62,7 +62,7 @@ def load_data(time, lat, lon):
         dsst = np.nan
         gm = np.nan
 
-    return np.array([hm, dsst, gm])
+    return np.array([hm])
 
 
 
@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
     bran = []
 
-    for i in (range(len(df))):
+    for i in tqdm(range(len(df))):
         row = df.iloc[i]
         bran.append(load_data(row.TM, row.LAT, row.LON))
         # print(bran[-1])
