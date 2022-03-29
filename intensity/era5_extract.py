@@ -26,7 +26,7 @@ def load_otcr_df():
     df['TM']= pd.to_datetime(df.TM, format="%d/%m/%Y %H:%M", errors='coerce')
     df = df[~pd.isnull(df.TM)]
     df['season'] = pd.DatetimeIndex(df['TM']).year - (pd.DatetimeIndex(df['TM']).month < 6)
-    df = df[df.season >= 1981]
+    df = df[df.season >= 1993]
     df.reset_index(inplace=True)
 
     # calculate translation velocity
