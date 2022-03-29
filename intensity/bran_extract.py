@@ -54,7 +54,7 @@ def load_data(time, lat, lon):
         # gm = -100 * m
         # # print(hm, dsst, gm)
 
-    except Error as e:
+    except Exception as e:
         print(e)
         print(time)
         print()
