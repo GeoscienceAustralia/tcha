@@ -33,6 +33,8 @@ def pytc_intensity(vm, rm, r0, ts, h_a, alat, ahm, pa, tend, hm=30.0, dsst=0.6, 
 
     """
     nrd = 200
+
+    om = 'n'  # ocean mixing on
     vdisp = 's'  # plotting param
     dtg = 3  # plotting param
     rog = 0  # plotting param
@@ -43,7 +45,6 @@ def pytc_intensity(vm, rm, r0, ts, h_a, alat, ahm, pa, tend, hm=30.0, dsst=0.6, 
     tland = 200  # time until land
     surface = 'pln'  # type of land
     hs = 0  # swamp depth
-    om = 'y'  # ocean mixing on
     ut = 7  # speed over ocean m/s
     eddytime = 200  # time until storm reaches eddy
     heddy = 30  # peak ocean eddy m
@@ -102,14 +103,14 @@ if __name__ == "__main__":
             t2 = units.Quantity(t2, "K")
             d2 = units.Quantity(d2, "K")
 
-            rm = 300
-            r0 = 1000
-
             h_a = relative_humidity_from_dewpoint(t2, d2) * 100 # relative humidity near surface
-            ahm = 45  # relative humidity in tropo
-
             tend = g.loc[g.index[j + 1]].TM - row.TM
             tend = tend.days + tend.seconds / (3600 * 24)  # simulation time in days
+
+            # typical values
+            rm = 80
+            r0 = 350
+            ahm = 45  # relative humidity in tropo
 
             pytc_intensity(vm, rm, r0, sst, h_a, lat, ahm, sp, tend)
 
