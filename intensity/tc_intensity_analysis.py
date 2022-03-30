@@ -108,6 +108,7 @@ if __name__ == "__main__":
             tend = tend.days + tend.seconds / (3600 * 24)  # simulation time in days
 
             # typical values
+            # TODO: reuse vm, rm, and r0 from previous simulation step
             rm = 80
             r0 = 350
             ahm = 45  # relative humidity in tropo
