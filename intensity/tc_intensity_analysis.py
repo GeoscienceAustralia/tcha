@@ -1,6 +1,15 @@
-import tcint
+import hurr
+from era5_extract import load_otcr_df
+import os
+import numpy as np
+import pandas as pd
+import time
+from metpy.calc import relative_humidity_from_dewpoint
+from metpy.units import units
 
-def pytc_intensity(vm, rm, r0, ts, h_a, alat, nr, dt, ahm, pa, hm=30.0, dsst=0.6, gm=8.0):
+print("Done imports")
+
+def pytc_intensity(vm, rm, r0, ts, h_a, alat, ahm, pa, tend, hm=30.0, dsst=0.6, gm=8.0):
     """
 
     Parameters
@@ -24,7 +33,6 @@ def pytc_intensity(vm, rm, r0, ts, h_a, alat, nr, dt, ahm, pa, hm=30.0, dsst=0.6
 
     """
     nrd = 200
-    time = 10  # days
     vdisp = 's'  # plotting param
     dtg = 3  # plotting param
     rog = 0  # plotting param
@@ -53,9 +61,11 @@ def pytc_intensity(vm, rm, r0, ts, h_a, alat, nr, dt, ahm, pa, hm=30.0, dsst=0.6
     tauc = 2  # convective relation time scale
     efrac = 0.5  # fraction of convective entropy detrained into lower
     dpb = 50  # boundary layer depth
+    nr = 150 # numer of radial nodes
+    dt = 20 # time step in seconds
 
-    return tcint.tc_intensity(
-        nrd, time, vdisp, dtg, rog, rst, vm,
+    return hurr.tc_intensity(
+        nrd, tend, vdisp, dtg, rog, rst, vm,
         rm, r0, ts, to, h_a, alat, tshear, vext, tland, surface,
         hs, om, ut, eddytime, heddy, rwide, dim, fmt, nr,
         dt, ro, ahm, pa, cd, cd1, cdcap,
@@ -64,8 +74,46 @@ def pytc_intensity(vm, rm, r0, ts, h_a, alat, nr, dt, ahm, pa, hm=30.0, dsst=0.6
 
 
 if __name__ == "__main__":
-    import time
+    DATA_DIR = os.path.expanduser("~")    
+    
+    df = load_otcr_df()
+
+    era5 = np.load(os.path.join(DATA_DIR, "tc_intensity_era5.npy"))
+    bran = np.load(os.path.join(DATA_DIR, "tc_intensity_bran2020.npy"))
+
+    for i, var in enumerate(["sst", "sp", "d2", "t2"]): df[var] = era5[:, i]
+    df["hm"] = bran[:, 0]
+
+    df = df[pd.isnull(df).any(axis=1)].copy()
+    df['pc'] = np.zeros(len(df)) * np.nan
+
     t0  = time.time()
-    pmin = pytc_intensity(15, 80, 350, 27, 80, 20, nr=50, dt=20, ahm=45, pa=1005, hm=30)
-    print(pmin)
+    for name, g in df.groupby('DISTURBANCE_ID'): 
+
+        for j, i in enumerate(g.index[:-1]):
+            row = g.loc[i]
+
+            sst, sp, d2, t2, hm, lat = row.sst, row.sp, row.d2, row.t2, row.hm, row.LAT
+            vm = row["adj. ADT Vm (kn)"]
+
+            sst = sst - 273.15  # convert K -> C
+            sp = sp / 100  # convert Pa -> hPa
+            vm = vm * 0.514444  # convert knots to m/s
+            t2 = units.Quantity(t2, "K")
+            d2 = units.Quantity(d2, "K")
+
+            rm = 300
+            r0 = 1000
+
+            h_a = relative_humidity_from_dewpoint(t2, d2) * 100 # relative humidity near surface
+            ahm = 45  # relative humidity in tropo
+
+            tend = g.loc[g.index[j + 1]].TM - row.TM
+            tend = tend.days + tend.seconds / (3600 * 24)  # simulation time in days
+
+            pytc_intensity(vm, rm, r0, sst, h_a, lat, ahm, sp, tend)
+
+        break
+
+    print(len(g) / len(df))
     print("time: ", time.time() - t0, "s")
