@@ -5,6 +5,11 @@ import pandas as pd
 import os
 import pyproj
 from tqdm import tqdm
+import warnings
+
+
+with warnings.catch_warnings():
+    warnings.filterwarnings('ignore', r'RuntimeWarning: invalid value encountered in true_divide')
 
 
 geodesic = pyproj.Geod(ellps='WGS84')
@@ -54,6 +59,8 @@ def load_data(time, lat, lon):
 
     This using dask to lazily load the minimum data needed.
     """
+    time = time.round('H')
+    time = time - pd.Timedelta(hours=24)
     year = time.year
     month = time.month
     days = monthrange(year, month)[1]
@@ -72,6 +79,7 @@ def load_data(time, lat, lon):
             k = list(ds.data_vars.keys())[0]
             out.append(y[k].data)
         except KeyError as e:
+            print("Bad time:", time)
             out.append(np.nan)
         
     return np.array(out)

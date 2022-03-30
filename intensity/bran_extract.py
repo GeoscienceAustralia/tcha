@@ -9,6 +9,8 @@ from era5_extract import load_otcr_df
 from scipy.stats import linregress
 
 
+DATA_DIR = os.path.expanduser("~")
+
 
 def load_data(time, lat, lon):
     """
@@ -16,9 +18,9 @@ def load_data(time, lat, lon):
 
     This using dask to lazily load the minimum data needed.
     """
+    time = time.round('D') - pd.Timedelta(hours=12)
     year = time.year
     month = time.month
-    time = time.round('D') + pd.Timedelta(hours=12)
     lat_slice = slice(lat - 2.5, lat + 2.5)
     long_slice = slice(lon - 2.5, lon + 2.5)
     
