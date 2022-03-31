@@ -88,7 +88,7 @@ if __name__ == "__main__":
     df = df[pd.isnull(df).any(axis=1)].copy()
     df['pc'] = np.zeros(len(df)) * np.nan
 
-    t0  = time.time()
+    t0 = time.time()
     for name, g in df.groupby('DISTURBANCE_ID'): 
 
         for j, i in enumerate(g.index[:-1]):

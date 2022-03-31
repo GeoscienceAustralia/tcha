@@ -19,6 +19,7 @@ c
 	real eddytime,rwide,ro,ahm,pa,cd,cd1,cdcap,cecd,pnu,taur
 	real radmax,tauc,efrac,dsst,gm,hs,hm,heddy
 	real*8 dt,tt,atime
+	real out(3)
 	character*4 dim,fmt,om,surface
 	character*1 vdisp,rst
 c   ***  assign unit 11 to the input parameter file   ***
@@ -92,13 +93,13 @@ c
 
 	close(unit=11,status='keep')
 	print *, "time: ", time
-	pmin = tc_intensity(nrd, time, vdisp, dtg, rog, rst, vm, rm, r0,
-     & ts, to, h_a, alat, tshear, vext, tland, surface, hs, om, ut,
-     & eddytime, heddy, rwide, dim, fmt, nr, dt, ro, ahm, pa, cd,
-     & cd1, cdcap, cecd, pnu, taur, radmax, tauc,
-     & efrac, dpb, hm, dsst, gm)
+!out = tc_intensity(nrd, time, vdisp, dtg, rog, rst, vm, rm, r0,
+!    & ts, to, h_a, alat, tshear, vext, tland, surface, hs, om, ut,
+!    & eddytime, heddy, rwide, dim, fmt, nr, dt, ro, ahm, pa, cd,
+!    & cd1, cdcap, cecd, pnu, taur, radmax, tauc,
+!    & efrac, dpb, hm, dsst, gm)
 
-      print *, "pmin: ", pmin
+!     print *, "pmin: ", pmin
 
 	stop
 	end
@@ -118,6 +119,7 @@ c
 	character*1 vdisp,rst
 	real sstr(nrd), sst1(nrd),sst2(nrd)
 	real sst3(nrd)
+	real out(3), tc_intensity(3)
 
 c  ***     dimension arrays of dependent variables   ***
 c
@@ -822,9 +824,22 @@ c
 705 	continue
 c
 	pmin = p(1)
+	vmax = 0.0
+	rmax = 0.0
 	do i=1, nr
 		pmin = min(pmin, p(i))
+		r=(float(i-1))*dr
+        v=0.5*(r*r-rbs2(i))/rb2(i)
+
+         if (v > vmax) then
+            vmax = v
+            rmax = r
+         end if
+
 	end do
-	tc_intensity = pmin
+	out(1) = pmin
+	out(2) = vmax
+	out(3) = rmac
+	tc_intensity = out
 710 	continue
 	end
