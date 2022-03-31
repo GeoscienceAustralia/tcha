@@ -143,8 +143,8 @@ if __name__ == "__main__":
 
             vm_actual = g.loc[g.index[j + 1]]["adj. ADT Vm (kn)"] * 0.514444
             out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend)
-            pmin, vm, rm = out[0], out[1], out[2]
-            print("Output:", vm, vm_actual)
+            pmin, vm_, rm_ = out[0], out[1], out[2]
+            print("Output:", vm_, vm_actual)
             out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend)
             pmin, vm, rm = out[0], out[1], out[2]
             print("Output:", vm, vm_actual)
