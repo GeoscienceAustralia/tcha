@@ -1,114 +1,12 @@
-	program hurricane
 
-c ***   nrd is the maximum number of radial nodes; ntg is   ***
-c  ***      the maximum number of time points in the         ***
-c  ***               graphics time series                    ***
-c
-	parameter(nrd=200, ntg=600)
-c
-c  ***  nzd is the number of nodes in the vertical used in ***
-c  ***     constructing the two-dimensional plots          ***
-c  ***  mi and ni are the maximum dimensions of the 2-d plot arrays ***
-c
-	parameter(nzd=60,mi=100,ni=150,mi2=2*mi+1)
-
-c c  ***       other quantities    ***
-c
-	real h_a, meq, mf, mt, mumax, mdmin
-	real time,dtg,rog,vm,rm,r0,ts,to,alat,tland,tshear,vext,ut
-	real eddytime,rwide,ro,ahm,pa,cd,cd1,cdcap,cecd,pnu,taur
-	real radmax,tauc,efrac,dsst,gm,hs,hm,heddy
-	real*8 dt,tt,atime
-	real out(3)
-	character*4 dim,fmt,om,surface
-	character*1 vdisp,rst
-c   ***  assign unit 11 to the input parameter file   ***
-c
-	open(unit=11,file='hurrparams.txt',status='old')
-c
-c           ***  read in parameters  ***
-c
-	read(11,*)
-	read(11,*)
-	read(11,*)
-	read(11,*)time
-	read(11,*)vdisp
-	read(11,*)
-	read(11,*)dtg
-	read(11,*)rog
-	read(11,*)
-	read(11,*)
-	read(11,*)rst
-	read(11,*)vm
-	read(11,*)rm
-	read(11,*)r0
-	read(11,*)
-	read(11,*)
-	read(11,*)ts
-	read(11,*)to
-	read(11,*)h_a
-	read(11,*)alat
-	read(11,*)tshear
-	read(11,*)vext
-	read(11,*)
-	read(11,*)
-	read(11,*)tland
-	read(11,*)surface
-	read(11,*)hs
-	read(11,*)
-	read(11,*)
-	read(11,*)om
-	read(11,*)ut
-	read(11,*)eddytime
-	read(11,*)heddy
-	read(11,*)rwide
-	read(11,*)
-	read(11,*)
-	read(11,*)dim
-	read(11,*)fmt
-	read(11,*)
-	read(11,*)
-	read(11,*)nr
-	read(11,*)dt
-	read(11,*)ro
-	read(11,*)
-	read(11,*)
-	read(11,*)ahm
-	read(11,*)pa
-	read(11,*)cd
-	read(11,*)cd1
-	read(11,*)cdcap
-	read(11,*)cecd
-	read(11,*)pnu
-	read(11,*)taur
-	read(11,*)radmax
-	read(11,*)tauc
-	read(11,*)efrac
-	read(11,*)dpb
-	read(11,*)
-	read(11,*)
-	read(11,*)hm
-	read(11,*)dsst
-	read(11,*)gm
-
-	close(unit=11,status='keep')
-	print *, "time: ", time
-!out = tc_intensity(nrd, time, vdisp, dtg, rog, rst, vm, rm, r0,
-!    & ts, to, h_a, alat, tshear, vext, tland, surface, hs, om, ut,
-!    & eddytime, heddy, rwide, dim, fmt, nr, dt, ro, ahm, pa, cd,
-!    & cd1, cdcap, cecd, pnu, taur, radmax, tauc,
-!    & efrac, dpb, hm, dsst, gm)
-
-!     print *, "pmin: ", pmin
-
-	stop
-	end
-
-	function tc_intensity(nrd, time, vdisp, dtg, rog, rst, vm,
+	subroutine tc_intensity(nrd, time, vdisp, dtg, rog, rst, vm,
      & rm, r0, ts, to, h_a, alat, tshear, vext, tland, surface,
      & hs, om, ut, eddytime, heddy, rwide, dim, fmt, nr,
      & dt, ro, ahm, pa, cd, cd1, cdcap,
-     & cecd, pnu, taur, radmax, tauc, efrac, dpb, hm, dsst, gm)
+     & cecd, pnu, taur, radmax, tauc, efrac, dpb, hm, dsst, gm, xx,
+     & rbs1, rbs2, rbs3, rts1, rts2,
+     & x1, x2, x3, xm1, xm2, xm3, rts3, mu1, mu2, mu3,
+     & rb1, rb2, rt1, init)
 
 	real h_a, meq, mf, mt, mumax, mdmin
 	real time,dtg,rog,vm,rm,r0,ts,to,alat,tland,tshear,vext,ut
@@ -116,17 +14,17 @@ c
 	real radmax,tauc,efrac,dsst,gm,hs,hm,heddy
 	real*8 dt,tt,atime
 	character*4 dim,fmt,om,surface
-	character*1 vdisp,rst
+	character*1 vdisp,rst, init
 	real sstr(nrd), sst1(nrd),sst2(nrd)
 	real sst3(nrd)
-	real out(3), tc_intensity(3)
+	real*8 xx(3)
 
 c  ***     dimension arrays of dependent variables   ***
 c
-	real rbs1(nrd), rbs2(nrd), rbs3(nrd), rts1(nrd), rts2(nrd)
-	real x1(nrd), x2(nrd), x3(nrd), xs1(nrd), xs2(nrd), xs3(nrd)
-	real xm1(nrd), xm2(nrd), xm3(nrd),rts3(nrd)
-	real mu1(nrd), mu2(nrd), mu3(nrd)
+	real rbs1(200), rbs2(200), rbs3(200), rts1(200), rts2(200)
+	real x1(200), x2(200), x3(200), xs1(200), xs2(200), xs3(200)
+	real xm1(200), xm2(200), xm3(200),rts3(200)
+	real mu1(200), mu2(200), mu3(200)
 c
 c  ***     dimension ocean variables   ***
 c
@@ -135,7 +33,7 @@ c
 c  ***      dimension various diagnostic quantities     ***
 c
 	real p(nrd), ps0(nrd), ps2(nrd), ps3(nrd), gb(nrd), rms2(nrd)
-	real rb1(nrd), rb2(nrd), rt1(nrd)
+	real rb1(200), rb2(200), rt1(200)
 c
 c  ***   dimension viscous and working arrays   ***
 c
@@ -230,6 +128,8 @@ c
 	amix=(2.*ric*chi/(9.8*3.3e-4*gm))*1.0e-6*(287.*tsa/9.8)**2*
      &   (delp/pa)**2*amixfac**4
 	amix=sqrt(amix)
+	ni=150
+	mi2=2*mi+1
 	facsst=0.002*cd*cecd*chi*schi*atime*amixfac/(hs*gm*4160.0)
       drig=rog/float(mi-2)
 
@@ -253,44 +153,57 @@ c
 c            ****   initialize fields   ***
 c
 	do 60 i=2,nr
-	 r=float(i-1)*dr
-	 if(r.gt.r0)goto 40
-	 if(r.gt.sqrt(rm*rm*(1.+2.*vm/rm)))goto 30
-	 rbs1(i)=(r*r/(1.+2.*vm/rm))
-	 rbs2(i)=rbs1(i)
-	 goto 50
-   30    rbs1(i)=(0.5*r*r-vm*rm/(1.-(rm/r0)**2))/
-     1     (0.5-vm*rm/(r0*r0-rm*rm))
-	 rbs2(i)=rbs1(i)
-	 goto 50
-   40    rbs1(i)=r*r
-	 rbs2(i)=rbs1(i)
-   50    continue
+
+	if (init.EQ.'y') then
+		r=float(i-1)*dr
+	 	if(r.gt.r0)goto 40
+	 	if(r.gt.sqrt(rm*rm*(1.+2.*vm/rm)))goto 30
+	 	
+		rbs1(i)=(r*r/(1.+2.*vm/rm))
+	 	rbs2(i)=rbs1(i)
+	 	goto 50
+
+   30	rbs1(i)=(0.5*r*r-vm*rm/(1.-(rm/r0)**2))/ 
+     &(0.5-vm*rm/(r0*r0-rm*rm))
+	 	rbs2(i)=rbs1(i)
+	 	goto 50
+
+   40   rbs1(i)=r*r
+	 	rbs2(i)=rbs1(i)
+   50   continue
+	 	
+		rts1(i)=r*r
+	 	rts2(i)=rts1(i)
+	 	rbs3(i)=rbs2(i)
+	 	rts3(i)=rts2(i)
+	 	x1(i)=-0.05
+	 	x2(i)=x1(i)
+	 	xm1(i)=xm0
+	 	xm2(i)=xm0
+		mu1(i)=0.0
+	    mu2(i)=0.0
+		mu3(i)=0.0
+	 end if
+	 
 	 ps2(i)=0.0
 	 ps3(i)=0.0
 	 p(i)=0.0
-	 rts1(i)=r*r
-	 rts2(i)=rts1(i)
-	 rbs3(i)=rbs2(i)
-	 rts3(i)=rts2(i)
-	 x1(i)=-0.05
-	 x2(i)=x1(i)
-	 xm1(i)=xm0
-	 xm2(i)=xm0
-	 mu1(i)=0.0
-	 mu2(i)=0.0
+	 
 	 sst1(i)=0.0
 	 sst2(i)=0.0
 	 hmix(i)=hm+heddy/(1.+((sqrt(rbs2(i))-reddy)/rwide)**2)
          uhmix1(i)=sqrt(hmix(i)*hmix(i)*hmix(i)*dsst)/amix
 	 uhmix2(i)=uhmix1(i)
    60   continue
-	xs1(2)=0.0
+	
 	hmix(1)=hm
 	do 70 i=3,nr
+	 if (init.EQ.'y') then
 	 r=(float(i-2))*dr
 	 xs1(i)=xs1(i-1)+r*dr*0.5*(1.-r*r/rbs1(i-1))
+	 end if
    70 continue
+
 	ps2(1)=0.0
 	mu2(1)=0.0
 	sst2(1)=0.0
@@ -298,11 +211,13 @@ c
 c
 c
 	do 75 i=2,nr
+	 if (init.EQ.'y') then
 	 rb1(i)=sqrt(rbs1(i))
 	 rb2(i)=rb1(i)
 	 rt1(i)=sqrt(rts1(i))
 	 xs1(i)=xs1(i)-xs1(nr)
 	 xs2(i)=xs1(i)
+	 end if
 c	 if((rb2(i)*0.001*alength).lt.100.0)then
 c	  xm1(i)=xs1(i)
 c	  xm2(i)=xm1(i)
@@ -831,15 +746,14 @@ c
 		r=(float(i-1))*dr
         v=0.5*(r*r-rbs2(i))/rb2(i)
 
-         if (v > vmax) then
+        if (v > vmax) then
             vmax = v
-            rmax = r
+            rmax = RB2(I)
          end if
 
 	end do
-	out(1) = pmin
-	out(2) = vmax
-	out(3) = rmac
-	tc_intensity = out
+	xx(1) = pmin
+	xx(2) = vmax * schi
+	xx(3) = rmax * schi * 0.001 / FC
 710 	continue
 	end
