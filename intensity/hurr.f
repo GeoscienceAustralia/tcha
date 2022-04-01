@@ -4,9 +4,8 @@
      & hs, om, ut, eddytime, heddy, rwide, dim, fmt, nr,
      & dt, ro, ahm, pa, cd, cd1, cdcap,
      & cecd, pnu, taur, radmax, tauc, efrac, dpb, hm, dsst, gm, xx,
-     & rbs1, rbs2, rbs3, rts1, rts2,
-     & x1, x2, x3, xm1, xm2, xm3, rts3, mu1, mu2, mu3,
-     & rb1, rb2, rt1, init)
+     & rbs1, rts1, x1, xs1, xm1, mu1, rbs2, rts2, x2, xs2,
+     & xm2, mu2, ps2, init)
 
 	real h_a, meq, mf, mt, mumax, mdmin
 	real time,dtg,rog,vm,rm,r0,ts,to,alat,tland,tshear,vext,ut
@@ -32,13 +31,13 @@ c
 c
 c  ***      dimension various diagnostic quantities     ***
 c
-	real p(nrd), ps0(nrd), ps2(nrd), ps3(nrd), gb(nrd), rms2(nrd)
+	real p(200), ps0(nrd), ps2(200), ps3(200), gb(200), rms2(200)
 	real rb1(200), rb2(200), rt1(200)
 c
 c  ***   dimension viscous and working arrays   ***
 c
-	real vis(nrd), vis2(nrd), xvis(nrd), dv(nrd), af(nrd)
-	real q2(nrd), q3(nrd), xmvis(nrd), rmm2(nrd), epre(nrd)
+	real vis(nrd), vis2(nrd), xvis(200), dv(nrd), af(nrd)
+	real q2(nrd), q3(nrd), xmvis(200), rmm2(nrd), epre(nrd)
 
 	if(hs.lt.0.2.and.surface.eq.'swmp')then
 	 print*, 'swamp depth must be at least 0.2 meters'
@@ -152,9 +151,10 @@ c
 c
 c            ****   initialize fields   ***
 c
+
+      if (init.eq.'y') then
 	do 60 i=2,nr
 
-	if (init.EQ.'y') then
 		r=float(i-1)*dr
 	 	if(r.gt.r0)goto 40
 	 	if(r.gt.sqrt(rm*rm*(1.+2.*vm/rm)))goto 30
@@ -183,11 +183,9 @@ c
 		mu1(i)=0.0
 	    mu2(i)=0.0
 		mu3(i)=0.0
-	 end if
-	 
-	 ps2(i)=0.0
-	 ps3(i)=0.0
-	 p(i)=0.0
+		ps2(i)=0.0
+	 	ps3(i)=0.0
+	 	p(i)=0.0
 	 
 	 sst1(i)=0.0
 	 sst2(i)=0.0
@@ -198,38 +196,37 @@ c
 	
 	hmix(1)=hm
 	do 70 i=3,nr
-	 if (init.EQ.'y') then
 	 r=(float(i-2))*dr
 	 xs1(i)=xs1(i-1)+r*dr*0.5*(1.-r*r/rbs1(i-1))
-	 end if
    70 continue
 
-	ps2(1)=0.0
-	mu2(1)=0.0
+	  ps2(1)=0.0
+	  mu2(1)=0.0
 	sst2(1)=0.0
 	sst1(1)=0.0
 c
 c
+      end if
 	do 75 i=2,nr
-	 if (init.EQ.'y') then
-	 rb1(i)=sqrt(rbs1(i))
-	 rb2(i)=rb1(i)
-	 rt1(i)=sqrt(rts1(i))
-	 xs1(i)=xs1(i)-xs1(nr)
-	 xs2(i)=xs1(i)
-	 end if
+	  rb1(i)=sqrt(rbs1(i))
+	  rb2(i)=rb1(i)
+	  rt1(i)=sqrt(rts1(i))
+	  xs1(i)=xs1(i)-xs1(nr)
+	  xs2(i)=xs1(i)
+	  xvis(i)=0.0
+	  xmvis(i)=0.0
 c	 if((rb2(i)*0.001*alength).lt.100.0)then
 c	  xm1(i)=xs1(i)
 c	  xm2(i)=xm1(i)
 c       end if
-	 xvis(i)=0.0
-	 xmvis(i)=0.0
    75 continue
+
 	ps3(1)=0.0
 	ps0(1)=0.0
 	vis(1)=0.0
-	gb(1)=0.0
 	rmm2(1)=0.0
+
+        gb(1)=0.0
 c
 c             ***  set time looping parameters and begin time loop  ***
 c

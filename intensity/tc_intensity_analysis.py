@@ -13,9 +13,8 @@ print("Done imports")
 class Hurricane:
 
     def __init__(self):
-        self.rbs1, self.rbs2, self.rbs3, self.rts1, self.rts2 = [np.zeros(200, dtype=np.float32) for _ in range(5)]
-        self.x1, self.x2, self.x3, self.xm1, self.xm2, self.xm3, self.rts3 = [np.zeros(200, dtype=np.float32) for _ in range(7)]
-        self.mu1, self.mu2, self.mu3, self.rb1, self.rb2, self.rt1 = [np.zeros(200, dtype=np.float32) for _ in range(6)]
+        self.rbs1, self.rts1, self.x1, self.xs1, self.xm1, self.mu1 = [np.zeros(200, dtype=np.float32) for _ in range(6)]
+        self.rbs2, self.rts2, self.x2, self.xs2, self.xm2, self.mu2, self.ps2 = [np.zeros(200, dtype=np.float32) for _ in range(7)]
         self.init = 'y'
 
     def pytc_intensity(self, vm, rm, r0, ts, h_a, alat, ahm, pa, tend, hm=30.0, dsst=0.6, gm=8.0):
@@ -74,6 +73,31 @@ class Hurricane:
         nr = 50 # numer of radial nodes
         dt = 20 # time step in seconds
         
+        # normalise
+        h_a=0.01*h_a
+        ahm=0.01*ahm
+        es=6.112*np.exp(17.67*ts/(243.5+ts))
+        ea=h_a*es
+        qs=0.622*es/pa
+        tsa=ts+273.15
+        toa=to+273.15
+        ef=(ts-to)/tsa
+        
+        chi=2.5e6*ef*qs*(1.-h_a)
+        f = (3.14159/(12.*3600.))*np.sin(3.14159*abs(alat)/180.)
+        for arr in (self.x1, self.xs1, self.xm1, self.x2, self.xs2):
+            arr /= chi
+        
+        for arr in (self.rbs1, self.rts1, self.rbs2, self.rts2):
+            arr /= np.sqrt(chi) / f
+
+        for arr in (self.mu1, self.mu2):
+            arr /= 0.001 * cd * np.sqrt(chi)
+        self.ps2 /= 0.5 * 0.001 * cd * 9.81 * chi ** (3 / 2) / f ** 2
+
+
+        h_a *= 100
+        ahm *= 100
         out = np.zeros(3)
         hurr.tc_intensity(
             nrd, tend, vdisp, dtg, rog, rst, vm,
@@ -81,12 +105,23 @@ class Hurricane:
             hs, om, ut, eddytime, heddy, rwide, dim, fmt, nr,
             dt, ro, ahm, pa, cd, cd1, cdcap,
             cecd, pnu, taur, radmax, tauc, efrac, dpb, hm, dsst, gm, out,
-            self.rbs1, self.rbs2, self.rbs3, self.rts1, self.rts2,
-            self.x1, self.x2, self.x3, self.xm1, self.xm2, self.xm3, self.rts3, 
-            self.mu1, self.mu2, self.mu3, 
-            self.rb1, self.rb2, self.rt1, self.init
+            self.rbs1, self.rts1, self.x1, self.xs1, self.xm1, self.mu1, 
+            self.rbs2,  self.rts2, self.x2, self.xs2, self.xm2, self.mu2, self.ps2, 
+            self.init
         )
+
         self.init = 'n'
+
+        for arr in (self.x1, self.xs1, self.xm1, self.x2, self.xs2):
+            arr *= chi
+        
+        for arr in (self.rbs1, self.rts1, self.rbs2, self.rts2):
+            arr *= np.sqrt(chi) / f
+
+        for arr in (self.mu1, self.mu2):
+            arr *= 0.001 * cd * np.sqrt(chi)
+        self.ps2 *= 0.5 * 0.001 * cd * 9.81 * chi ** (3 / 2) / f ** 2
+        
         return out
 
 
@@ -133,29 +168,11 @@ if __name__ == "__main__":
             
 
             # typical values
-            vm = 15
-            sst = 27
-            sp = 1005
-            h_a = 80
-            rm = 80
-            lat = 20
-            tend = 5
-
             vm_actual = g.loc[g.index[j + 1]]["adj. ADT Vm (kn)"] * 0.514444
-            out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend)
-            pmin, vm_, rm_ = out[0], out[1], out[2]
-            print("Output:", vm_, vm_actual)
-            out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend)
+            out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, 10.5)
             pmin, vm, rm = out[0], out[1], out[2]
-            print("Output:", vm, vm_actual)
-
-            hurricane = Hurricane()
-            vm = 15
-            rm = 80
-            out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, 2 * tend)
-            pmin, vm, rm = out[0], out[1], out[2]
-            print("Output:", vm, vm_actual)
-            break
+            print("Output:", tend, sst, vm, vm_actual)
+            
         break
 
     
