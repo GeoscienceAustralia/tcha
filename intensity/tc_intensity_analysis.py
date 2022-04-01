@@ -10,6 +10,8 @@ from matplotlib import pyplot as plt
 
 print("Done imports")
 
+# TODO: fix time step
+
 class Hurricane:
 
     def __init__(self):
