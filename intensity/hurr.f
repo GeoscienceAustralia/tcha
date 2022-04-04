@@ -60,7 +60,6 @@ c
 	ric=1.0
 	zgrad=100.0
 	timed=time
-	time=time+0.1
 c
 	h_a=0.01*h_a
 	ahm=0.01*ahm
@@ -137,7 +136,6 @@ c   ***   set certain constants    ***
 c
 	dr=ro/float(nr-2)
 	dri=1./dr
-	time=time+0.2
 	nt=time/dt
 	damp=0.1
 	dpr=1./gamma
@@ -752,5 +750,6 @@ c
 	xx(1) = pmin
 	xx(2) = vmax * schi
 	xx(3) = rmax * schi * 0.001 / FC
+c	print *, "Actual sim time: ", (tt-dt)*atime / (3600*24)
 710 	continue
 	end

@@ -166,14 +166,14 @@ if __name__ == "__main__":
             tend = tend.days + tend.seconds / (3600 * 24)  # simulation time in days
 
             # typical values
-            ahm = 45  # relative humidity in tropo            
+            ahm = 90  # relative humidity in tropo            
             
 
             # typical values
             vm_actual = g.loc[g.index[j + 1]]["adj. ADT Vm (kn)"] * 0.514444
-            out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, 10.5)
+            out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend)
             pmin, vm, rm = out[0], out[1], out[2]
-            print("Output:", tend, sst, vm, vm_actual)
+            print("Output:", tend, sst, vm, vm_actual, "\n")
             
         break
 
