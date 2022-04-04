@@ -173,10 +173,6 @@ if __name__ == "__main__":
             vm_actual = g.loc[g.index[j + 1]]["adj. ADT Vm (kn)"] * 0.514444
             out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend)
             pmin, vm, rm = out[0], out[1], out[2]
-            print("Output:", tend, sst, vm, vm_actual, "\n")
-            
-        break
-
+            # print("Output:", tend, sst, vm, vm_actual, "\n")
     
-    print(len(g) / len(df))
-    print("Estimated time for full run: ", (time.time() - t0) * len(df) / len(g), "s")
+    print("Time: ", (time.time() - t0), "s")
