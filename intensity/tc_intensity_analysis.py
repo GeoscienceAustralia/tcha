@@ -22,7 +22,7 @@ class Hurricane:
                                                                                  in range(8)]
         self.init = 'y'
 
-    def pytc_intensity(self, vm, rm, r0, ts, h_a, alat, ahm, pa, tend, hm=30.0, dsst=0.6, gm=8.0):
+    def pytc_intensity(self, vm, rm, r0, ts, h_a, alat, ahm, pa, tend, ut, hm=30.0, dsst=0.6, gm=8.0):
         """
 
         Parameters
@@ -37,6 +37,7 @@ class Hurricane:
         dt : time step (s)
         ahm : undisturbed relative humidity of undisturbed lower and middle troposphere
         pa : undisturbed sea surface pressure (hPa)
+        us :
         hm : undisturbed ocean mixed layer depth (m)
         dsst : temperature jump at base of mixed layer (C)
         gm : Sub mixed layer ocean thermal stratification (C/100m)
@@ -168,10 +169,11 @@ if __name__ == "__main__":
 
             # typical values
             ahm = row.rh  # relative humidity in tropo
+            ut = row.vfm
 
             # typical values
             vm_actual = g.loc[g.index[j + 1]]["adj. ADT Vm (kn)"] * 0.514444
-            out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend, hm=row.hm)
+            out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend, ut, hm=row.hm)
             pmin, vm, rm = out[0], out[1], out[2]
             print("Output:", vm, vm_actual, "\n")
         break
