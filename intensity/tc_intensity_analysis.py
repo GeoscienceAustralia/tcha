@@ -137,6 +137,7 @@ if __name__ == "__main__":
 
     for i, var in enumerate(["sst", "sp", "d2", "t2"]): df[var] = era5[:, i]
     df["hm"] = bran[:, 0]
+    df['rh'] = rh[:, 21]
 
     groups = df.groupby('DISTURBANCE_ID')
     df['pc'] = np.zeros(len(df)) * np.nan
@@ -172,7 +173,7 @@ if __name__ == "__main__":
             vm_actual = g.loc[g.index[j + 1]]["adj. ADT Vm (kn)"] * 0.514444
             out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend)
             pmin, vm, rm = out[0], out[1], out[2]
-            print("Output:", vm, vm_actual, "\n")
+            print("Output:", row.rh, vm, vm_actual, "\n")
         break
 
     print("Time: ", (time.time() - t0), "s")
