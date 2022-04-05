@@ -16,10 +16,15 @@ print("Done imports")
 class Hurricane:
 
     def __init__(self):
-        self.rbs1, self.rts1, self.x1, self.xs1, self.xm1, self.mu1 = [np.zeros(200, dtype=np.float32) for _ in
-                                                                       range(6)]
-        self.rbs2, self.rts2, self.x2, self.xs2, self.xm2, self.mu2, self.ps2, self.ps3 = [np.zeros(200, dtype=np.float32) for _
-                                                                                 in range(8)]
+        self.rbs1, self.rts1, self.x1, self.xs1, self.xm1, self.mu1 = [
+            np.zeros(200, dtype=np.float32) for _ in range(6)
+        ]
+        self.rbs2, self.rts2, self.x2, self.xs2, self.xm2, self.mu2, self.ps2, self.ps3 = [
+            np.zeros(200, dtype=np.float32) for _ in range(8)
+        ]
+        self.uhmix1, self.uhmix2, self.sst1, self.sst2, self.hmix = [
+            np.zeros(200, dtype=np.float32) for _ in range(5)
+        ]
         self.init = 'y'
 
     def pytc_intensity(self, vm, rm, r0, ts, h_a, alat, ahm, pa, tend, ut, hm=30.0, dsst=0.6, gm=8.0):
@@ -55,10 +60,6 @@ class Hurricane:
         tland = 200  # time until land
         surface = 'pln'  # type of land
         hs = 0  # swamp depth
-        ut = 7  # speed over ocean m/s
-        eddytime = 200  # time until storm reaches eddy
-        heddy = 30  # peak ocean eddy m
-        rwide = 400  # radius km
         ro = 1200  # radius of model boundary km
         cd = 0.8  # drag coefficient
         cd1 = 4  # drag coefficient rate of change w/ windspeed
@@ -103,12 +104,11 @@ class Hurricane:
         hurr.tc_intensity(
             nrd, tend, vm,
             rm, r0, ts, to, h_a, alat, tshear, vext, tland, surface,
-            hs, om, ut, eddytime, heddy, rwide, nr,
-            dt, ro, ahm, pa, cd, cd1, cdcap,
+            hs, om, ut, nr, dt, ro, ahm, pa, cd, cd1, cdcap,
             cecd, pnu, taur, radmax, tauc, efrac, dpb, hm, dsst, gm, out,
             self.rbs1, self.rts1, self.x1, self.xs1, self.xm1, self.mu1,
             self.rbs2, self.rts2, self.x2, self.xs2, self.xm2, self.mu2,
-            self.ps2, self.ps3, self.init
+            self.ps2, self.ps3, self.uhmix1, self.uhmix2, self.sst1, self.sst2, self.hmix, self.init
         )
 
         self.init = 'n'

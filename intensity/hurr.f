@@ -1,11 +1,11 @@
 
       subroutine tc_intensity(nrd, time, vm,
      & rm, r0, ts, to, h_a, alat, tshear, vext, tland, surface,
-     & hs, om, ut, eddytime, heddy, rwide, nr,
+     & hs, om, ut, nr,
      & dt, ro, ahm, pa, cd, cd1, cdcap,
      & cecd, pnu, taur, radmax, tauc, efrac, dpb, hm, dsst, gm, xx,
      & rbs1, rts1, x1, xs1, xm1, mu1, rbs2, rts2, x2, xs2,
-     & xm2, mu2, ps2, ps3, init)
+     & xm2, mu2, ps2, ps3, uhmix1,uhmix2, sst1, sst2, hmix, init)
 
       real h_a, meq, mf, mt, mumax, mdmin
       real time, vm,rm,r0,ts,to,alat,tland,tshear,vext,ut
@@ -14,8 +14,8 @@
       real dt,tt,atime
       character*4 om,surface
       character*1 init
-      real sstr(nrd), sst1(nrd),sst2(nrd)
-      real sst3(nrd)
+      real sstr(200), sst1(200),sst2(200)
+      real sst3(200)
       real xx(3)
 
 c  ***     dimension arrays of dependent variables   ***
@@ -27,7 +27,7 @@ c
 c
 c  ***     dimension ocean variables   ***
 c
-      real hmix(nrd), uhmix1(nrd), uhmix2(nrd), uhmix3(nrd)
+      real hmix(200), uhmix1(200), uhmix2(200), uhmix3(200)
 c
 c  ***      dimension various diagnostic quantities     ***
 c
@@ -36,8 +36,8 @@ c
 c
 c  ***   dimension viscous and working arrays   ***
 c
-      real vis(nrd), vis2(nrd), xvis(200), dv(nrd), af(nrd)
-      real q2(nrd), q3(nrd), xmvis(200), rmm2(nrd), epre(nrd)
+      real vis(200), vis2(200), xvis(200), dv(200), af(200)
+      real q2(200), q3(200), xmvis(200), rmm2(200), epre(200)
 
       if(hs.lt.0.2.and.surface.eq.'swmp')then
        print*, 'swamp depth must be at least 0.2 meters'
@@ -109,9 +109,6 @@ c
      &   tsa*tsa))/chi
       hm=hm*amixfac
         dsst=dsst*2.*amixfac/gm
-      heddy=heddy*amixfac
-      rwide=rwide*1000./alength
-      reddy=eddytime*3600.*24.*ut/atime
       amix=(2.*ric*chi/(9.8*3.3e-4*gm))*1.0e-6*(287.*tsa/9.8)**2*
      &   (delp/pa)**2*amixfac**4
       amix=sqrt(amix)
@@ -174,8 +171,8 @@ c
 
        sst1(i)=0.0
        sst2(i)=0.0
-       hmix(i)=hm+heddy/(1.+((sqrt(rbs2(i))-reddy)/rwide)**2)
-         uhmix1(i)=sqrt(hmix(i)*hmix(i)*hmix(i)*dsst)/amix
+       hmix(i)=hm
+       uhmix1(i)=sqrt(hmix(i)*hmix(i)*hmix(i)*dsst)/amix
        uhmix2(i)=uhmix1(i)
    60   continue
 
@@ -269,8 +266,7 @@ c
       xmvis(nr)=xmvis(nr-1)
       uhmix1(1)=uhmix1(2)
       uhmix2(1)=uhmix2(2)
-      rcent=reddy-ut*tt
-      tfac=hm+heddy/(1.+((r0-rcent)/rwide)**2)
+      tfac=hm
       uhmix1(nr)=sqrt(tfac*tfac*tfac*dsst)/amix
       uhmix2(nr)=uhmix1(nr)
 c
@@ -591,8 +587,8 @@ c
        advom=(ut+0.5*rbf/rb2(i))*(0.8*ao1+0.2*ao2)
 c	 seaf=advom+cdfac*vten*vten+spmfac*vten*spfunc
        seaf=advom+cdfac*vabs*vabs
-       ahmlocal1=hm+heddy/(1.+((rb2(i)-rcent)/rwide)**2)
-       ahmlocal2=hm+heddy/(1.+((rb2(2)-rcent)/rwide)**2)
+       ahmlocal1=hm
+       ahmlocal2=hm
        amixd1=max(hmix(i),0.0001)
        amixd2=max(hmix(2),0.0001)
        xsurm1=-((hmix(i)-ahmlocal1)**2)/amixd1
@@ -710,11 +706,11 @@ c
        mu2(i)=mu3(i)
        sst2(i)=sst3(i)
        uhmix2(i)=uhmix3(i)
-         if(om.eq.'y'.or.om.eq.'y')then
-        ahm0=hm+heddy/(1.+((rb2(i)-rcent)/rwide)**2)
-          ahm02=ahm0*(ahm0-dsst)
-        hmix(i)=sqrt(0.5*ahm02+sqrt(0.25*ahm02*ahm02+amix*amix*
-     1     uhmix2(i)*uhmix2(i)))
+       if(om.eq.'y'.or.om.eq.'y')then
+         ahm0=hm
+         ahm02=ahm0*(ahm0-dsst)
+         hmix(i)=sqrt(0.5*ahm02+sqrt(0.25*ahm02*ahm02+amix*amix*
+     1   uhmix2(i)*uhmix2(i)))
        end if
   600 continue
 c
