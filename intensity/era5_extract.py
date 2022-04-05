@@ -16,11 +16,15 @@ geodesic = pyproj.Geod(ellps='WGS84')
 DATA_DIR = os.path.expanduser("~")
 
 
-def load_otcr_df():
+def load_otcr_df(data_dir=None):
     """
     Helper function to load the OTCR database
     """
-    dataFile = os.path.join(DATA_DIR, "OTCR_alldata_final_external.csv")
+
+    if data_dir is None:
+        data_dir = DATA_DIR
+
+    dataFile = os.path.join(data_dir, "OTCR_alldata_final_external.csv")
     usecols = [0, 1, 2, 7, 8, 11, 12]
     colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
                 'adj. ADT Vm (kn)', 'CP(CKZ(Lok R34,LokPOCI, adj. Vm),hPa)']
