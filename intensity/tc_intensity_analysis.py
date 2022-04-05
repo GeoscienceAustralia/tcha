@@ -47,7 +47,7 @@ class Hurricane:
         """
         nrd = 200
 
-        om = 'n'  # ocean mixing on
+        om = 'y'  # ocean mixing on
         to = -70  # environmental temp at top of tc Celsius
         tshear = 200  # time until shear days
         vext = 0  # wind shear m/s
@@ -167,13 +167,13 @@ if __name__ == "__main__":
             tend = tend.days + tend.seconds / (3600 * 24)  # simulation time in days
 
             # typical values
-            ahm = 90  # relative humidity in tropo
+            ahm = row.rh  # relative humidity in tropo
 
             # typical values
             vm_actual = g.loc[g.index[j + 1]]["adj. ADT Vm (kn)"] * 0.514444
-            out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend)
+            out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend, hm=row.hm)
             pmin, vm, rm = out[0], out[1], out[2]
-            print("Output:", row.rh, vm, vm_actual, "\n")
+            print("Output:", vm, vm_actual, "\n")
         break
 
     print("Time: ", (time.time() - t0), "s")
