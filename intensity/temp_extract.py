@@ -7,6 +7,9 @@ import pyproj
 from tqdm import tqdm
 from era5_extract import load_otcr_df
 from scipy.stats import linregress
+from math import ceil
+from mpi4py import MPI
+
 
 DATA_DIR = os.path.expanduser("~")
 
@@ -32,27 +35,63 @@ def load_data(time, lat, lon):
         y = y.sel(Time=time)
         temp = y.temp.data.copy()
         depth = y.st_ocean.data.copy()
-        out = np.concatenate(depth, temp)
+        out = np.concatenate([depth, temp])
 
     except Exception as e:
-        out = np.zeroes(2 * 51)
+        print(e)
+        out = np.zeros(2 * 51)
 
     return out
 
 
 if __name__ == "__main__":
+
     df = load_otcr_df()
     df.TM = df.TM - pd.Timedelta(days=1)
+    # df = df.iloc[:70].copy()
 
     temp = []
 
-    for i in tqdm(range(len(df))):
+    comm = MPI.COMM_WORLD
+    years = np.arange(1981, 2021)
+    rank = comm.Get_rank()
+    numcores = comm.size
+    step = (len(df) // numcores)
+    start = rank * step
+
+    if rank == (numcores - 1):
+        stop = len(df)
+    else:
+        stop = min((rank + 1) * step, len(df))
+
+    for i in tqdm(range(start, stop)):
         row = df.iloc[i]
         temp.append(load_data(row.TM, row.LAT, row.LON))
-        # print(bran[-1])
 
-    bran = np.array(temp)
-    np.save(os.path.join(DATA_DIR, "tc_intensity_temp_profile.npy"), temp)
+    temp = np.array(temp)
+    np.save(os.path.join(DATA_DIR, f"tc_intensity_temp_profile_{rank}.npy"), temp)
 
-    arr = np.load(os.path.join(DATA_DIR, "tc_intensity_temp_profile.npy"))
-    print("Array saved correctly:", np.allclose(arr, bran))
+    arr = np.load(os.path.join(DATA_DIR, f"tc_intensity_temp_profile_{rank}.npy"))
+    mask1 = ~np.isnan(arr)
+    mask2 = ~np.isnan(temp)
+
+    comm.Barrier()
+    print(rank, "Array saved correctly:", np.allclose(arr[mask1], temp[mask2]), arr.shape, temp.shape)
+    comm.Barrier()
+    if rank == 0:
+        print("Combing arrays:")
+        combined = np.concatenate(
+            [
+                np.load(os.path.join(DATA_DIR, f"tc_intensity_temp_profile_{i}.npy"))
+                for i in range(numcores)    
+            ],
+            axis=0
+        )
+        np.save(os.path.join(DATA_DIR, f"tc_intensity_temp_profile.npy"), combined)
+        print("Combined length correct:", len(combined) == len(df))
+    comm.Barrier()
+    combined = np.load(os.path.join(DATA_DIR, f"tc_intensity_temp_profile.npy"))
+    combined = combined[start:stop]
+    mask1 = ~np.isnan(arr)
+    mask2 = ~np.isnan(combined)
+    print(rank, "Combined array saved correctly:", np.allclose(arr[mask1], combined[mask2]))
