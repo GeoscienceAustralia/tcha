@@ -2,6 +2,7 @@ import hurr
 from era5_extract import load_otcr_df
 import os
 import numpy as np
+from numpy import log, exp, sqrt
 import pandas as pd
 import time
 from metpy.calc import relative_humidity_from_dewpoint
@@ -75,17 +76,34 @@ class Hurricane:
         dt = 20  # time step in seconds
 
         # normalise
-        h_a = 0.01 * h_a
-        ahm = 0.01 * ahm
+        h_a *= 0.01
+        ahm *= 0.01
+        cd *= 0.001
+        gm *= 0.01
+
         es = 6.112 * np.exp(17.67 * ts / (243.5 + ts))
-        ea = h_a * es
         qs = 0.622 * es / pa
         tsa = ts + 273.15
         toa = to + 273.15
         ef = (ts - to) / tsa
 
+        ric = 1.0
+
         chi = 2.5e6 * ef * qs * (1. - h_a)
         f = (3.14159 / (12. * 3600.)) * np.sin(3.14159 * abs(alat) / 180.)
+        atha = 1000. * log(tsa) + 2.5e6 * qs * h_a / tsa - qs * h_a * 461. * log(h_a)
+        theta_e = exp((atha - 287. * log(0.001 * pa)) * 0.001)
+        pt = 1000.0 * (toa / theta_e) ** 3.484
+        delp = 0.5 * (pa - pt)
+        tm = 0.85 * ts + 0.15 * to
+        esm = 6.112 * exp(17.67 * tm / (243.5 + tm))
+        qsm = 0.622 * esm / (pa - 0.5 * delp)
+        #
+        #
+        amixfac = 0.5 * 1000. * ef * gm * (1. + 2.5e6 * 2.5e6 * qsm / (1000. * 461. * tsa * tsa)) / chi
+        amix = (2. * ric * chi / (9.8 * 3.3e-4 * gm)) * 1.0e-6 * (287. * tsa / 9.8) ** 2 * (delp / pa) ** 2 * amixfac ** 4
+        amix = sqrt(amix)
+
         for arr in (self.x1, self.xs1, self.xm1, self.x2, self.xs2):
             arr /= chi
 
@@ -93,13 +111,20 @@ class Hurricane:
             arr /= np.sqrt(chi) / f
 
         for arr in (self.mu1, self.mu2):
-            arr /= 0.001 * cd * np.sqrt(chi)
+            arr /= cd * np.sqrt(chi)
 
         for arr in (self.ps2, self.ps3):
-            arr /= 0.5 * 0.001 * cd * 9.81 * chi ** (3 / 2) / f ** 2
+            arr /= 0.5 * cd * 9.81 * chi ** (3 / 2) / f ** 2
 
-        h_a *= 100
-        ahm *= 100
+        self.hmix *= amixfac
+        self.uhmix1 *= (amixfac ** 2) / (amix * np.sqrt(gm))
+        self.uhmix2 *= (amixfac ** 2) / (amix * np.sqrt(gm))
+        #
+        h_a /= 0.01
+        ahm /= 0.01
+        cd /= 0.001
+        gm /= 0.01
+
         out = np.zeros(3, dtype=np.float32)
         hurr.tc_intensity(
             nrd, tend, vm,
@@ -112,6 +137,11 @@ class Hurricane:
         )
 
         self.init = 'n'
+        h_a *= 0.01
+        ahm *= 0.01
+        cd *= 0.001
+        gm *= 0.01
+
         for arr in (self.x1, self.xs1, self.xm1, self.x2, self.xs2):
             arr *= chi
 
@@ -119,10 +149,14 @@ class Hurricane:
             arr *= np.sqrt(chi) / f
 
         for arr in (self.mu1, self.mu2):
-            arr *= 0.001 * cd * np.sqrt(chi)
+            arr *= cd * np.sqrt(chi)
 
         for arr in (self.ps2, self.ps3):
-            arr *= 0.5 * 0.001 * cd * 9.81 * chi ** (3 / 2) / f ** 2
+            arr *= 0.5 * cd * 9.81 * chi ** (3 / 2) / f ** 2
+
+        self.hmix /= amixfac
+        self.uhmix1 /= (amixfac ** 2) / (amix * np.sqrt(gm))
+        self.uhmix2 /= (amixfac ** 2) / (amix * np.sqrt(gm))
 
         return out
 
@@ -170,12 +204,29 @@ if __name__ == "__main__":
             # typical values
             ahm = row.rh  # relative humidity in tropo
             ut = row.vfm
-
+            hm = row.hm
             # typical values
+
+            # ut = 7
+            # ahm = 90
+            # hm = 30
+            # h_a = 80
+            # sst = 27
+            # sp = 1005
+            # lat = 20
+            # vm = 15
+            # tend = 10.29
+
+            if np.isnan(hm):
+                break
+
             vm_actual = g.loc[g.index[j + 1]]["adj. ADT Vm (kn)"] * 0.514444
-            out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend, ut, hm=row.hm)
+            out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend, ut, hm=hm)
             pmin, vm, rm = out[0], out[1], out[2]
+            print(hm, ut)
             print("Output:", vm, vm_actual, "\n")
+
+            # break
         break
 
     print("Time: ", (time.time() - t0), "s")

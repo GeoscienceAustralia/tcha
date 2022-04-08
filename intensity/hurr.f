@@ -203,7 +203,6 @@ c	  xm1(i)=xs1(i)
 c	  xm2(i)=xm1(i)
 c       end if
    75 continue
-
       ps3(1)=0.0
       ps0(1)=0.0
       vis(1)=0.0
