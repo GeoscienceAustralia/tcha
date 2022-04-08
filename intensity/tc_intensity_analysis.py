@@ -207,16 +207,6 @@ if __name__ == "__main__":
             hm = row.hm
             # typical values
 
-            # ut = 7
-            # ahm = 90
-            # hm = 30
-            # h_a = 80
-            # sst = 27
-            # sp = 1005
-            # lat = 20
-            # vm = 15
-            # tend = 10.29
-
             if np.isnan(hm):
                 break
 
