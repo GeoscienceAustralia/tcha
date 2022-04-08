@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt
 
 print("Done imports")
 
-OCEAN_MIXING = 'n'
+OCEAN_MIXING = 'y'
 
 # TODO: fix time step
 
@@ -180,6 +180,7 @@ if __name__ == "__main__":
 
     t0 = time.time()
     out_rows = []
+    land_count = 0
     for name, g in df.groupby('DISTURBANCE_ID'):
         hurricane = Hurricane()
         vm = np.nan
@@ -211,15 +212,16 @@ if __name__ == "__main__":
             # typical values
 
             if np.isnan(hm) or globe.is_land(row.LAT, row.LON):
+                land_count += 1
                 break
 
-            vm_actual = g.loc[g.index[j + 1]]["adj. ADT Vm (kn)"] * 0.514444
-            pmin_actual = g.loc[g.index[j + 1]]['CP(CKZ(Lok R34,LokPOCI, adj. Vm),hPa)']
-            out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend, ut, hm=hm)
-            pmin, vm, rm = out[0], out[1], out[2]
-            out_rows.append([g.loc[g.index[j + 1]].TM, row.DISTURBANCE_ID, pmin, vm, rm, pmin_actual, vm_actual])
+            # vm_actual = g.loc[g.index[j + 1]]["adj. ADT Vm (kn)"] * 0.514444
+            # pmin_actual = g.loc[g.index[j + 1]]['CP(CKZ(Lok R34,LokPOCI, adj. Vm),hPa)']
+            # out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend, ut, hm=hm)
+            # pmin, vm, rm = out[0], out[1], out[2]
+            # out_rows.append([g.loc[g.index[j + 1]].TM, row.DISTURBANCE_ID, pmin, vm, rm, pmin_actual, vm_actual])
             # print(hm, ut)
-            print("Output:", vm, vm_actual, "\n")
+            # print("Output:", vm, vm_actual, "\n")
 
     out_df = pd.DataFrame(out_rows, columns=["time", "DISTURBANCE_ID", "pmin", "vmax", "rmax", "pmin_obs", "vmax_obs"])
 
@@ -227,5 +229,6 @@ if __name__ == "__main__":
         out_df.to_csv(os.path.join(DATA_DIR, "predicted_intensity_ocean_mixing.csv"))
     else:
         out_df.to_csv(os.path.join(DATA_DIR, "predicted_intensity.csv"))
+    print(land_count)
     print("Time: ", (time.time() - t0), "s")
 
