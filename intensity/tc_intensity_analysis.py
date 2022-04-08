@@ -7,10 +7,12 @@ import pandas as pd
 import time
 from metpy.calc import relative_humidity_from_dewpoint
 from metpy.units import units
+from global_land_mask import globe
 from matplotlib import pyplot as plt
 
 print("Done imports")
 
+OCEAN_MIXING = 'n'
 
 # TODO: fix time step
 
@@ -54,7 +56,7 @@ class Hurricane:
         """
         nrd = 200
 
-        om = 'y'  # ocean mixing on
+        om = OCEAN_MIXING  # ocean mixing on
         to = -70  # environmental temp at top of tc Celsius
         tshear = 200  # time until shear days
         vext = 0  # wind shear m/s
@@ -175,9 +177,9 @@ if __name__ == "__main__":
     df['rh'] = rh[:, 21]
 
     groups = df.groupby('DISTURBANCE_ID')
-    df['pc'] = np.zeros(len(df)) * np.nan
 
     t0 = time.time()
+    out_rows = []
     for name, g in df.groupby('DISTURBANCE_ID'):
         hurricane = Hurricane()
         vm = np.nan
@@ -190,7 +192,8 @@ if __name__ == "__main__":
 
             if np.isnan(vm):
                 vm = row["adj. ADT Vm (kn)"] * 0.514444  # convert knots to m/s
-                if np.isnan(vm): continue
+                if np.isnan(vm):
+                    continue
 
             sst = sst - 273.15  # convert K -> C
             sp = sp / 100  # convert Pa -> hPa
@@ -207,16 +210,22 @@ if __name__ == "__main__":
             hm = row.hm
             # typical values
 
-            if np.isnan(hm):
+            if np.isnan(hm) or globe.is_land(row.LAT, row.LON):
                 break
 
             vm_actual = g.loc[g.index[j + 1]]["adj. ADT Vm (kn)"] * 0.514444
+            pmin_actual = g.loc[g.index[j + 1]]['CP(CKZ(Lok R34,LokPOCI, adj. Vm),hPa)']
             out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend, ut, hm=hm)
             pmin, vm, rm = out[0], out[1], out[2]
-            print(hm, ut)
+            out_rows.append([g.loc[g.index[j + 1]].TM, row.DISTURBANCE_ID, pmin, vm, rm, pmin_actual, vm_actual])
+            # print(hm, ut)
             print("Output:", vm, vm_actual, "\n")
 
-            # break
-        break
+    out_df = pd.DataFrame(out_rows, columns=["time", "DISTURBANCE_ID", "pmin", "vmax", "rmax", "pmin_obs", "vmax_obs"])
 
+    if OCEAN_MIXING == 'y':
+        out_df.to_csv(os.path.join(DATA_DIR, "predicted_intensity_ocean_mixing.csv"))
+    else:
+        out_df.to_csv(os.path.join(DATA_DIR, "predicted_intensity.csv"))
     print("Time: ", (time.time() - t0), "s")
+
