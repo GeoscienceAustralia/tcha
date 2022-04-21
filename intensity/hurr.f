@@ -5,15 +5,16 @@
      & dt, ro, ahm, pa, cd, cd1, cdcap,
      & cecd, pnu, taur, radmax, tauc, efrac, dpb, hm, dsst, gm, xx,
      & rbs1, rts1, x1, xs1, xm1, mu1, rbs2, rts2, x2, xs2,
-     & xm2, mu2, ps2, ps3, uhmix1,uhmix2, sst1, sst2, hmix, init)
+     & xm2, mu2, uhmix1,uhmix2, sst1, sst2, hmix, init,
+     & match, vobs, gconst)
 
-      real h_a, meq, mf, mt, mumax, mdmin
+      real h_a, meq, mf, mt, mumax, mdmin, vobs, gconst
       real time, vm,rm,r0,ts,to,alat,tland,tshear,vext,ut
       real eddytime,rwide,ro,ahm,pa,cd,cd1,cdcap,cecd,pnu,taur
       real radmax,tauc,efrac,dsst,gm,hs,hm,heddy
       real dt,tt,atime
       character*4 om,surface
-      character*1 init
+      character*1 init, match
       real sstr(200), sst1(200),sst2(200)
       real sst3(200)
       real xx(3)
@@ -98,6 +99,7 @@ c
       tland=tland*24.*3600./atime
       tshear=tshear*24.*3600./atime
       vm=vm/schi
+      vobs=vobs/schi
       vext1=2.0*vext*atime/alength
       xm0=2.5e6*(ts-to)*qsm*(ahm-1.)/tma
       xm0=xm0/chi
@@ -150,7 +152,7 @@ c
             rbs2(i)=rbs1(i)
             goto 50
 
-   40   rbs1(i)=r*r
+   40       rbs1(i)=r*r
             rbs2(i)=rbs1(i)
    50   continue
 
@@ -165,9 +167,6 @@ c
             mu1(i)=0.0
             mu2(i)=0.0
             mu3(i)=0.0
-            ps2(i)=0.0
-            ps3(i)=0.0
-            p(i)=0.0
 
        sst1(i)=0.0
        sst2(i)=0.0
@@ -181,11 +180,13 @@ c
        r=(float(i-2))*dr
        xs1(i)=xs1(i-1)+r*dr*0.5*(1.-r*r/rbs1(i-1))
    70 continue
-
-        ps2(1)=0.0
         mu2(1)=0.0
       sst2(1)=0.0
       sst1(1)=0.0
+      do i=2,nr
+        xs1(i)=xs1(i)-xs1(nr)
+        xs2(i)=xs1(i)
+      end do
 c
 c
       end if
@@ -194,19 +195,22 @@ c
         rb1(i)=sqrt(rbs1(i))
         rb2(i)=rb1(i)
         rt1(i)=sqrt(rts1(i))
-        xs1(i)=xs1(i)-xs1(nr)
-        xs2(i)=xs1(i)
         xvis(i)=0.0
         xmvis(i)=0.0
+        ps2(i)=0.0
+        ps3(i)=0.0
+        p(i)=0.0
 c	 if((rb2(i)*0.001*alength).lt.100.0)then
 c	  xm1(i)=xs1(i)
 c	  xm2(i)=xm1(i)
 c       end if
    75 continue
-      ps3(1)=0.0
+
       ps0(1)=0.0
       vis(1)=0.0
       rmm2(1)=0.0
+      ps3(1)=0.0
+      ps2(1)=0.0
 
         gb(1)=0.0
 c
@@ -270,11 +274,14 @@ c
       uhmix2(nr)=uhmix1(nr)
 c
       vmax=0.0
+      idx = -1
       do i=2,nr-1
        r=(float(i-1))*dr
-       v=0.5*(r*r-rbs2(i))/rb2(i)
+       v=0.5*(r*r-rbs2(i))/sqrt(rbs2(i))
+       if (v > vmax) idx = i
        vmax=max(v,vmax)
       end do
+c      if (match.EQ.'y') print *, "idx:", idx, vmax * schi,schi,alength
       vext=0.0
       if(tt.ge.tshear)vext=0.02*vmax*vmax*vext1*vext1
 c
@@ -644,10 +651,14 @@ c     1   (ps2(i)-ps2(i-1))/(rms2(i)-rms2(i-1))
       xmf=efrac*(mu2(i)+wxm)*(x1(i)-xm1(i))
       xmf=xmf+xmvis(i)-rad1*xs1(i)*(0.75*gratb+0.25)
       xmf=xmf-300.*vext*(xm1(i)-xm0)
+      if (match.eq.'y') then
+        xmf = xmf + gconst * (vobs - vmax) * (xm1(i)-xm0)
+      end if
       amc=min(0.0,w0d)
       xf=adv+flux+(amd+amc)*(x1(i)-xm1(i))
       xf=xf*dpr
       xsf=vadv+xvis(i)-rad1*xs1(i)
+
 c
 c           ***  increment in time   ***
 c
@@ -735,7 +746,7 @@ c
       xx(1) = pmin
       xx(2) = vmax * schi
       xx(3) = rmax * schi * 0.001 / FC
-c      print *, "Actual sim time: ", (tt-dt)*atime / (3600*24)
-c      print *, "vmax: ", vmax * schi
+!     print *, "Actual sim time: ", (tt-dt)*atime / (3600*24)
+!     print *, "vmax: ", vmax * schi
 
       end

@@ -1,4 +1,4 @@
-import hurr
+from hurr import tc_intensity
 from era5_extract import load_otcr_df
 import os
 import numpy as np
@@ -10,11 +10,21 @@ from metpy.units import units
 from global_land_mask import globe
 from matplotlib import pyplot as plt
 
+import sys
+
+TCRM_PATH = os.path.expanduser("~/geoscience/repos/tcrm")
+sys.path.append(TCRM_PATH)
+from wind.windmodels import PowellWindProfile
+from PressureInterface.pressureProfile import PrsProfile
+from TrackGenerator.trackSize import rmax
+from TrackGenerator.TrackGenerator import SamplePressure
+from Utilities.loadData import getPoci
+
 print("Done imports")
 
-OCEAN_MIXING = 'y'
+OCEAN_MIXING = 'n'
 
-# TODO: fix time step
+# TODO: if failed then repeat with 1s time step
 
 class Hurricane:
 
@@ -22,15 +32,19 @@ class Hurricane:
         self.rbs1, self.rts1, self.x1, self.xs1, self.xm1, self.mu1 = [
             np.zeros(200, dtype=np.float32) for _ in range(6)
         ]
-        self.rbs2, self.rts2, self.x2, self.xs2, self.xm2, self.mu2, self.ps2, self.ps3 = [
-            np.zeros(200, dtype=np.float32) for _ in range(8)
+        self.rbs2, self.rts2, self.x2, self.xs2, self.xm2, self.mu2 = [
+            np.zeros(200, dtype=np.float32) for _ in range(6)
         ]
         self.uhmix1, self.uhmix2, self.sst1, self.sst2, self.hmix = [
             np.zeros(200, dtype=np.float32) for _ in range(5)
         ]
         self.init = 'y'
+        self.alength = None
 
-    def pytc_intensity(self, vm, rm, r0, ts, h_a, alat, ahm, pa, tend, ut, hm=30.0, dsst=0.6, gm=8.0):
+    def pytc_intensity(
+            self, vm, rm, r0, ts, h_a, alat, ahm, pa, tend,
+            ut, hm=30.0, dsst=0.6, gm=8.0, match='n', vobs=0, gamma=1000,
+    ):
         """
 
         Parameters
@@ -57,7 +71,7 @@ class Hurricane:
         nrd = 200
 
         om = OCEAN_MIXING  # ocean mixing on
-        to = -70  # environmental temp at top of tc Celsius
+        to = -75  # environmental temp at top of tc Celsius
         tshear = 200  # time until shear days
         vext = 0  # wind shear m/s
         tland = 200  # time until land
@@ -74,8 +88,8 @@ class Hurricane:
         tauc = 2  # convective relation time scale
         efrac = 0.5  # fraction of convective entropy detrained into lower
         dpb = 50  # boundary layer depth
-        nr = 50  # numer of radial nodes
-        dt = 20  # time step in seconds
+        nr = 75  # numer of radial nodes
+        dt = 10  # time step in seconds
 
         # normalise
         h_a *= 0.01
@@ -105,8 +119,9 @@ class Hurricane:
         amixfac = 0.5 * 1000. * ef * gm * (1. + 2.5e6 * 2.5e6 * qsm / (1000. * 461. * tsa * tsa)) / chi
         amix = (2. * ric * chi / (9.8 * 3.3e-4 * gm)) * 1.0e-6 * (287. * tsa / 9.8) ** 2 * (delp / pa) ** 2 * amixfac ** 4
         amix = sqrt(amix)
+        self.alength = sqrt(chi) / f
 
-        for arr in (self.x1, self.xs1, self.xm1, self.x2, self.xs2):
+        for arr in (self.x1, self.xs1, self.xm1, self.x2, self.xs2, self.xm2):
             arr /= chi
 
         for arr in (self.rbs1, self.rts1, self.rbs2, self.rts2):
@@ -114,9 +129,6 @@ class Hurricane:
 
         for arr in (self.mu1, self.mu2):
             arr /= cd * np.sqrt(chi)
-
-        for arr in (self.ps2, self.ps3):
-            arr /= 0.5 * cd * 9.81 * chi ** (3 / 2) / f ** 2
 
         self.hmix *= amixfac
         self.uhmix1 *= (amixfac ** 2) / (amix * np.sqrt(gm))
@@ -128,14 +140,15 @@ class Hurricane:
         gm /= 0.01
 
         out = np.zeros(3, dtype=np.float32)
-        hurr.tc_intensity(
+        tc_intensity(
             nrd, tend, vm,
             rm, r0, ts, to, h_a, alat, tshear, vext, tland, surface,
             hs, om, ut, nr, dt, ro, ahm, pa, cd, cd1, cdcap,
             cecd, pnu, taur, radmax, tauc, efrac, dpb, hm, dsst, gm, out,
             self.rbs1, self.rts1, self.x1, self.xs1, self.xm1, self.mu1,
             self.rbs2, self.rts2, self.x2, self.xs2, self.xm2, self.mu2,
-            self.ps2, self.ps3, self.uhmix1, self.uhmix2, self.sst1, self.sst2, self.hmix, self.init
+            self.uhmix1, self.uhmix2, self.sst1, self.sst2, self.hmix, self.init,
+            match, vobs, gamma
         )
 
         self.init = 'n'
@@ -144,7 +157,7 @@ class Hurricane:
         cd *= 0.001
         gm *= 0.01
 
-        for arr in (self.x1, self.xs1, self.xm1, self.x2, self.xs2):
+        for arr in (self.x1, self.xs1, self.xm1, self.x2, self.xs2, self.xm2):
             arr *= chi
 
         for arr in (self.rbs1, self.rts1, self.rbs2, self.rts2):
@@ -153,14 +166,24 @@ class Hurricane:
         for arr in (self.mu1, self.mu2):
             arr *= cd * np.sqrt(chi)
 
-        for arr in (self.ps2, self.ps3):
-            arr *= 0.5 * cd * 9.81 * chi ** (3 / 2) / f ** 2
-
         self.hmix /= amixfac
         self.uhmix1 /= (amixfac ** 2) / (amix * np.sqrt(gm))
         self.uhmix2 /= (amixfac ** 2) / (amix * np.sqrt(gm))
 
         return out
+
+
+def find_dP(vmax, lat):
+    a = 1.881093 - 0.010917 * abs(lat)
+    b = -0.005567 * 0.539957 * np.exp(4.22 + 0.0023 * abs(lat))
+
+    vm2 = vmax ** 2
+    dP = 10
+    for _ in range(10):
+        beta = a + b * np.exp(-0.0198 * dP)
+        dP = vm2 * (np.exp(1) * 1.15) / (100 * beta)
+
+    return dP
 
 
 if __name__ == "__main__":
@@ -172,29 +195,47 @@ if __name__ == "__main__":
     bran = np.load(os.path.join(DATA_DIR, "tc_intensity_bran2020.npy"))
     rh = np.load(os.path.join(DATA_DIR, "tc_intensity_rh.npy"))
 
+    mslpFile = os.path.join(TCRM_PATH, "MSLP", "slp.day.ltm.nc")
+    mslp = SamplePressure(mslpFile)
+
     for i, var in enumerate(["sst", "sp", "d2", "t2"]): df[var] = era5[:, i]
     df["hm"] = bran[:, 0]
     df['rh'] = rh[:, 21]
+
+    df = df[~pd.isnull(df["Vmax (kn)"])]
 
     groups = df.groupby('DISTURBANCE_ID')
 
     t0 = time.time()
     out_rows = []
     land_count = 0
-    for name, g in df.groupby('DISTURBANCE_ID'):
+    idx = 0
+    for name, g in list(df.groupby('DISTURBANCE_ID'))[:]:
         hurricane = Hurricane()
-        vm = np.nan
-        r0 = 350  # do some sort of sampling
-        rm = 80  # do some sort of sampling
+        row = g.iloc[0]
+
+        # if row.DISTURBANCE_ID == 'AU199394_02U':
+        #     print("woo")
+        # else:
+        #     continue
+
+        lat = row['LAT']
+        vm = row["Vmax (kn)"] * 0.514444  # convert knots to m/s
+
+        dP = find_dP(vm, lat)
+        rm = rmax(dP, lat, eps=0)
+        f = (3.14159/(12.*3600.))*np.sin(3.14159*abs(lat)/180.)
+        rm *= 1000 * f
+        r0 = 1.2 * sqrt(rm * rm * (1. + 2. * vm / rm))
+        r0 /= 1000 * f
+        rm /= 1000 * f
+
+        # vm = vprf.speed.maximum()
+        # print("Starting vm:", vm, rm, r0, lat)
         for j, i in enumerate(g.index[:-1]):
             row = g.loc[i]
 
             sst, sp, d2, t2, hm, lat = row.sst, row.sp, row.d2, row.t2, row.hm, row.LAT
-
-            if np.isnan(vm):
-                vm = row["adj. ADT Vm (kn)"] * 0.514444  # convert knots to m/s
-                if np.isnan(vm):
-                    continue
 
             sst = sst - 273.15  # convert K -> C
             sp = sp / 100  # convert Pa -> hPa
@@ -215,15 +256,27 @@ if __name__ == "__main__":
                 land_count += 1
                 break
 
-            # vm_actual = g.loc[g.index[j + 1]]["adj. ADT Vm (kn)"] * 0.514444
-            # pmin_actual = g.loc[g.index[j + 1]]['CP(CKZ(Lok R34,LokPOCI, adj. Vm),hPa)']
-            # out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend, ut, hm=hm)
-            # pmin, vm, rm = out[0], out[1], out[2]
-            # out_rows.append([g.loc[g.index[j + 1]].TM, row.DISTURBANCE_ID, pmin, vm, rm, pmin_actual, vm_actual])
-            # print(hm, ut)
-            # print("Output:", vm, vm_actual, "\n")
+            vm_actual = g.loc[g.index[j + 1]]["Vmax (kn)"] * 0.514444
+            pmin_actual = g.loc[g.index[j + 1]]['CENTRAL_PRES']
 
-    out_df = pd.DataFrame(out_rows, columns=["time", "DISTURBANCE_ID", "pmin", "vmax", "rmax", "pmin_obs", "vmax_obs"])
+            if j == 0:
+                out = hurricane.pytc_intensity(
+                    vm, rm, r0, sst, h_a, abs(lat), ahm, sp, 0.5, ut, hm=hm, match='y', vobs=vm, gamma=100_000
+                )
+                pmin, vm, rm = out
+
+            if np.isnan(np.array([vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend, ut, hm])).any():
+                print(row)
+            out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend, ut, hm=hm)
+            pmin, vm, rm = out[0], out[1], out[2]
+
+            lat_next, lon_next = g.loc[g.index[j + 1]].LAT, g.loc[g.index[j + 1]].LON
+            out_rows.append(
+                [g.loc[g.index[j + 1]].TM, row.DISTURBANCE_ID, lat_next, lon_next, pmin, vm, rm, pmin_actual, vm_actual]
+            )
+            # print("Output:", vm, rm, vm_actual, "\n")
+
+    out_df = pd.DataFrame(out_rows, columns=["time", "DISTURBANCE_ID", "lat", "lon", "pmin", "vmax", "rmax", "pmin_obs", "vmax_obs"])
 
     if OCEAN_MIXING == 'y':
         out_df.to_csv(os.path.join(DATA_DIR, "predicted_intensity_ocean_mixing.csv"))

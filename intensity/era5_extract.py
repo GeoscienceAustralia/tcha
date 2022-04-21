@@ -25,10 +25,10 @@ def load_otcr_df(data_dir=None):
         data_dir = DATA_DIR
 
     dataFile = os.path.join(data_dir, "OTCR_alldata_final_external.csv")
-    usecols = [0, 1, 2, 7, 8, 11, 12]
+    usecols = [0, 1, 2, 7, 8, 11, 19, 53]
     colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
-                'adj. ADT Vm (kn)', 'CP(CKZ(Lok R34,LokPOCI, adj. Vm),hPa)']
-    dtypes = [str, str, str, float, float, float, float]
+                'adj. ADT Vm (kn)', 'CENTRAL_PRES', 'Vmax (kn)']
+    dtypes = [str, str, str, float, float, float, float, float]
 
     df = pd.read_csv(dataFile, usecols=usecols, dtype=dict(zip(colnames, dtypes)), na_values=[' '], nrows=13743)
 
