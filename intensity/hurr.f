@@ -17,7 +17,7 @@
       character*1 init, match
       real sstr(200), sst1(200),sst2(200)
       real sst3(200)
-      real xx(3)
+      real xx(4)
 
 c  ***     dimension arrays of dependent variables   ***
 c
@@ -116,6 +116,7 @@ c
       amix=sqrt(amix)
       ni=150
       facsst=0.002*cd*cecd*chi*schi*atime*amixfac/(hs*gm*4160.0)
+      xx(4) = 0
 
 c
 c   ***   set certain constants    ***
@@ -212,7 +213,7 @@ c       end if
       ps3(1)=0.0
       ps2(1)=0.0
 
-        gb(1)=0.0
+      gb(1)=0.0
 c
 c             ***  set time looping parameters and begin time loop  ***
 c
@@ -679,6 +680,7 @@ c
 c  ***    bail out if r**2 is negative   ***
 
       if (rbs3(i).lt.0.0) then
+      xx(4) = 1
       goto 710
       end if
   100 end do

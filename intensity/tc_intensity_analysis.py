@@ -22,13 +22,13 @@ from Utilities.loadData import getPoci
 
 print("Done imports")
 
-OCEAN_MIXING = 'n'
+OCEAN_MIXING = 'y'
 
-# TODO: if failed then repeat with 1s time step
+
 
 class Hurricane:
 
-    def __init__(self):
+    def __init__(self, dt=1):
         self.rbs1, self.rts1, self.x1, self.xs1, self.xm1, self.mu1 = [
             np.zeros(200, dtype=np.float32) for _ in range(6)
         ]
@@ -39,7 +39,67 @@ class Hurricane:
             np.zeros(200, dtype=np.float32) for _ in range(5)
         ]
         self.init = 'y'
-        self.alength = None
+
+        self.dt = dt
+
+    def simulate(self, g):
+        row = g.iloc[0]
+
+        lat = row['LAT']
+        vm = row["Vmax (kn)"] * 0.514444  # convert knots to m/s
+
+        dP = find_dP(vm, lat)
+        rm = rmax(dP, lat, eps=0)
+        f = (3.14159 / (12. * 3600.)) * np.sin(3.14159 * abs(lat) / 180.)
+        rm *= 1000 * f
+        r0 = 1.2 * sqrt(rm * rm * (1. + 2. * vm / rm))
+        r0 /= 1000 * f
+        rm /= 1000 * f
+
+        out_rows = []
+        any_bailed = False
+
+        for j, i in enumerate(g.index[:-1]):
+            row = g.loc[i]
+            sst, sp, d2, t2, hm, lat, ahm, ut, hm, h_a = self.extract_environment(row)
+
+            if np.isnan(hm) or globe.is_land(row.LAT, row.LON):
+                break
+
+            tend = g.loc[g.index[j + 1]].TM - row.TM
+            tend = tend.days + tend.seconds / (3600 * 24)  # simulation time in days
+            vm_actual = g.loc[g.index[j + 1]]["Vmax (kn)"] * 0.514444
+            pmin_actual = g.loc[g.index[j + 1]]['CENTRAL_PRES']
+            lat_next, lon_next = g.loc[g.index[j + 1]].LAT, g.loc[g.index[j + 1]].LON
+
+            if j == 0:
+                bailed, out = hurricane.pytc_intensity(
+                    vm, rm, r0, sst, h_a, abs(lat), ahm, sp, 0.5, ut, hm=hm, match='y', vobs=vm, gamma=100_000
+                )
+                pmin, vm, rm = out
+
+            bailed, out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend, ut, hm=hm)
+            any_bailed |= bailed
+            pmin, vm, rm = out[0], out[1], out[2]
+
+            out_rows.append(
+                [g.loc[g.index[j + 1]].TM, row.DISTURBANCE_ID, lat_next, lon_next, pmin, vm, rm, pmin_actual, vm_actual]
+            )
+        return any_bailed, out_rows
+
+    @staticmethod
+    def extract_environment(row):
+        sst, sp, d2, t2, hm, lat = row.sst, row.sp, row.d2, row.t2, row.hm, row.LAT
+        ahm, ut, hm = row.rh, row.vfm, row.hm
+
+        sst = sst - 273.15  # convert K -> C
+        sp = sp / 100  # convert Pa -> hPa
+        t2 = units.Quantity(t2, "K")
+        d2 = units.Quantity(d2, "K")
+        h_a = relative_humidity_from_dewpoint(t2, d2) * 100  # relative humidity near surface
+        ut = ut / 3.6  # convert km/h -> m/s
+
+        return sst, sp, d2, t2, hm, lat, ahm, ut, hm, h_a
 
     def pytc_intensity(
             self, vm, rm, r0, ts, h_a, alat, ahm, pa, tend,
@@ -89,7 +149,7 @@ class Hurricane:
         efrac = 0.5  # fraction of convective entropy detrained into lower
         dpb = 50  # boundary layer depth
         nr = 75  # numer of radial nodes
-        dt = 10  # time step in seconds
+        dt = self.dt  # time step in seconds
 
         # normalise
         h_a *= 0.01
@@ -119,7 +179,6 @@ class Hurricane:
         amixfac = 0.5 * 1000. * ef * gm * (1. + 2.5e6 * 2.5e6 * qsm / (1000. * 461. * tsa * tsa)) / chi
         amix = (2. * ric * chi / (9.8 * 3.3e-4 * gm)) * 1.0e-6 * (287. * tsa / 9.8) ** 2 * (delp / pa) ** 2 * amixfac ** 4
         amix = sqrt(amix)
-        self.alength = sqrt(chi) / f
 
         for arr in (self.x1, self.xs1, self.xm1, self.x2, self.xs2, self.xm2):
             arr /= chi
@@ -139,7 +198,7 @@ class Hurricane:
         cd /= 0.001
         gm /= 0.01
 
-        out = np.zeros(3, dtype=np.float32)
+        out = np.zeros(4, dtype=np.float32)
         tc_intensity(
             nrd, tend, vm,
             rm, r0, ts, to, h_a, alat, tshear, vext, tland, surface,
@@ -150,7 +209,9 @@ class Hurricane:
             self.uhmix1, self.uhmix2, self.sst1, self.sst2, self.hmix, self.init,
             match, vobs, gamma
         )
+        bailed = (out[3] == 1) or np.isnan(self.rbs1).any()
 
+        out = out[:3]
         self.init = 'n'
         h_a *= 0.01
         ahm *= 0.01
@@ -170,7 +231,7 @@ class Hurricane:
         self.uhmix1 /= (amixfac ** 2) / (amix * np.sqrt(gm))
         self.uhmix2 /= (amixfac ** 2) / (amix * np.sqrt(gm))
 
-        return out
+        return bailed, out
 
 
 def find_dP(vmax, lat):
@@ -212,69 +273,13 @@ if __name__ == "__main__":
     idx = 0
     for name, g in list(df.groupby('DISTURBANCE_ID'))[:]:
         hurricane = Hurricane()
-        row = g.iloc[0]
-
-        # if row.DISTURBANCE_ID == 'AU199394_02U':
-        #     print("woo")
-        # else:
-        #     continue
-
-        lat = row['LAT']
-        vm = row["Vmax (kn)"] * 0.514444  # convert knots to m/s
-
-        dP = find_dP(vm, lat)
-        rm = rmax(dP, lat, eps=0)
-        f = (3.14159/(12.*3600.))*np.sin(3.14159*abs(lat)/180.)
-        rm *= 1000 * f
-        r0 = 1.2 * sqrt(rm * rm * (1. + 2. * vm / rm))
-        r0 /= 1000 * f
-        rm /= 1000 * f
-
-        # vm = vprf.speed.maximum()
-        # print("Starting vm:", vm, rm, r0, lat)
-        for j, i in enumerate(g.index[:-1]):
-            row = g.loc[i]
-
-            sst, sp, d2, t2, hm, lat = row.sst, row.sp, row.d2, row.t2, row.hm, row.LAT
-
-            sst = sst - 273.15  # convert K -> C
-            sp = sp / 100  # convert Pa -> hPa
-            t2 = units.Quantity(t2, "K")
-            d2 = units.Quantity(d2, "K")
-
-            h_a = relative_humidity_from_dewpoint(t2, d2) * 100  # relative humidity near surface
-            tend = g.loc[g.index[j + 1]].TM - row.TM
-            tend = tend.days + tend.seconds / (3600 * 24)  # simulation time in days
-
-            # typical values
-            ahm = row.rh  # relative humidity in tropo
-            ut = row.vfm
-            hm = row.hm
-            # typical values
-
-            if np.isnan(hm) or globe.is_land(row.LAT, row.LON):
-                land_count += 1
-                break
-
-            vm_actual = g.loc[g.index[j + 1]]["Vmax (kn)"] * 0.514444
-            pmin_actual = g.loc[g.index[j + 1]]['CENTRAL_PRES']
-
-            if j == 0:
-                out = hurricane.pytc_intensity(
-                    vm, rm, r0, sst, h_a, abs(lat), ahm, sp, 0.5, ut, hm=hm, match='y', vobs=vm, gamma=100_000
-                )
-                pmin, vm, rm = out
-
-            if np.isnan(np.array([vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend, ut, hm])).any():
-                print(row)
-            out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend, ut, hm=hm)
-            pmin, vm, rm = out[0], out[1], out[2]
-
-            lat_next, lon_next = g.loc[g.index[j + 1]].LAT, g.loc[g.index[j + 1]].LON
-            out_rows.append(
-                [g.loc[g.index[j + 1]].TM, row.DISTURBANCE_ID, lat_next, lon_next, pmin, vm, rm, pmin_actual, vm_actual]
-            )
-            # print("Output:", vm, rm, vm_actual, "\n")
+        bailed, out = hurricane.simulate(g)
+        if bailed:
+            hurricane = Hurricane(dt=1.0)
+            bailed, out = hurricane.simulate(g)
+            if bailed:
+                print(f"{g.iloc[0].DISTURBANCE_ID}: bailed")
+        out_rows.extend(out)
 
     out_df = pd.DataFrame(out_rows, columns=["time", "DISTURBANCE_ID", "lat", "lon", "pmin", "vmax", "rmax", "pmin_obs", "vmax_obs"])
 
