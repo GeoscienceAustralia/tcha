@@ -5,8 +5,8 @@
      & dt, ro, ahm, pa, cd, cd1, cdcap,
      & cecd, pnu, taur, radmax, tauc, efrac, dpb, hm, dsst, gm, xx,
      & rbs1, rts1, x1, xs1, xm1, mu1, rbs2, rts2, x2, xs2,
-     & xm2, mu2, uhmix1,uhmix2, sst1, sst2, hmix, init,
-     & match, vobs, gconst)
+     & xm2, mu2, uhmix1, uhmix2, sst1, sst2, hmix, init,
+     & match, vobs, gconst, diagnostic)
 
       real h_a, meq, mf, mt, mumax, mdmin, vobs, gconst
       real time, vm,rm,r0,ts,to,alat,tland,tshear,vext,ut
@@ -24,7 +24,7 @@ c
       real rbs1(200), rbs2(200), rbs3(200), rts1(200), rts2(200)
       real x1(200), x2(200), x3(200), xs1(200), xs2(200), xs3(200)
       real xm1(200), xm2(200), xm3(200),rts3(200)
-      real mu1(200), mu2(200), mu3(200)
+      real mu1(200), mu2(200), mu3(200), diagnostic(200)
 c
 c  ***     dimension ocean variables   ***
 c
@@ -525,6 +525,7 @@ c
 c            ***  calculate vertical advection terms in s* eqn   ***
 c
       vadv=-q2(i)*(ps2(i)-ps2(i-1))
+      diagnostic(i) = vadv
 c
 c            *** calculate v at x points and pbl advections  ***
 c
@@ -559,6 +560,7 @@ c  ***    calculate downdraft and vertical velocity in between clouds   ***
 c
       amd=-mu2(i)*(1.-epre(i))
       w0d=w0-mu2(i)-amd
+c      diagnostic(i) = w0
 c
 c  *** calculate surface fluxes, radiation and equilibrium mass flux   ***
 c  ***          include dissipative heating term here                  ***
@@ -730,11 +732,11 @@ c
   705 continue
 c
   710 continue
-      pmin = p(1)
+      pmin = pa * exp(beta * p(1))
       vmax = 0.0
       rmax = 0.0
       do i=1, nr
-            pmin = min(pmin, p(i))
+            pmin = min(pmin, pa * exp(beta * p(i)))
             r=(float(i-1))*dr
         v=0.5*(r*r-rbs2(i))/rb2(i)
 
@@ -748,7 +750,58 @@ c
       xx(1) = pmin
       xx(2) = vmax * schi
       xx(3) = rmax * schi * 0.001 / FC
-!     print *, "Actual sim time: ", (tt-dt)*atime / (3600*24)
-!     print *, "vmax: ", vmax * schi
+!      print *, "Actual sim time: ", (tt-dt)*atime / (3600*24)
+!      print *, "pmin: ", pmin
 
       end
+
+
+      SUBROUTINE THEORY(CKCD,H,TS,TO,PA)
+C
+C       This subroutine calculates the theoretical maximum wind
+C         speed and minimum central pressure.
+C
+       REAL H, LV, PA, PC, PM
+       DELTAT=0.0
+       LV=2.5E6
+       RD=287.0
+       RV=461.0
+       IFAIL=0
+C
+C      AN is the assumed power dependence of v on radius inside the
+C        radius of maximum winds (i.e. v~r**an) used to calculate PC
+C
+       AN=1.0
+C
+        ES=6.112*EXP(17.67*TS/(243.5+TS))
+        EP=(TS-TO)/(TO+273.15)
+        COEF1=EP*LV*ES/(RV*(TS+273.15))
+        COEF2=0.5*CKCD*(1.-H)*(EP+1.)
+        COEF3=0.5*CKCD*EP*1000.*DELTAT/(RD*(TS+273.15)*(1.-EP*H))
+        PM=PA
+        N=0
+   10   CONTINUE
+        N=N+1
+        PG=PA*EXP(-COEF1*(COEF2/PM+H*(1./PM-1./PA))-COEF3)
+        IF(ABS(PG-PM).LT.0.1)THEN
+         PM=0.5*(PM+PG)
+         VM=SQRT(EP*CKCD*(LV*0.622*ES*(1.-H)/PM+1000.*DELTAT))
+         GOTO 20
+        END IF
+        IF(N.GT.1000.OR.PG.LE.1.0)THEN
+          IFAIL=1
+          GOTO 20
+        END IF
+        PM=0.5*(PM+PG)
+        GOTO 10
+   20   CONTINUE
+	IF(IFAIL.EQ.1)THEN
+	 PC=PA
+	 VM=0.0
+	ELSE
+         PC=PM*EXP(-VM*VM/(2.*AN*RD*(TS+273.15)))
+	END IF
+C
+      print *, VM
+      RETURN
+      END

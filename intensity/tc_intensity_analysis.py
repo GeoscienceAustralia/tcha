@@ -22,7 +22,7 @@ from Utilities.loadData import getPoci
 
 print("Done imports")
 
-OCEAN_MIXING = 'y'
+OCEAN_MIXING = 'n'
 
 
 
@@ -39,13 +39,14 @@ class Hurricane:
             np.zeros(200, dtype=np.float32) for _ in range(5)
         ]
         self.init = 'y'
+        self.diagnostic = np.zeros(200, dtype=np.float32)
 
         self.dt = dt
 
-    def simulate(self, g):
+    def simulate(self, g, verbose=False):
         row = g.iloc[0]
 
-        lat = row['LAT']
+        sst, sp, hm, lat, ahm, ut, hm, h_a = self.extract_environment(row)
         vm = row["Vmax (kn)"] * 0.514444  # convert knots to m/s
 
         dP = find_dP(vm, lat)
@@ -56,12 +57,14 @@ class Hurricane:
         r0 /= 1000 * f
         rm /= 1000 * f
 
+        if verbose:
+            print("Starting:", vm, rm)
         out_rows = []
         any_bailed = False
-
+        diagnostic_info = []
         for j, i in enumerate(g.index[:-1]):
             row = g.loc[i]
-            sst, sp, d2, t2, hm, lat, ahm, ut, hm, h_a = self.extract_environment(row)
+            sst, sp, hm, lat, ahm, ut, hm, h_a = self.extract_environment(row)
 
             if np.isnan(hm) or globe.is_land(row.LAT, row.LON):
                 break
@@ -74,18 +77,37 @@ class Hurricane:
 
             if j == 0:
                 bailed, out = hurricane.pytc_intensity(
-                    vm, rm, r0, sst, h_a, abs(lat), ahm, sp, 0.5, ut, hm=hm, match='y', vobs=vm, gamma=100_000
+                    vm, rm, r0, sst, h_a, abs(lat), ahm, sp, 2.0, ut, hm=hm, match='y', vobs=vm, gamma=100_000
                 )
                 pmin, vm, rm = out
 
             bailed, out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend, ut, hm=hm)
             any_bailed |= bailed
+
             pmin, vm, rm = out[0], out[1], out[2]
+            diagnostic_info.append([vm, rm, sst, float(h_a), ahm, tend])
 
             out_rows.append(
-                [g.loc[g.index[j + 1]].TM, row.DISTURBANCE_ID, lat_next, lon_next, pmin, vm, rm, pmin_actual, vm_actual]
+                [
+                    g.loc[g.index[j + 1]].TM, row.DISTURBANCE_ID, lat_next,
+                    lon_next, pmin, vm, rm, pmin_actual, vm_actual
+                ]
             )
-        return any_bailed, out_rows
+
+        out_df = pd.DataFrame(
+            out_rows,
+            columns=["time", "DISTURBANCE_ID", "lat", "lon", "pmin", "vmax", "rmax", "pmin_obs", "vmax_obs"]
+        )
+
+        if verbose:
+            diagnostic_info = pd.DataFrame(diagnostic_info)
+            diagnostic_info.columns = ["vm", "rm", "sst", "ssh", "troph", "tend"]
+            print("Final vm:", vm)
+            print(diagnostic_info)
+            print("\n" * 3)
+            print(out_df)
+
+        return any_bailed, out_df
 
     @staticmethod
     def extract_environment(row):
@@ -99,7 +121,7 @@ class Hurricane:
         h_a = relative_humidity_from_dewpoint(t2, d2) * 100  # relative humidity near surface
         ut = ut / 3.6  # convert km/h -> m/s
 
-        return sst, sp, d2, t2, hm, lat, ahm, ut, hm, h_a
+        return sst, sp, hm, lat, ahm, ut, hm, h_a
 
     def pytc_intensity(
             self, vm, rm, r0, ts, h_a, alat, ahm, pa, tend,
@@ -174,6 +196,7 @@ class Hurricane:
         tm = 0.85 * ts + 0.15 * to
         esm = 6.112 * exp(17.67 * tm / (243.5 + tm))
         qsm = 0.622 * esm / (pa - 0.5 * delp)
+        #beta = chi / (287. * tsa)
         #
         #
         amixfac = 0.5 * 1000. * ef * gm * (1. + 2.5e6 * 2.5e6 * qsm / (1000. * 461. * tsa * tsa)) / chi
@@ -207,7 +230,7 @@ class Hurricane:
             self.rbs1, self.rts1, self.x1, self.xs1, self.xm1, self.mu1,
             self.rbs2, self.rts2, self.x2, self.xs2, self.xm2, self.mu2,
             self.uhmix1, self.uhmix2, self.sst1, self.sst2, self.hmix, self.init,
-            match, vobs, gamma
+            match, vobs, gamma, self.diagnostic
         )
         bailed = (out[3] == 1) or np.isnan(self.rbs1).any()
 
@@ -248,6 +271,12 @@ def find_dP(vmax, lat):
 
 
 if __name__ == "__main__":
+
+    pres_lvls = np.array([ 1,    2,    3,    5,    7,   10,   20,   30,   50,   70,  100,
+        125,  150,  175,  200,  225,  250,  300,  350,  400,  450,  500,
+        550,  600,  650,  700,  750,  775,  800,  825,  850,  875,  900,
+        925,  950,  975, 1000], dtype=np.float32)
+
     DATA_DIR = os.path.expanduser("~/geoscience/data")
 
     df = load_otcr_df(DATA_DIR)
@@ -261,32 +290,48 @@ if __name__ == "__main__":
 
     for i, var in enumerate(["sst", "sp", "d2", "t2"]): df[var] = era5[:, i]
     df["hm"] = bran[:, 0]
-    df['rh'] = rh[:, 21]
+    df['rh'] = rh[:, 21]  # np.trapz(rh[:, pres_lvls >= 200], pres_lvls[pres_lvls >= 200]) / (800)
 
     df = df[~pd.isnull(df["Vmax (kn)"])]
 
     groups = df.groupby('DISTURBANCE_ID')
 
     t0 = time.time()
-    out_rows = []
+    out_dfs = []
     land_count = 0
     idx = 0
+    verbose = False
     for name, g in list(df.groupby('DISTURBANCE_ID'))[:]:
-        hurricane = Hurricane()
-        bailed, out = hurricane.simulate(g)
-        if bailed:
+        if len(g) == 0:
+            continue
+        # if name == 'AU199697_12U':
+        #     print(name)
+        #     verbose = False
+        # else:
+        #     verbose = False
+        #     continue
+        hurricane = Hurricane(dt=10.0)
+        bailed, out = hurricane.simulate(g, verbose=verbose)
+
+        if len(out) > 0:
+            final_vm = out.vmax.iloc[-1]
+        else:
+            final_vm = -1
+
+        if final_vm == 0:
             hurricane = Hurricane(dt=1.0)
             bailed, out = hurricane.simulate(g)
             if bailed:
                 print(f"{g.iloc[0].DISTURBANCE_ID}: bailed")
-        out_rows.extend(out)
+        out_dfs.append(out)
 
-    out_df = pd.DataFrame(out_rows, columns=["time", "DISTURBANCE_ID", "lat", "lon", "pmin", "vmax", "rmax", "pmin_obs", "vmax_obs"])
+    out_df = pd.concat(out_dfs)
 
     if OCEAN_MIXING == 'y':
         out_df.to_csv(os.path.join(DATA_DIR, "predicted_intensity_ocean_mixing.csv"))
     else:
         out_df.to_csv(os.path.join(DATA_DIR, "predicted_intensity.csv"))
+    print(out_df[out_df.DISTURBANCE_ID == 'AU199697_12U'])
     print(land_count)
     print("Time: ", (time.time() - t0), "s")
 
