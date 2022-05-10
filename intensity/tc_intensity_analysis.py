@@ -28,7 +28,7 @@ OCEAN_MIXING = 'n'
 
 class Hurricane:
 
-    def __init__(self, dt=1):
+    def __init__(self, dt=1, efrac=0.5, cecd=1.0):
         self.rbs1, self.rts1, self.x1, self.xs1, self.xm1, self.mu1 = [
             np.zeros(200, dtype=np.float32) for _ in range(6)
         ]
@@ -42,6 +42,8 @@ class Hurricane:
         self.diagnostic = np.zeros(200, dtype=np.float32)
 
         self.dt = dt
+        self.efrac = efrac
+        self.cecd = cecd
 
     def simulate(self, g, verbose=False):
         row = g.iloc[0]
@@ -76,12 +78,12 @@ class Hurricane:
             lat_next, lon_next = g.loc[g.index[j + 1]].LAT, g.loc[g.index[j + 1]].LON
 
             if j == 0:
-                bailed, out = hurricane.pytc_intensity(
+                bailed, out = self.pytc_intensity(
                     vm, rm, r0, sst, h_a, abs(lat), ahm, sp, 2.0, ut, hm=hm, match='y', vobs=vm, gamma=100_000
                 )
                 pmin, vm, rm = out
 
-            bailed, out = hurricane.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend, ut, hm=hm)
+            bailed, out = self.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend, ut, hm=hm)
             any_bailed |= bailed
 
             pmin, vm, rm = out[0], out[1], out[2]
@@ -163,12 +165,12 @@ class Hurricane:
         cd = 0.8  # drag coefficient
         cd1 = 4  # drag coefficient rate of change w/ windspeed
         cdcap = 3  # max drag
-        cecd = 1  # ratio of drag coefficients
+        cecd = self.cecd  # ratio of drag coefficients
         pnu = 0.03  # turbulent mixing length
         taur = 8  # radiative relaxation time scale
         radmax = 1.5  # max rad cooling rate
         tauc = 2  # convective relation time scale
-        efrac = 0.5  # fraction of convective entropy detrained into lower
+        efrac = self.efrac  # fraction of convective entropy detrained into lower
         dpb = 50  # boundary layer depth
         nr = 75  # numer of radial nodes
         dt = self.dt  # time step in seconds
@@ -310,7 +312,7 @@ if __name__ == "__main__":
         # else:
         #     verbose = False
         #     continue
-        hurricane = Hurricane(dt=10.0)
+        hurricane = Hurricane(dt=1.0)
         bailed, out = hurricane.simulate(g, verbose=verbose)
 
         if len(out) > 0:
@@ -330,7 +332,7 @@ if __name__ == "__main__":
     if OCEAN_MIXING == 'y':
         out_df.to_csv(os.path.join(DATA_DIR, "predicted_intensity_ocean_mixing.csv"))
     else:
-        out_df.to_csv(os.path.join(DATA_DIR, "predicted_intensity.csv"))
+        out_df.to_csv(os.path.join(DATA_DIR, "predicted_intensity_dt_1s.csv"))
     print(out_df[out_df.DISTURBANCE_ID == 'AU199697_12U'])
     print(land_count)
     print("Time: ", (time.time() - t0), "s")
