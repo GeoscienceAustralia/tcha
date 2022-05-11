@@ -22,9 +22,8 @@ from Utilities.loadData import getPoci
 
 print("Done imports")
 
-OCEAN_MIXING = 'n'
-
-
+OCEAN_MIXING = False
+USE_SHEAR = False
 
 class Hurricane:
 
@@ -158,7 +157,7 @@ class Hurricane:
         """
         nrd = 200
 
-        om = self.ocean_mixing and (max_depth >= 200) # ocean mixing on
+        om = 'y' if (self.ocean_mixing and (max_depth >= 200)) else 'n' # ocean mixing on
         to = -75  # environmental temp at top of tc Celsius
         tshear = 0  # time until shear days
         vext = shear if self.use_shear else 0.0  # wind shear m/s
@@ -360,11 +359,10 @@ if __name__ == "__main__":
 
     out_df = pd.concat(out_dfs)
 
-    if OCEAN_MIXING == 'y':
-        out_df.to_csv(os.path.join(DATA_DIR, "predicted_intensity_ocean_mixing.csv"))
-    else:
-        out_df.to_csv(os.path.join(DATA_DIR, "predicted_intensity_dt_1s.csv"))
-    print(out_df[out_df.DISTURBANCE_ID == 'AU199697_12U'])
+    out_fn = f"predicted_intensity_ocean_mixing{'_shear' if USE_SHEAR else ''}{'_ocean_mixing' if OCEAN_MIXING else ''}_.csv"
+
+    out_df.to_csv(os.path.join(DATA_DIR, out_fn))
+
     print(land_count)
     print("Time: ", (time.time() - t0), "s")
 
