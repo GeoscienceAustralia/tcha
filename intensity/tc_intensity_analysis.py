@@ -28,7 +28,7 @@ OCEAN_MIXING = 'n'
 
 class Hurricane:
 
-    def __init__(self, dt=1, efrac=0.5, cecd=1.0):
+    def __init__(self, dt=1, efrac=0.5, cecd=1.0, ocean_mixing=False, use_shear=False):
         self.rbs1, self.rts1, self.x1, self.xs1, self.xm1, self.mu1 = [
             np.zeros(200, dtype=np.float32) for _ in range(6)
         ]
@@ -44,6 +44,8 @@ class Hurricane:
         self.dt = dt
         self.efrac = efrac
         self.cecd = cecd
+        self.use_shear = use_shear
+        self.ocean_mixing = ocean_mixing
 
     def simulate(self, g, verbose=False):
         row = g.iloc[0]
@@ -66,7 +68,7 @@ class Hurricane:
         diagnostic_info = []
         for j, i in enumerate(g.index[:-1]):
             row = g.loc[i]
-            sst, sp, hm, lat, ahm, ut, hm, h_a = self.extract_environment(row)
+            sst, sp, hm, lat, ahm, ut, hm, h_a, dsst, gm, max_depth, shear = self.extract_environment(row)
 
             if np.isnan(hm) or globe.is_land(row.LAT, row.LON):
                 break
@@ -83,7 +85,7 @@ class Hurricane:
                 )
                 pmin, vm, rm = out
 
-            bailed, out = self.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend, ut, hm=hm)
+            bailed, out = self.pytc_intensity(vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend, ut, hm=hm, gm=gm, dsst=dsst, shear=shear)
             any_bailed |= bailed
 
             pmin, vm, rm = out[0], out[1], out[2]
@@ -114,6 +116,7 @@ class Hurricane:
     @staticmethod
     def extract_environment(row):
         sst, sp, d2, t2, hm, lat = row.sst, row.sp, row.d2, row.t2, row.hm, row.LAT
+        dsst, gm, max_depth, shear = row.dsst, row.gm, row.max_depth, row.shear
         ahm, ut, hm = row.rh, row.vfm, row.hm
 
         sst = sst - 273.15  # convert K -> C
@@ -123,11 +126,12 @@ class Hurricane:
         h_a = relative_humidity_from_dewpoint(t2, d2) * 100  # relative humidity near surface
         ut = ut / 3.6  # convert km/h -> m/s
 
-        return sst, sp, hm, lat, ahm, ut, hm, h_a
+        return sst, sp, hm, lat, ahm, ut, hm, h_a, dsst, gm, max_depth, shear
 
     def pytc_intensity(
             self, vm, rm, r0, ts, h_a, alat, ahm, pa, tend,
             ut, hm=30.0, dsst=0.6, gm=8.0, match='n', vobs=0, gamma=1000,
+            max_depth=np.inf, shear=0
     ):
         """
 
@@ -154,10 +158,10 @@ class Hurricane:
         """
         nrd = 200
 
-        om = OCEAN_MIXING  # ocean mixing on
+        om = self.ocean_mixing and (max_depth >= 200) # ocean mixing on
         to = -75  # environmental temp at top of tc Celsius
-        tshear = 200  # time until shear days
-        vext = 0  # wind shear m/s
+        tshear = 0  # time until shear days
+        vext = shear if self.use_shear else 0.0  # wind shear m/s
         tland = 200  # time until land
         surface = 'pln'  # type of land
         hs = 0  # swamp depth
@@ -272,6 +276,19 @@ def find_dP(vmax, lat):
     return dP
 
 
+def fit_profile(temp, depth, mld):
+    ml_mask = depth <= mld
+    dl_mask = (~ml_mask) & (depth <= mld + 200)
+    gm, *_ = linregress(depth[dl_mask], temp[dl_mask])
+
+    idx = np.where(ml_mask)[0][-1]
+    dsst = temp[idx] - temp[idx + 1]
+
+    max_depth = depth[~np.isnan(temp)].max()
+
+    return gm, dsst, max_depth
+
+
 if __name__ == "__main__":
 
     pres_lvls = np.array([ 1,    2,    3,    5,    7,   10,   20,   30,   50,   70,  100,
@@ -284,15 +301,29 @@ if __name__ == "__main__":
     df = load_otcr_df(DATA_DIR)
 
     era5 = np.load(os.path.join(DATA_DIR, "tc_intensity_era5.npy"))
-    bran = np.load(os.path.join(DATA_DIR, "tc_intensity_bran2020.npy"))
+    mld = np.load(os.path.join(DATA_DIR, "tc_intensity_bran2020.npy"))
     rh = np.load(os.path.join(DATA_DIR, "tc_intensity_rh.npy"))
+    temp = np.load(os.path.join(DATA_DIR, "tc_intensity_temp_profile.npy"))
+    shear = np.load(os.path.join(DATA_DIR, "tc_intensity_windshear.npy"))
+    depth = temp_profiles[0, :51]
+    temp = temp[:, 51:]
+
+    gms = []
+    dssts = []
+    max_depths = []
+    for i in range(temp.shape[0]):
+        gm, dsst, max_depth = fit_profile(temp[i], depth, mld[i])
 
     mslpFile = os.path.join(TCRM_PATH, "MSLP", "slp.day.ltm.nc")
     mslp = SamplePressure(mslpFile)
 
     for i, var in enumerate(["sst", "sp", "d2", "t2"]): df[var] = era5[:, i]
-    df["hm"] = bran[:, 0]
-    df['rh'] = rh[:, 21]  # np.trapz(rh[:, pres_lvls >= 200], pres_lvls[pres_lvls >= 200]) / (800)
+    df["hm"] = mld[:, 0]
+    df['rh'] = rh[:, 23]  # np.trapz(rh[:, pres_lvls >= 200], pres_lvls[pres_lvls >= 200]) / (800)
+    df['gm'] = np.array(gm)
+    df['dsst'] = np.array(gm)
+    df['max_depth'] = np.array(gm)
+    df['shear'] = shear
 
     df = df[~pd.isnull(df["Vmax (kn)"])]
 
