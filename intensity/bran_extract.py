@@ -14,7 +14,8 @@ DATA_DIR = os.path.expanduser("~")
 
 def load_data(time, lat, lon):
     """
-    Loads the pressure level u and v ERA5 files and calculate the DLM.
+    Loads the bran mixed layer depth file and
+    computes an aqverage over 5 x 5 degree box for the specified time (rounded to the nearest day) and location.
 
     This using dask to lazily load the minimum data needed.
     """
@@ -65,7 +66,6 @@ def load_data(time, lat, lon):
         gm = np.nan
 
     return np.array([hm])
-
 
 
 if __name__ == "__main__":

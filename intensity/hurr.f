@@ -756,12 +756,12 @@ c
       end
 
 
-      SUBROUTINE THEORY(CKCD,H,TS,TO,PA)
+      SUBROUTINE THEORY(CKCD,H,TS,TO,PA, out)
 C
 C       This subroutine calculates the theoretical maximum wind
 C         speed and minimum central pressure.
 C
-       REAL H, LV, PA, PC, PM
+       REAL H, LV, PA, PC, PM, out(1)
        DELTAT=0.0
        LV=2.5E6
        RD=287.0
@@ -802,6 +802,7 @@ C
          PC=PM*EXP(-VM*VM/(2.*AN*RD*(TS+273.15)))
 	END IF
 C
-      print *, VM
+      out(1) = VM
+
       RETURN
       END

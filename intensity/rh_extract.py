@@ -17,7 +17,8 @@ DATA_DIR = os.path.expanduser("~")
 
 def load_data(time, lat, lon):
     """
-    Loads the pressure level u and v ERA5 files and calculate the DLM.
+    Loads the pressure level rh ERA5 files and
+    computes an aqverage over 5 x 5 degree box for the specified time (rounded to the nearest hour) and location.
 
     This using dask to lazily load the minimum data needed.
     """

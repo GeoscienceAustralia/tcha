@@ -1,4 +1,5 @@
 from hurr import tc_intensity
+# from test import tc_intensity
 from era5_extract import load_otcr_df
 import os
 import numpy as np
@@ -9,6 +10,7 @@ from metpy.calc import relative_humidity_from_dewpoint
 from metpy.units import units
 from global_land_mask import globe
 from matplotlib import pyplot as plt
+from scipy.stats import linregress
 
 import sys
 
@@ -25,9 +27,24 @@ print("Done imports")
 OCEAN_MIXING = False
 USE_SHEAR = False
 
+
 class Hurricane:
 
-    def __init__(self, dt=1, efrac=0.5, cecd=1.0, ocean_mixing=False, use_shear=False):
+    """
+    This contains the state and parameters of the TC intensity model for the simulation of one TC.
+    """
+
+    def __init__(self, dt=1, efrac=0.7, cecd=1.0, ocean_mixing=False, use_shear=False, tinit=2.0):
+        """
+        Params:
+
+            dt (float): time step in seconds
+            efrac (float): proportion of lower troposphere entropy detrained in the mid troposphere [0.0, 1.0]
+            cecd (float): ratio of the enthalpy exchange coefficient to the drag coefficient
+            ocean_mixing (bool): whether to turn on ocean mixing
+            use_shear (bool): whether to turn on shear
+            tinit (float): the time (in days) to run the initialisation step
+        """
         self.rbs1, self.rts1, self.x1, self.xs1, self.xm1, self.mu1 = [
             np.zeros(200, dtype=np.float32) for _ in range(6)
         ]
@@ -37,6 +54,11 @@ class Hurricane:
         self.uhmix1, self.uhmix2, self.sst1, self.sst2, self.hmix = [
             np.zeros(200, dtype=np.float32) for _ in range(5)
         ]
+
+        self.ro = 1200 # km
+        self.v = np.zeros(200, dtype=np.float32)
+        self.nr = 75
+
         self.init = 'y'
         self.diagnostic = np.zeros(200, dtype=np.float32)
 
@@ -45,11 +67,21 @@ class Hurricane:
         self.cecd = cecd
         self.use_shear = use_shear
         self.ocean_mixing = ocean_mixing
+        self.tinit = tinit
 
     def simulate(self, g, verbose=False):
+        """
+        Runs the TC simulation for a df of times, locations, and environmental conditions
+
+        Params:
+            g (DataFrame): a DataFrame contain the times, locations, and environmental conditions of the TC track
+        Returns:
+            a DataFrame containing the simulated pressure, maximum wind speed, and radius to maximum winds.
+
+        """
         row = g.iloc[0]
 
-        sst, sp, hm, lat, ahm, ut, hm, h_a = self.extract_environment(row)
+        sst, sp, hm, lat, ahm, ut, hm, h_a, *_ = self.extract_environment(row)
         vm = row["Vmax (kn)"] * 0.514444  # convert knots to m/s
 
         dP = find_dP(vm, lat)
@@ -80,7 +112,7 @@ class Hurricane:
 
             if j == 0:
                 bailed, out = self.pytc_intensity(
-                    vm, rm, r0, sst, h_a, abs(lat), ahm, sp, 2.0, ut, hm=hm, match='y', vobs=vm, gamma=100_000
+                    vm, rm, r0, sst, h_a, abs(lat), ahm, sp, self.tinit, ut, hm=hm, match='y', vobs=vm, gamma=100_000
                 )
                 pmin, vm, rm = out
 
@@ -114,9 +146,16 @@ class Hurricane:
 
     @staticmethod
     def extract_environment(row):
+        """
+        A helper function to extract the environmental conditions from a row of the input DataFrame of the simulation
+        """
         sst, sp, d2, t2, hm, lat = row.sst, row.sp, row.d2, row.t2, row.hm, row.LAT
-        dsst, gm, max_depth, shear = row.dsst, row.gm, row.max_depth, row.shear
+        #dsst, gm, max_depth, shear = row.dsst, row.gm, row.max_depth, row.shear
+        dsst = gm = max_depth = shear = 0
         ahm, ut, hm = row.rh, row.vfm, row.hm
+
+        dsst = max(dsst, 0)
+        gm = max(gm, 0) * 100
 
         sst = sst - 273.15  # convert K -> C
         sp = sp / 100  # convert Pa -> hPa
@@ -133,6 +172,7 @@ class Hurricane:
             max_depth=np.inf, shear=0
     ):
         """
+        This function runs the simulation for fixed environmental conditions.
 
         Parameters
         ----------
@@ -157,14 +197,13 @@ class Hurricane:
         """
         nrd = 200
 
-        om = 'y' if (self.ocean_mixing and (max_depth >= 200)) else 'n' # ocean mixing on
+        om = 'y' if (self.ocean_mixing and (not np.isnan(gm))) else 'n'  # ocean mixing on
         to = -75  # environmental temp at top of tc Celsius
         tshear = 0  # time until shear days
         vext = shear if self.use_shear else 0.0  # wind shear m/s
         tland = 200  # time until land
         surface = 'pln'  # type of land
         hs = 0  # swamp depth
-        ro = 1200  # radius of model boundary km
         cd = 0.8  # drag coefficient
         cd1 = 4  # drag coefficient rate of change w/ windspeed
         cdcap = 3  # max drag
@@ -175,8 +214,13 @@ class Hurricane:
         tauc = 2  # convective relation time scale
         efrac = self.efrac  # fraction of convective entropy detrained into lower
         dpb = 50  # boundary layer depth
-        nr = 75  # numer of radial nodes
         dt = self.dt  # time step in seconds
+
+        # scale ro to conserve angular momentume = 0.5 * f * ro ** 2
+        ro = self.ro / np.sqrt(np.sin(alat * np.pi / 180.) / np.sin(10 * np.pi / 180.))
+
+        dr = (ro * 1000) / float(self.nr - 2)
+        r = np.arange(self.nr) * dr
 
         # normalise
         h_a *= 0.01
@@ -184,6 +228,7 @@ class Hurricane:
         cd *= 0.001
         gm *= 0.01
 
+        # normalisation parameters
         es = 6.112 * np.exp(17.67 * ts / (243.5 + ts))
         qs = 0.622 * es / pa
         tsa = ts + 273.15
@@ -208,15 +253,18 @@ class Hurricane:
         amix = (2. * ric * chi / (9.8 * 3.3e-4 * gm)) * 1.0e-6 * (287. * tsa / 9.8) ** 2 * (delp / pa) ** 2 * amixfac ** 4
         amix = sqrt(amix)
 
+        v1 = 0.5 * f * (r * r - self.rbs2[:self.nr]) / np.sqrt(self.rbs2[:self.nr])
+
         for arr in (self.x1, self.xs1, self.xm1, self.x2, self.xs2, self.xm2):
             arr /= chi
 
         for arr in (self.rbs1, self.rts1, self.rbs2, self.rts2):
-            arr /= np.sqrt(chi) / f
+            arr /= (np.sqrt(chi) / f) ** 2
 
         for arr in (self.mu1, self.mu2):
             arr /= cd * np.sqrt(chi)
 
+        # print(vm, float(v1[1:].max()), alat)
         self.hmix *= amixfac
         self.uhmix1 *= (amixfac ** 2) / (amix * np.sqrt(gm))
         self.uhmix2 *= (amixfac ** 2) / (amix * np.sqrt(gm))
@@ -230,7 +278,7 @@ class Hurricane:
         tc_intensity(
             nrd, tend, vm,
             rm, r0, ts, to, h_a, alat, tshear, vext, tland, surface,
-            hs, om, ut, nr, dt, ro, ahm, pa, cd, cd1, cdcap,
+            hs, om, ut, self.nr, dt, ro, ahm, pa, cd, cd1, cdcap,
             cecd, pnu, taur, radmax, tauc, efrac, dpb, hm, dsst, gm, out,
             self.rbs1, self.rts1, self.x1, self.xs1, self.xm1, self.mu1,
             self.rbs2, self.rts2, self.x2, self.xs2, self.xm2, self.mu2,
@@ -250,7 +298,7 @@ class Hurricane:
             arr *= chi
 
         for arr in (self.rbs1, self.rts1, self.rbs2, self.rts2):
-            arr *= np.sqrt(chi) / f
+            arr *= (np.sqrt(chi) / f) ** 2
 
         for arr in (self.mu1, self.mu2):
             arr *= cd * np.sqrt(chi)
@@ -258,6 +306,9 @@ class Hurricane:
         self.hmix /= amixfac
         self.uhmix1 /= (amixfac ** 2) / (amix * np.sqrt(gm))
         self.uhmix2 /= (amixfac ** 2) / (amix * np.sqrt(gm))
+
+        v = 0.5 * f * (r * r - self.rbs2[:self.nr]) / np.sqrt(self.rbs2[:self.nr])
+        # print(v[1:self.nr].max(), out[1], "\n")
 
         return bailed, out
 
@@ -277,6 +328,7 @@ def find_dP(vmax, lat):
 
 def fit_profile(temp, depth, mld):
     ml_mask = depth <= mld
+
     dl_mask = (~ml_mask) & (depth <= mld + 200)
     gm, *_ = linregress(depth[dl_mask], temp[dl_mask])
 
@@ -304,14 +356,20 @@ if __name__ == "__main__":
     rh = np.load(os.path.join(DATA_DIR, "tc_intensity_rh.npy"))
     temp = np.load(os.path.join(DATA_DIR, "tc_intensity_temp_profile.npy"))
     shear = np.load(os.path.join(DATA_DIR, "tc_intensity_windshear.npy"))
-    depth = temp_profiles[0, :51]
+    depth = temp[0, :51]
     temp = temp[:, 51:]
 
     gms = []
     dssts = []
     max_depths = []
     for i in range(temp.shape[0]):
-        gm, dsst, max_depth = fit_profile(temp[i], depth, mld[i])
+        if np.isnan(mld[i]):
+            gm, dsst, max_depth = 0, 0, 0
+        else:
+            gm, dsst, max_depth = fit_profile(temp[i], depth, mld[i])
+        gms.append(gm)
+        dssts.append(dsst)
+        max_depths.append(max_depth)
 
     mslpFile = os.path.join(TCRM_PATH, "MSLP", "slp.day.ltm.nc")
     mslp = SamplePressure(mslpFile)
@@ -334,32 +392,21 @@ if __name__ == "__main__":
     idx = 0
     verbose = False
     for name, g in list(df.groupby('DISTURBANCE_ID'))[:]:
+        verbose = False
         if len(g) == 0:
             continue
-        # if name == 'AU199697_12U':
+        # if name == 'AU200405_10U':
         #     print(name)
-        #     verbose = False
         # else:
-        #     verbose = False
         #     continue
-        hurricane = Hurricane(dt=1.0)
+        hurricane = Hurricane(dt=0.25)
         bailed, out = hurricane.simulate(g, verbose=verbose)
-
-        if len(out) > 0:
-            final_vm = out.vmax.iloc[-1]
-        else:
-            final_vm = -1
-
-        if final_vm == 0:
-            hurricane = Hurricane(dt=1.0)
-            bailed, out = hurricane.simulate(g)
-            if bailed:
-                print(f"{g.iloc[0].DISTURBANCE_ID}: bailed")
+        print("max windspeed:", out.vmax.max())
         out_dfs.append(out)
 
     out_df = pd.concat(out_dfs)
-
-    out_fn = f"predicted_intensity_ocean_mixing{'_shear' if USE_SHEAR else ''}{'_ocean_mixing' if OCEAN_MIXING else ''}_.csv"
+    out_fn = f"predicted_intensity{'_shear' if USE_SHEAR else ''}{'_ocean_mixing' if OCEAN_MIXING else ''}.csv"
+    #out_fn = f"extreme_lmi_0.5.csv"
 
     out_df.to_csv(os.path.join(DATA_DIR, out_fn))
 
