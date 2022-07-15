@@ -10,7 +10,7 @@
 #PBS -joe
 #PBS -lstorage=gdata/w85+scratch/w85+gdata/rt52+gdata/hh5
 
-module use module use /g/data/hh5/public/modules
+module use /g/data/hh5/public/modules
 
 
 module load conda/analysis3
