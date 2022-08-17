@@ -27,7 +27,7 @@ print("Done imports")
 OCEAN_MIXING = False
 USE_SHEAR = False
 SHEAR_CONST = 300.0
-NN = 5
+NN = 10
 
 
 class Hurricane:
@@ -80,7 +80,8 @@ class Hurricane:
 
     def simulate(self, g, verbose=False, freeze=False):
         """
-        Runs the TC simulation for a df of times, locations, and environmental conditions
+        Runs the TC simulation for a df of times, locations, and environmental conditions.
+        The simulation is run until landfall.
 
         Params:
             g (DataFrame): a DataFrame contain the times, locations, and environmental conditions of the TC track
@@ -139,7 +140,6 @@ class Hurricane:
             # smoother than jumping to the next time step (usually 6 hrs in the future)
             n = NN
             for ii in range(n):
-                ii = 0
                 sst = sst0 + (sst1 - sst0) * (ii / n)
                 lat = lat0 + (lat1 - lat0) * (ii / n)
                 h_a = h_a0 + (h_a1 - h_a0) * (ii / n)
@@ -443,7 +443,7 @@ if __name__ == "__main__":
         out_dfs.append(out)
 
     out_df = pd.concat(out_dfs)
-    out_fn = f"predicted_intensity{f'_shear_{SHEAR_CONST}' if USE_SHEAR else ''}{'_ocean_mixing' if OCEAN_MIXING else ''}.csv"
+    out_fn = f"smooth_predicted_intensity{f'_shear_{SHEAR_CONST}' if USE_SHEAR else ''}{'_ocean_mixing' if OCEAN_MIXING else ''}.csv"
     #out_fn = f"extreme_lmi_0.5.csv"
 
     out_df.to_csv(os.path.join(DATA_DIR, out_fn))

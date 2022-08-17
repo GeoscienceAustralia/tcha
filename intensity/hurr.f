@@ -1,4 +1,5 @@
-
+!     this is adapted from Emanuel's hurricane code - the only apdations have been to wrap
+!     the code in a function for interoperation with Python
       subroutine tc_intensity(nrd, time, vm,
      & rm, r0, ts, to, h_a, alat, tshear, vext, tland, surface,
      & hs, om, ut, nr,
