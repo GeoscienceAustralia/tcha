@@ -25,7 +25,7 @@ from Utilities.loadData import getPoci
 print("Done imports")
 
 OCEAN_MIXING = False
-USE_SHEAR = True
+USE_SHEAR = False
 SHEAR_CONST = 300.0
 NN = 5
 
@@ -65,7 +65,7 @@ class Hurricane:
 
         self.ro = 1200 # km
         self.v = np.zeros(200, dtype=np.float32)
-        self.nr = 75
+        self.nr = 75 # number of radial points - this be upto 200
 
         self.init = 'y'
         self.diagnostic = np.zeros(200, dtype=np.float32)
@@ -135,6 +135,8 @@ class Hurricane:
                 g.loc[g.index[j + 1]]
             )
 
+            # gradually change environment conditions between time steps
+            # smoother than jumping to the next time step (usually 6 hrs in the future)
             n = NN
             for ii in range(n):
                 ii = 0
@@ -153,10 +155,7 @@ class Hurricane:
                     vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend / n, 
                     ut, hm=hm, gm=gm, dsst=dsst, shear=shear,
                 )
-                print((
-                    vm, rm, r0, sst, h_a, abs(lat), ahm, sp, tend / n,
-                    ut, hm, gm, dsst, shear,
-                ))
+
                 any_bailed |= bailed
                 pmin, vm, rm = out[0], out[1], out[2]
 
@@ -433,21 +432,21 @@ if __name__ == "__main__":
         verbose = False
         if len(g) == 0:
             continue
-        if name == 'AU199394_01U':
-            print(name)
-            verbose=True
-        else:
-            continue
+        # if name == 'AU199394_01U':
+        #     print(name)
+        #     verbose=True
+        # else:
+        #     continue
         hurricane = Hurricane(dt=1.0, ocean_mixing=OCEAN_MIXING, use_shear=USE_SHEAR, shear_const=SHEAR_CONST)
         bailed, out = hurricane.simulate(g, verbose=verbose)
         print("max windspeed:", out.vmax.max())
         out_dfs.append(out)
 
     out_df = pd.concat(out_dfs)
-    out_fn = f"test_smooth_{NN}_predicted_intensity{f'_shear_{SHEAR_CONST}' if USE_SHEAR else ''}{'_ocean_mixing' if OCEAN_MIXING else ''}.csv"
+    out_fn = f"predicted_intensity{f'_shear_{SHEAR_CONST}' if USE_SHEAR else ''}{'_ocean_mixing' if OCEAN_MIXING else ''}.csv"
     #out_fn = f"extreme_lmi_0.5.csv"
 
-    # out_df.to_csv(os.path.join(DATA_DIR, out_fn))
+    out_df.to_csv(os.path.join(DATA_DIR, out_fn))
 
     print(land_count)
     print("Time: ", (time.time() - t0), "s")
