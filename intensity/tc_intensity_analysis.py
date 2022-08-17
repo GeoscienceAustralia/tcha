@@ -443,7 +443,7 @@ if __name__ == "__main__":
         out_dfs.append(out)
 
     out_df = pd.concat(out_dfs)
-    out_fn = f"smooth_predicted_intensity{f'_shear_{SHEAR_CONST}' if USE_SHEAR else ''}{'_ocean_mixing' if OCEAN_MIXING else ''}.csv"
+    out_fn = f"predicted_intensity{f'_shear_{SHEAR_CONST}' if USE_SHEAR else ''}{'_ocean_mixing' if OCEAN_MIXING else ''}.csv"
     #out_fn = f"extreme_lmi_0.5.csv"
 
     out_df.to_csv(os.path.join(DATA_DIR, out_fn))
