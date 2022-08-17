@@ -5,10 +5,10 @@
      & dt, ro, ahm, pa, cd, cd1, cdcap,
      & cecd, pnu, taur, radmax, tauc, efrac, dpb, hm, dsst, gm, xx,
      & rbs1, rts1, x1, xs1, xm1, mu1, rbs2, rts2, x2, xs2,
-     & xm2, mu2, uhmix1, uhmix2, sst1, sst2, hmix, init,
-     & match, vobs, gconst, diagnostic)
+     & xm2, mu2, uhmix1, uhmix2, sst1, sst2, ps2, ps3, hmix, init,
+     & match, vobs, gconst, shearconst, diagnostic)
 
-      real h_a, meq, mf, mt, mumax, mdmin, vobs, gconst
+      real h_a, meq, mf, mt, mumax, mdmin, vobs, gconst, shearconst
       real time, vm,rm,r0,ts,to,alat,tland,tshear,vext,ut
       real eddytime,rwide,ro,ahm,pa,cd,cd1,cdcap,cecd,pnu,taur
       real radmax,tauc,efrac,dsst,gm,hs,hm,heddy
@@ -187,19 +187,23 @@ c
       do i=2,nr
         xs1(i)=xs1(i)-xs1(nr)
         xs2(i)=xs1(i)
+        ps2(i)=0.0
+        ps3(i)=0.0
       end do
+      ps3(1)=0.0
+      ps2(1)=0.0
 c
 c
       end if
 
       do 75 i=2,nr
         rb1(i)=sqrt(rbs1(i))
+!       ps2(i)=0
         rb2(i)=rb1(i)
         rt1(i)=sqrt(rts1(i))
         xvis(i)=0.0
         xmvis(i)=0.0
-        ps2(i)=0.0
-        ps3(i)=0.0
+!       ps3(i)=0.0
         p(i)=0.0
 c	 if((rb2(i)*0.001*alength).lt.100.0)then
 c	  xm1(i)=xs1(i)
@@ -210,8 +214,6 @@ c       end if
       ps0(1)=0.0
       vis(1)=0.0
       rmm2(1)=0.0
-      ps3(1)=0.0
-      ps2(1)=0.0
 
       gb(1)=0.0
 c
@@ -229,6 +231,7 @@ c
       tt=tt+dt
 
       if(tt.gt.time)goto 705
+      ntt=ntt+1
 c
 c            *** set boundary values for and advection terms ***
 c
@@ -653,7 +656,7 @@ c	xmf=(efrac*mu2(i)+wxm)*(x1(i)-xm1(i))-(xs1(i)-xm1(i))*
 c     1   (ps2(i)-ps2(i-1))/(rms2(i)-rms2(i-1))
       xmf=efrac*(mu2(i)+wxm)*(x1(i)-xm1(i))
       xmf=xmf+xmvis(i)-rad1*xs1(i)*(0.75*gratb+0.25)
-      xmf=xmf-300.*vext*(xm1(i)-xm0)
+      xmf=xmf-shearconst*vext*(xm1(i)-xm0)
       if (match.eq.'y') then
         xmf = xmf + gconst * (vobs - vmax) * (xm1(i)-xm0)
       end if
@@ -682,6 +685,13 @@ c
 c  ***    bail out if r**2 is negative   ***
 
       if (rbs3(i).lt.0.0) then
+!     print *, "Aborting! Negative radius"
+!     print *, rbs3(i)
+!     print *, rbs1(i)
+!     print *, rbf
+!     print *, i
+!     print *, xm1(i)-xm0
+!     print *, ps0(i), vis(i), ps2(i), gb(i)
       xx(4) = 1
       goto 710
       end if
@@ -750,7 +760,7 @@ c
       xx(1) = pmin
       xx(2) = vmax * schi
       xx(3) = rmax * schi * 0.001 / FC
-!      print *, "Actual sim time: ", (tt-dt)*atime / (3600*24)
+!     print *, "Actual sim time: ", (tt-dt)*atime / (3600*24), ntt
 !      print *, "pmin: ", pmin
 
       end
