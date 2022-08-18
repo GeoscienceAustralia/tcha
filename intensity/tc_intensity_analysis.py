@@ -23,8 +23,16 @@ from TrackGenerator.TrackGenerator import SamplePressure
 from Utilities.loadData import getPoci
 
 print("Done imports")
-
-OCEAN_MIXING = False
+###########
+########
+####
+# Change this path
+###
+########
+###########
+DATA_DIR = os.path.expanduser("~/geoscience/data")
+# DATA_DIR = /g/data/w85/tc_intensity_data
+OCEAN_MIXING = True
 USE_SHEAR = False
 SHEAR_CONST = 300.0
 NN = 10
@@ -63,9 +71,9 @@ class Hurricane:
         self.ps2 = np.zeros(200, dtype=np.float32)
         self.ps3 = np.zeros(200, dtype=np.float32)
 
-        self.ro = 1200 # km
+        self.ro = 1200 # model boundary in km
         self.v = np.zeros(200, dtype=np.float32)
-        self.nr = 75 # number of radial points - this be upto 200
+        self.nr = 75 # number of radial points - this be up to 200
 
         self.init = 'y'
         self.diagnostic = np.zeros(200, dtype=np.float32)
@@ -235,6 +243,7 @@ class Hurricane:
         -------
 
         """
+        # default simulation parameters
         nrd = 200
 
         om = 'y' if (self.ocean_mixing and (not np.isnan(gm))) else 'n'  # ocean mixing on
@@ -299,6 +308,8 @@ class Hurricane:
         tma = tm + 273.15
         xm0 = 2.5e6 * (ts - to) * qsm * (ahm - 1.) / tma
         self.xm0 = xm0
+
+        # normalise the simulation variables
         for arr in (self.x1, self.xs1, self.xm1, self.x2, self.xs2, self.xm2):
             arr /= chi
         #
@@ -318,6 +329,8 @@ class Hurricane:
         cd /= 0.001
         gm /= 0.01
         vobs /= np.sqrt(chi)
+
+        # actually run the simulation
         out = np.zeros(4, dtype=np.float32)
         tc_intensity(
             nrd, tend, vm,
@@ -335,6 +348,9 @@ class Hurricane:
         self.init = 'n'
 
         cd *= 0.001
+        gm *= 0.01
+
+        # un-normalise variables
         for arr in (self.x1, self.xs1, self.xm1, self.x2, self.xs2, self.xm2):
             arr *= chi
         #
@@ -386,8 +402,6 @@ if __name__ == "__main__":
         125,  150,  175,  200,  225,  250,  300,  350,  400,  450,  500,
         550,  600,  650,  700,  750,  775,  800,  825,  850,  875,  900,
         925,  950,  975, 1000], dtype=np.float32)
-
-    DATA_DIR = os.path.expanduser("~/geoscience/data")
 
     df = load_otcr_df(DATA_DIR)
 
