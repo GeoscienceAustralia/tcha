@@ -17,5 +17,6 @@ Compile the code:
 
 `f2py3 -m hurr -c hurr.f`
 
-Next run `intensity_analysis.py`, being careful to change the filepaths.
-
+Next run `intensity_analysis.py`, being careful to change the filepaths. Note that `tcrm` 
+will have to be added to the python path and the module `global_land_mask` 
+will need to be installed.
