@@ -30,7 +30,7 @@ print("Done imports")
 ###
 ########
 ###########
-DATA_DIR = os.path.expanduser("~/geoscience/data")
+DATA_DIR = "/g/data/w85/tc_intensity_data"
 # DATA_DIR = /g/data/w85/tc_intensity_data
 OCEAN_MIXING = True
 USE_SHEAR = False

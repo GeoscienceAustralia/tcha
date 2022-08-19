@@ -17,7 +17,7 @@ pres_lvls = np.array([ 1,    2,    3,    5,    7,   10,   20,   30,   50,   70, 
     550,  600,  650,  700,  750,  775,  800,  825,  850,  875,  900,
     925,  950,  975, 1000], dtype=np.float32)
 
-DATA_DIR = os.path.expanduser("~/geoscience/data")
+DATA_DIR = "/g/data/w85/tc_intensity_data"
 
 df = load_otcr_df(DATA_DIR)
 
