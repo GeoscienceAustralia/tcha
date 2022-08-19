@@ -13,7 +13,7 @@ with warnings.catch_warnings():
 
 
 geodesic = pyproj.Geod(ellps='WGS84')
-DATA_DIR = os.path.expanduser("~")
+DATA_DIR = "/g/data/w85/tc_intensity_data"
 
 
 def load_otcr_df(data_dir=None):

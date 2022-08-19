@@ -7,7 +7,7 @@ from tqdm import tqdm
 from era5_extract import load_otcr_df
 
 
-DATA_DIR = os.path.expanduser("~")
+DATA_DIR = "/g/data/w85/tc_intensity_data"
 # pressure levels
 # array([   1,    2,    3,    5,    7,   10,   20,   30,   50,   70,  100,
 #         125,  150,  175,  200,  225,  250,  300,  350,  400,  450,  500,

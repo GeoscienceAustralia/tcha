@@ -10,7 +10,7 @@ from math import ceil
 from mpi4py import MPI
 
 
-DATA_DIR = os.path.expanduser("~")
+DATA_DIR = "/g/data/w85/tc_intensity_data"
 
 
 def load_data(time, lat, lon):

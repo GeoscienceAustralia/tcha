@@ -8,7 +8,7 @@ from era5_extract import load_otcr_df
 from scipy.stats import linregress
 
 
-DATA_DIR = os.path.expanduser("~")
+DATA_DIR = "/g/data/w85/tc_intensity_data"
 
 
 def load_data(time, lat, lon):
