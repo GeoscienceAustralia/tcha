@@ -9,7 +9,7 @@
 #PBS -l mem=96GB,ncpus=48,jobfs=4000MB
 #PBS -W umask=0002
 #PBS -joe
-#PBS -l storage=gdata/hh5+gdata/gb6
+#PBS -l storage=gdata/hh5+gdata/gb6+gdata/w85
 
 module purge
 
