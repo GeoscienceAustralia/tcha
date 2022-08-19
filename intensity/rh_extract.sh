@@ -9,12 +9,12 @@
 #PBS -l mem=50GB,ncpus=1,jobfs=4000MB
 #PBS -W umask=0002
 #PBS -joe
-#PBS -l storage=gdata/v10+gdata/rt52
+#PBS -l storage=gdata/hh5+gdata/rt52
 
 module purge
 
-module use /g/data/v10/public/modules/modulefiles
-module load dea/20210527
+module use /g/data/hh5/public/modules
+module load conda/analysis3
 
 cd $HOME/tcha/intensity
 export OMP_NUM_THREADS=1

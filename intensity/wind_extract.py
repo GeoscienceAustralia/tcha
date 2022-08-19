@@ -3,7 +3,6 @@ from calendar import monthrange
 import numpy as np
 import pandas as pd
 import os
-import pyproj
 from tqdm import tqdm
 from era5_extract import load_otcr_df
 

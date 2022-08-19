@@ -1,6 +1,3 @@
-import os
-import sys
-sys.path.append(os.path.expanduser("~/geoscience/repos/tcha"))
 from intensity.tc_intensity_analysis import find_dP, Hurricane
 
 
