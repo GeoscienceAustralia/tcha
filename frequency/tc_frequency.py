@@ -62,7 +62,7 @@ def regression_trend(numbers, start_year, end_year):
     value for each regression.
     """
     years = pd.to_datetime([datetime(y, 1, 1) for y in range(start_year, end_year+1)])
-    results = pd.DataFrame(columns=['slope', 'intercept', 'rsq', 'mean'],
+    results = pd.DataFrame(columns=['slope', 'intercept', 'rsq', 'mean', 'var'],
                            index=years)
     for year in years:
         idx = numbers.index >= year.year
@@ -74,7 +74,8 @@ def regression_trend(numbers, start_year, end_year):
         intercept = model.intercept_
         r_sq = model.score(x, y)
         mean = y.mean()
-        results.loc[year] = [slope, intercept, r_sq, mean]
+        var =y.var()
+        results.loc[year] = [slope, intercept, r_sq, mean, var]
 
     return results
 
@@ -335,4 +336,20 @@ plt.text(0.0, -0.1, "Source: http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv",
 plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=ax[1].transAxes, fontsize='xx-small', ha='right')
 plt.savefig(pjoin(outputPath, "TC_trends.png"), bbox_inches='tight')
+
+fig, ax = plt.subplots(1, 1, figsize=(10, 6), sharex=True)
+fig.patch.set_facecolor('white')
+
+ax.plot(rdf.index, rdf['mean'], label="Mean frequency")
+ax.set_ylabel("Mean [TCs/year] / Variance")
+ax.grid(True)
+ax.plot(rdf.index, rdf['var'], label='Variance')
+ax.legend(fontsize='small')
+ax.xaxis.set_major_locator(locator)
+ax.xaxis.set_major_formatter(formatter)
+plt.text(0.0, -0.1, "Source: http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv",
+         transform=ax.transAxes, fontsize='xx-small', ha='left',)
+plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
+         transform=ax.transAxes, fontsize='xx-small', ha='right')
+plt.savefig(pjoin(outputPath, "TC_trends_mean_var.png"), bbox_inches='tight')
 rdf.to_csv(pjoin(outputPath, "regression_trend.csv"))
