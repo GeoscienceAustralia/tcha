@@ -14,7 +14,7 @@ from scipy.stats import linregress
 
 import sys
 
-TCRM_PATH = os.path.expanduser("~/geoscience/repos/tcrm")
+TCRM_PATH = os.path.expanduser("~/tcrm")
 sys.path.append(TCRM_PATH)
 from wind.windmodels import PowellWindProfile
 from PressureInterface.pressureProfile import PrsProfile
@@ -453,7 +453,7 @@ if __name__ == "__main__":
         #     continue
         hurricane = Hurricane(dt=1.0, ocean_mixing=OCEAN_MIXING, use_shear=USE_SHEAR, shear_const=SHEAR_CONST)
         bailed, out = hurricane.simulate(g, verbose=verbose)
-        print("max windspeed:", out.vmax.max())
+        print(f"{name} max windspeed: {out.vmax.max():.2f}")
         out_dfs.append(out)
 
     out_df = pd.concat(out_dfs)
