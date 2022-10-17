@@ -4,7 +4,7 @@
 #PBS -qnormal
 #PBS -N temp_extract
 #PBS -m abe
-#PBS -M kieran.ricardo@ga.gov.au
+#PBS -M craig.arthur@ga.gov.au
 #PBS -l walltime=1:30:00
 #PBS -l mem=96GB,ncpus=48,jobfs=4000MB
 #PBS -W umask=0002
