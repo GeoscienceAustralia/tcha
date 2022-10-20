@@ -57,6 +57,7 @@
 # (`pm.sample()`) are made within a "if __name__ == '__main__':" clause, the
 # interpreter will try to create a new process from scratch. This isn't a
 # problem if the code is run in a Jupyter notebook, or on another platform.
+# See https://discourse.pymc.io/t/error-during-run-sampling-method/2522/6
 
 from os.path import join as pjoin
 import pymc as pm
@@ -252,17 +253,37 @@ plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
 plt.savefig(pjoin(
     outputPath, "seasonal_frequency_linear_posterior_predictive.png"), bbox_inches='tight')
 
-# The issue is here that the trend is negative (in this case approximately -0.07 TCs/year/year). This implies that at some point in the future, the TC count will be negative, which is not plausible. The probability of no trend is quite small - it's only just within the 90% credible range. Now there are a range of issues with this assumption (that the trend will not change), but we can explore other options and evaluate which model is most suitable given the available data.
+# The issue is here that the trend is negative (in this case approximately
+# -0.07 TCs/year/year). This implies that at some point in the future, the TC
+# count will be negative, which is not plausible. The probability of no trend
+# is quite small - it's only just within the 90% credible range. Now there are
+# a range of issues with this assumption (that the trend will not change), but
+# we can explore other options and evaluate which model is most suitable given
+# the available data.
 #
-# We next try an exponential function for the rate parameter. Again, $t$ is taken as $t_0 = 1981$.
+# We next try an exponential function for the rate parameter. Again, $t$ is
+# taken as $t_0 = 1981$.
 #
 # $\lambda = \alpha \exp(\mu t)$
 #
-# In this case, the decay rate ($\mu$) is negative (median = -0.0069, 90% credible range -0.013 -- -0.0001). The (admittedly small) advantage is that the rate parameter $\lambda$ should not become negative, rather just approaching zero some time off into the future -- but only if the decay rate $\mu < 0$, which we cannot exclude given the 90% CI for $\mu$ only just excludes 0.
+# In this case, the decay rate ($\mu$) is negative (median = -0.0069, 90%
+# credible range -0.013 -- -0.0001). The (admittedly small) advantage is that
+# the rate parameter $\lambda$ should not become negative, rather just
+# approaching zero some time off into the future -- but only if the decay rate
+# $\mu < 0$, which we cannot exclude given the 90% CI for $\mu$ only just
+# excludes 0.
 #
-# In both these models, we cannot reject the null hypothesis of no trend in the Poison rate parameter $\lambda$. Both provide strong evidence that the trend (over the period 1981-2020) is negative, but it does not provide evidence to reject the zero trend. Looking at different time spans will lead to different conclusions, since the underlying data will be different, reflecting the evolution of observing practices.
+# In both these models, we cannot reject the null hypothesis of no trend in
+# the Poison rate parameter $\lambda$. Both provide strong evidence that the
+# trend (over the period 1981-2020) is negative, but it does not provide
+# evidence to reject the zero trend. Looking at different time spans will
+# lead to different conclusions, since the underlying data will be different
+#  reflecting the evolution of observing practices.
 #
-# However, we can use these models to simulate a large number of samples of TC rates that are representative of the observed rate. Sampling from the posterior predictive distributions, we can create as many years of samples as we need, which still retain any trend information.
+# However, we can use these models to simulate a large number of samples of TC
+# rates that are representative of the observed rate. Sampling from the
+# posterior predictive distributions, we can create as many years of samples
+# as we need, which still retain any trend information.
 
 with pm.Model() as model:
     alpha = pm.Normal('alpha', mu=tccount.mean(), sigma=np.std(tccount))
@@ -275,7 +296,8 @@ with pm.Model() as model:
     etrace.extend(pm.sample_posterior_predictive(etrace))
 
 
-# Plot the trace of the alpha and mu parameters, including 90th percentile credible interval lines
+# Plot the trace of the alpha and mu parameters, including 90th percentile
+# credible interval lines
 
 axes = az.plot_trace(etrace, compact=True, var_names=(
     'alpha', 'mu'), legend=True, divergences='top',)
@@ -311,13 +333,21 @@ plt.tight_layout()
 plt.savefig(pjoin(outputPath, "exponential_posterior_trace.png"),
             bbox_inches='tight')
 
-# Here we plot the linear(ish) model of the Poisson rate parameter, along with the credible interval of rates sampled from the posterior distribution. We can add in predictive samples to demonstrate the range of plausible annual TC rates that are consistent with the observed record. In the figure below, the green dashed line represents the rate parameter $\lambda$ estimated from the median result of the posterior distributions, with the corresponding credible interval in grey. The orange band is the credible range, based on posterior predictive samples. The black bars are the observed TC counts.
+# Here we plot the linear(ish) model of the Poisson rate parameter, along with
+# the credible interval of rates sampled from the posterior distribution. We
+# can add in predictive samples to demonstrate the range of plausible annual
+# TC rates that are consistent with the observed record. In the figure below,
+# the green dashed line represents the rate parameter $\lambda$ estimated from
+# the median result of the posterior distributions, with the corresponding
+# credible interval in grey. The orange band is the credible range, based on
+# posterior predictive samples. The black bars are the observed TC counts.
 
 etrace.posterior['ymodel'] = etrace.posterior['alpha'] * \
     np.exp(etrace.posterior['mu'] * xr.DataArray(years))
 _, ax = plt.subplots(figsize=(12, 6))
-az.plot_lm(idata=etrace, y="obs",  num_samples=100, axes=ax, y_model='ymodel', kind_pp="hdi",
-           kind_model='hdi', y_model_mean_kwargs={"lw": 2, "color": 'g', 'ls': '--'},
+az.plot_lm(idata=etrace, y="obs",  num_samples=100, axes=ax, y_model='ymodel',
+           kind_pp="hdi", kind_model='hdi',
+           y_model_mean_kwargs={"lw": 2, "color": 'g', 'ls': '--'},
            y_kwargs={'marker': None, 'color': '0.75', 'label': '_obs'},
            y_model_fill_kwargs={'alpha': 0.25})
 ax.bar(years, tccount.values, fc='0.9', ec='k', zorder=0)
@@ -333,7 +363,8 @@ plt.text(-0.05, -0.1, f"Source:\n{source}",
 plt.text(1.0, -0.1, f"Created: \n{datetime.now():%Y-%m-%d %H:%M}",
          transform=ax.transAxes, fontsize='xx-small', ha='right', va='top')
 plt.savefig(pjoin(
-    outputPath, "seasonal_frequency_exponential_posterior_predictive.png"), bbox_inches='tight')
+    outputPath, "seasonal_frequency_exponential_posterior_predictive.png"),
+    bbox_inches='tight')
 
 
 fig, ax = plt.subplots(1, 1)
@@ -351,6 +382,8 @@ fig.tight_layout()
 plt.savefig(pjoin(
     outputPath, "seasonal_frequency_linear_posterior_sample.png"), bbox_inches='tight')
 
-# Finally, to determine the most suitable model, we use leave-one-out (LOO) cross validation. For our current model choices, the results are almost indistiguishable.
+# Finally, to determine the most suitable model, we use leave-one-out (LOO)
+# cross-validation. For our current model choices, the results are almost
+# indistiguishable.
 print(f"Linear: {az.loo(ltrace).loo:.2f}")
 print(f"Exponential: {az.loo(etrace).loo:.2f}")
