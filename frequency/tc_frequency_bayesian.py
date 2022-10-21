@@ -82,11 +82,11 @@ from datetime import datetime
 # enter the Australian area of responsibility.
 #
 # We have calculated the seasonal frequency separately, and only need to load
-# the data.
+# the data. The required files can be generated using tc_frequency.py
 
-inputPath = r"X:\georisk\HaRIA_B_Wind\projects\tcha\data\derived\tcfrequency"
+inputPath = r"..\data\frequency"
 source = "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv"
-outputPath = r"X:\georisk\HaRIA_B_Wind\projects\tcha\data\derived\tcfrequency"
+outputPath = r"..\data\frequency"
 
 dataFile = pjoin(inputPath, r"all_tcs.csv")
 df = pd.read_csv(dataFile)
@@ -115,7 +115,7 @@ with pm.Model() as mmodel:
     lambda_ = pm.Normal("lambda", mu=tccount.mean(), sigma=np.std(tccount))
     observation = pm.Poisson("obs", lambda_, observed=tccount.values)
     step = pm.Metropolis()
-    mtrace = pm.sample(20000, tune=5000, step=step, return_inferencedata=True, cores=1)
+    mtrace = pm.sample(20000, tune=10000, step=step, return_inferencedata=True, chains=4, cores=1)
     mtrace.extend(pm.sample_posterior_predictive(mtrace))
 
 # The median rate from this process is 10.6 and the 90% credible interval is
@@ -190,7 +190,7 @@ with pm.Model() as lmodel:
     lambda_ = alpha + beta * years
     observation = pm.Poisson("obs", lambda_, observed=tccount.values)
     step = pm.Metropolis()
-    ltrace = pm.sample(20000, tune=5000, step=step, return_inferencedata=True, cores=1)
+    ltrace = pm.sample(20000, tune=10000, step=step, return_inferencedata=True, chains=4, cores=1)
     ltrace.extend(pm.sample_posterior_predictive(ltrace))
 
 # Plot the trace of the alpha and beta parameters, including 90th percentile
@@ -292,7 +292,7 @@ with pm.Model() as model:
     observation = pm.Poisson("obs", lambda_, observed=tccount.values)
 
     step = pm.Metropolis()
-    etrace = pm.sample(20000, tune=5000, step=step, return_inferencedata=True, cores=1)
+    etrace = pm.sample(20000, tune=10000, step=step, return_inferencedata=True, chains=4, cores=1)
     etrace.extend(pm.sample_posterior_predictive(etrace))
 
 
@@ -385,5 +385,6 @@ plt.savefig(pjoin(
 # Finally, to determine the most suitable model, we use leave-one-out (LOO)
 # cross-validation. For our current model choices, the results are almost
 # indistiguishable.
+print(f"Mean: {az.loo(mtrace).loo:.2f}")
 print(f"Linear: {az.loo(ltrace).loo:.2f}")
 print(f"Exponential: {az.loo(etrace).loo:.2f}")
