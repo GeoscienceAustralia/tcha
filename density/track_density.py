@@ -1,7 +1,7 @@
 """
 This script calculates and plots the mean annual TC frequency in a grid across the simulation domain.
 
-Runs both the main BoM best track and the Objective TC Reanalysis dataset (Courtney et. al. 2018). 
+Runs both the main BoM best track and the Objective TC Reanalysis dataset (Courtney et. al. 2018).
 
 Data are stored in a netcdf file (both mean annual frequency and total TC count per grid cell)
 
@@ -20,8 +20,8 @@ from shapely.geometry import LineString, Point, Polygon, box as sbox
 from cartopy import crs as ccrs
 import matplotlib.pyplot as plt
 import seaborn as sns
-colorseq=['#FFFFFF', '#ceebfd', '#87CEFA', '#4969E1', '#228B22', 
-          '#90EE90', '#FFDD66', '#FFCC00', '#FF9933', 
+colorseq=['#FFFFFF', '#ceebfd', '#87CEFA', '#4969E1', '#228B22',
+          '#90EE90', '#FFDD66', '#FFCC00', '#FF9933',
           '#FF6600', '#FF0000', '#B30000', '#73264d']
 cmap = sns.blend_palette(colorseq, as_cmap=True)
 
@@ -55,7 +55,7 @@ def filter_tracks_domain(df, minlon=90, maxlon=180, minlat=-40, maxlat=0,
     :param float minlat: minimum latitude of the bounding box (default=-40)
     :param float maxlon: maximum longitude of the bounding box (default=180)
     :param float maxlat: maximum latitude of the bounding box (default=0)
-    :param str idcode: Name of the 
+    :param str idcode: Name of the
     """
 
     domain = sbox(minlon, minlat, maxlon, maxlat, ccw=False)
@@ -66,7 +66,7 @@ def filter_tracks_domain(df, minlon=90, maxlon=180, minlat=-40, maxlat=0,
 
 def createGrid(xmin, xmax, ymin, ymax, wide, length):
     """
-    Create a uniform grid across a specified extent, returning a 
+    Create a uniform grid across a specified extent, returning a
     `gpd.GeoDataFrame` of the grid to facilitate a spatial join process.
 
     :param float xmin: minimum longitude of the grid
@@ -84,15 +84,15 @@ def createGrid(xmin, xmax, ymin, ymax, wide, length):
     polygons = []
     for x, y in product(cols[:-1], rows[:-1]):
         polygons.append(
-            Polygon([(x, y), (x + wide, y), 
-                     (x + wide, y + length), 
+            Polygon([(x, y), (x + wide, y),
+                     (x + wide, y + length),
                      (x, y + length)]))
     gridid = np.arange(len(polygons))
     grid = gpd.GeoDataFrame({'gridid': gridid,
                              'geometry': polygons})
     return grid
 
-def gridDensity(tracks: gpd.GeoDataFrame, grid: gpd.GeoDataFrame, 
+def gridDensity(tracks: gpd.GeoDataFrame, grid: gpd.GeoDataFrame,
                 grid_id_field: str, storm_id_field: str):
     """
     Calculate the count of events passing across each grid cell
@@ -113,7 +113,7 @@ def gridDensityBootstrap(tracks: gpd.GeoDataFrame, grid: gpd.GeoDataFrame,
     """
     seasons = tracks.season
     # Remember we are leaving out one season each time...
-    nseasons = seasons.max() - seasons.min() - 2
+    nseasons = seasons.max() - seasons.min()
     outframes = []
     for season in seasons.unique():
         dfcount = gridDensity(tracks[tracks.season!=season], grid, grid_id_field, storm_id_field)
@@ -179,13 +179,13 @@ def addGeometry(trackdf: pd.DataFrame, storm_id_field: str, lonname='LON', latna
     for k, t in df.groupby(storm_id_field):
         segments = []
         for n in range(len(t[storm_id_field]) - 1):
-            segment = LineString([[t[lonname].iloc[n], t[latname].iloc[n]], 
+            segment = LineString([[t[lonname].iloc[n], t[latname].iloc[n]],
                                   [t[lonname].iloc[n+1], t[latname].iloc[n+1]]])
             segments.append(segment)
         gdf = gpd.GeoDataFrame.from_records(t[:-1])
         gdf['geometry'] = segments
         tracks.append(gdf)
-    
+
     outgdf = pd.concat(tracks)
     return outgdf
 
@@ -209,7 +209,7 @@ dims = (int((maxlon - minlon)/dx), int((maxlat-minlat)/dy))
 
 # Start with the default TC best track database:
 inputPath = r"X:\georisk\HaRIA_B_Wind\data\raw\from_bom\tc"
-dataFile = pjoin(inputPath, r"IDCKMSTM0S - 20210722.csv")
+dataFile = pjoin(inputPath, r"IDCKMSTM0S - 20221021.csv")
 outputPath = r"X:\georisk\HaRIA_B_Wind\projects\tcha\data\derived\density"
 usecols = [0, 1, 2, 7, 8, 16, 49, 53]
 colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
@@ -248,7 +248,7 @@ ds = xr.Dataset({'density': da,
                 attrs=dict(
                     description="Mean annual TC frequency",
                     start_year=1981,
-                    end_year=2020,
+                    end_year=2021,
                     source="http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv",
                     history=f"{datetime.now():%Y-%m-%d %H:%M}: {sys.argv[0]}"
                 ))
@@ -270,7 +270,7 @@ ds = xr.Dataset({'density': dabs,
                 attrs=dict(
                     description="Mean annual TC frequency evaluated using bootstrap resampling",
                     start_year=1981,
-                    end_year=2020,
+                    end_year=2021,
                     source="http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv",
                     history=f"{datetime.now():%Y-%m-%d %H:%M}: {sys.argv[0]}"
                 ))
@@ -301,13 +301,13 @@ ds = xr.Dataset({'density': da1951,
                 attrs=dict(
                     description="Mean annual TC frequency, 1951-2020",
                     start_year=1951,
-                    end_year=2020,
+                    end_year=2021,
                     source="http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv",
                     history=f"{datetime.now():%Y-%m-%d %H:%M}: {sys.argv[0]}"
                 ))
 
-ds.to_netcdf(pjoin(outputPath, "mean_track_density.1951-2020.nc"))
-plot_density(da1951, "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv", pjoin(outputPath, "mean_track_density.1951-2020.png"))
+ds.to_netcdf(pjoin(outputPath, "mean_track_density.1951-2021.nc"))
+plot_density(da1951, "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv", pjoin(outputPath, "mean_track_density.1951-2021.png"))
 
 
 dfjk1951 = gridDensityBootstrap(dfstorm, dfgrid, grid_id_field, storm_id_field)
@@ -324,7 +324,7 @@ ds = xr.Dataset({'density': dabs1951,
                 attrs=dict(
                     description="Mean annual TC frequency evaluated using bootstrap resampling",
                     start_year=1951,
-                    end_year=2020,
+                    end_year=2021,
                     source="http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv",
                     history=f"{datetime.now():%Y-%m-%d %H:%M}: {sys.argv[0]}"
                 ))
