@@ -1,6 +1,6 @@
 """
 Read the objective TC reanalysis data from CSV and extract the lifetime maximum
-intensity of each separate TC. 
+intensity of each separate TC.
 
 Source:
 http://www.bom.gov.au/cyclone/history/database/OTCR_alldata_final_external.csv
@@ -50,14 +50,14 @@ def filter_tracks_domain(df, minlon=90, maxlon=180, minlat=-40, maxlat=0):
     Takes a `DataFrame` and filters on the basis of whether the track interscts
     the given domain, which is specified by the minimum and maximum longitude and
     latitude.
-    
+
     NOTE: This assumes the tracks and bounding box are in the same geographic
     coordinate system (i.e. generally a latitude-longitude coordinate system).
     It will NOT support different projections (e.g. UTM data for the bounds and
     geographic for the tracks).
-    
+
     NOTE: This doesn't work if there is only one point for the track.
-    
+
     :param df: :class:`pandas.DataFrame` that holds the TCLV data
     :param float minlon: minimum longitude of the bounding box
     :param float minlat: minimum latitude of the bounding box
@@ -76,7 +76,7 @@ inputPath = "X:/georisk/HaRIA_B_Wind/data/raw/from_bom/tc"
 outputPath = "X:/georisk/HaRIA_B_Wind/projects/tcha/data/derived/lmi"
 
 
-dataFile = pjoin(inputPath, r"IDCKMSTM0S - 20210722.csv")
+dataFile = pjoin(inputPath, r"IDCKMSTM0S - 20221021.csv")
 source = "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv"
 
 usecols = [0, 1, 2, 7, 8, 11, 12, 13]
@@ -122,7 +122,7 @@ lmidf['initlat'] = obstc.loc[obstc.index.to_series().groupby(obstc['num']).first
 lmidf['initlon'] = obstc.loc[obstc.index.to_series().groupby(obstc['num']).first().reset_index(name='idx')['idx']]['lon'].values
 lmidf['lmilat'] = obstc.loc[obstc.groupby(["num"])["vmax"].idxmax()]['lat']
 lmidf['lmilon'] = obstc.loc[obstc.groupby(["num"])["vmax"].idxmax()]['lon']
-lmidf.to_csv(pjoin(outputPath, "lmi.20210928.csv"), index=False, date_format=DATEFMT)
+lmidf.to_csv(pjoin(outputPath, "lmi.20221021.csv"), index=False, date_format=DATEFMT)
 
 # Plot distribution of LMI:
 fig, ax = plt.subplots(figsize=(10, 8))

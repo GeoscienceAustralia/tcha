@@ -52,7 +52,7 @@ def season(year, month):
 def regression_trend(numbers, start_year, end_year):
     """
     Calculate the trend for linear regression of TC numbers for a range of
-    years. 
+    years.
 
     :param numbers: `pandas.DataFrame` that contains the annual number of TCs.
     :param int start_year: First year to calculate regression for
@@ -83,16 +83,16 @@ def filter_tracks_domain(df, minlon=90, maxlon=180, minlat=-40, maxlat=0,
                          idcode='num', latname='lat', lonname='lon'):
     """
     Takes a `DataFrame` and filters on the basis of whether the track interscts
-    the given domain, which is specified by the minimum and maximum longitude and 
+    the given domain, which is specified by the minimum and maximum longitude and
     latitude.
-    
-    NOTE: This assumes the tracks and bounding box are in the same geographic 
-    coordinate system (i.e. generally a latitude-longitude coordinate system). 
+
+    NOTE: This assumes the tracks and bounding box are in the same geographic
+    coordinate system (i.e. generally a latitude-longitude coordinate system).
     It will NOT support different projections (e.g. UTM data for the bounds and
     geographic for the tracks).
-    
-    NOTE: This doesn't work if there is only one point for the track. 
-    
+
+    NOTE: This doesn't work if there is only one point for the track.
+
     :param df: :class:`pandas.DataFrame` that holds the TCLV data
     :param float minlon: minimum longitude of the bounding box
     :param float minlat: minimum latitude of the bounding box
@@ -110,8 +110,8 @@ def filter_tracks_domain(df, minlon=90, maxlon=180, minlat=-40, maxlat=0,
 
 # Start with the default TC best track database:
 inputPath = r"X:\georisk\HaRIA_B_Wind\data\raw\from_bom\tc"
-dataFile = pjoin(inputPath, r"IDCKMSTM0S - 20210722.csv")
-outputPath = r"X:\georisk\HaRIA_B_Wind\projects\tcha\data\derived\tcfrequency"
+dataFile = pjoin(inputPath, r"IDCKMSTM0S - 20221021.csv")
+outputPath = r"..\data\frequency"
 usecols = [0, 1, 2, 7, 8, 16, 49, 53]
 colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
             'CENTRAL_PRES', 'MAX_WIND_SPD', 'MAX_WIND_GUST']
@@ -139,27 +139,31 @@ df['ID'] = new[1]
 df['IDSEAS'] = new[0].str[:6].str.strip('AU').astype(int)
 
 # Calculate the number of unique values in each season:
-sc = df.groupby(['IDSEAS']).nunique()
+ssc = df.groupby(['IDSEAS']).nunique()
+# This just ensures we capture the seasons with a zero count
+sc = pd.Series(index=range(ssc.index.min(), ssc.index.max()+1), dtype=int, data=0)
+sc.loc[ssc.index] = ssc.ID
 
-# Determine the number of severe TCs. 
+# Determine the number of severe TCs.
 # take the number of TCs with maximum wind speed > 32 m/s
 xc = df.groupby(['DISTURBANCE_ID',]).agg({
     'CENTRAL_PRES': np.min,
     'MAX_WIND_GUST': np.max,
     'MAX_WIND_SPD': np.max,
     'ID':np.max, 'IDSEAS': 'max'})
-ns = xc[xc['MAX_WIND_SPD'] > 32].groupby('IDSEAS').nunique()['ID']
-
+nns = xc[xc['MAX_WIND_SPD'] > 32].groupby('IDSEAS').nunique()['ID']
+ns = pd.Series(index=range(nns.index.min(), nns.index.max()+1), dtype=int, data=0)
+ns.loc[nns.index] = nns
 
 idx = sc.index >= 1970
 idx2 = sc.index >= 1985
 nsidx = ns.index >= 1970
 fig, ax = plt.subplots(figsize=(10, 6))
 fig.patch.set_facecolor('white')
-ax.bar(sc.index[idx], sc.ID[idx], label="All TCs")
+ax.bar(ssc.index[idx], ssc.ID[idx], label="All TCs")
 ax.bar(ns.index[nsidx], ns.values[nsidx], color='orange', label="Severe TCs")
-ax.axhline(np.mean(sc.ID[idx]), color='0.5', path_effects=[patheffects.withStroke(linewidth=3, foreground='white')], label="Mean frequency (1970-2020)")
-ax.axhline(np.mean(sc.ID[idx2]), color='r', path_effects=[patheffects.withStroke(linewidth=3, foreground='white')], label="Mean frequency (1985-2020)")
+ax.axhline(np.mean(ssc.ID[idx]), color='0.5', path_effects=[patheffects.withStroke(linewidth=3, foreground='white')], label="Mean frequency (1970-2020)")
+ax.axhline(np.mean(ssc.ID[idx2]), color='r', path_effects=[patheffects.withStroke(linewidth=3, foreground='white')], label="Mean frequency (1985-2020)")
 ax.grid(True)
 ax.set_yticks(np.arange(0, 21, 2))
 ax.set_xlabel("Season")
@@ -174,10 +178,10 @@ plt.savefig(pjoin(outputPath, "TC_frequency.png"), bbox_inches='tight')
 # Add regression lines - one for all years >= 1970, another for all years >= 1985
 fig, ax = plt.subplots(figsize=(10, 6))
 fig.patch.set_facecolor('white')
-ax.bar(sc.index[idx], sc.ID[idx], label="All TCs")
+ax.bar(ssc.index[idx], ssc.ID[idx], label="All TCs")
 ax.bar(ns.index[nsidx], ns.values[nsidx], color='orange', label="Severe TCs")
-sns.regplot(x=sc.index[idx], y=sc.ID[idx], ax=ax, color='0.5', scatter=False, label='1970-2020 trend')
-sns.regplot(x=sc.index[idx2], y=sc.ID[idx2], ax=ax, color='r', scatter=False, label='1985-2020 trend')
+sns.regplot(x=ssc.index[idx], y=ssc.ID[idx], ax=ax, color='0.5', scatter=False, label='1970-2020 trend')
+sns.regplot(x=ssc.index[idx2], y=ssc.ID[idx2], ax=ax, color='r', scatter=False, label='1985-2020 trend')
 
 ax.grid(True)
 ax.set_yticks(np.arange(0, 21, 2))
@@ -193,7 +197,7 @@ xlim = ax.get_xlim()
 
 
 ns.to_csv(pjoin(outputPath, "severe_tcs.csv"))
-sc.to_csv(pjoin(outputPath, "all_tcs.csv"))
+ssc.to_csv(pjoin(outputPath, "all_tcs.csv"))
 
 # Calculate and plot the fraction of observations with central pressure, maximum
 # wind speed and maximum wind gust by season.
@@ -244,9 +248,11 @@ new = otcrdf['DISTURBANCE_ID'].str.split("_", expand=True)
 otcrdf['ID'] = new[1]
 otcrdf['IDSEAS'] = new[0].str[:6].str.strip('AU').astype(int)
 # Calculate the number of unique values in each season:
-otcrsc = otcrdf.groupby(['IDSEAS']).nunique()
+ssc = otcrdf.groupby(['IDSEAS']).nunique()
+otcrsc = pd.Series(index=range(ssc.index.min(), ssc.index.max()+1), dtype=int, data=0)
+otcrsc.loc[ssc.index] = ssc.ID
 
-# Determine the number of severe TCs. 
+# Determine the number of severe TCs.
 # take the number of TCs with maximum wind speed > 63 kts
 # NOTE: The OTCR data uses knots, not metres/second!
 otcrxc = otcrdf.groupby(['DISTURBANCE_ID',]).agg({
@@ -254,13 +260,16 @@ otcrxc = otcrdf.groupby(['DISTURBANCE_ID',]).agg({
     'MAX_WIND_SPD': np.max,
     'ID':np.max, 'IDSEAS': 'max'})
 
-otcrns = otcrxc[otcrxc['MAX_WIND_SPD'] > 63].groupby('IDSEAS').nunique()['ID']
+nns = otcrxc[otcrxc['MAX_WIND_SPD'] > 63].groupby('IDSEAS').nunique()['ID']
+otcrns = pd.Series(index=range(nns.index.min(), nns.index.max()+1), dtype=int, data=0)
+otcrns.loc[nns.index] = nns
+
 idx = otcrsc.index >= 1980
 idx2 = otcrsc.index >= 1985
 nsidx = otcrns.index >= 1980
 fig, ax = plt.subplots(figsize=(10, 6))
 fig.patch.set_facecolor('white')
-ax.bar(otcrsc.index[idx], otcrsc.ID[idx], label="All TCs")
+ax.bar(ssc.index[idx], ssc.ID[idx], label="All TCs")
 ax.bar(otcrns.index[nsidx], otcrns.values[nsidx], color='orange', label="Severe TCs")
 ax.grid(True)
 ax.set_yticks(np.arange(0, 21, 2))
@@ -277,10 +286,10 @@ plt.savefig(pjoin(outputPath, "TC_frequency_otcr.png"), bbox_inches='tight')
 # Add regression lines - one for all years >= 1970, another for all years >= 1985
 fig, ax = plt.subplots(figsize=(10, 6))
 fig.patch.set_facecolor('white')
-ax.bar(otcrsc.index[idx], otcrsc.ID[idx], label="All TCs")
+ax.bar(ssc.index[idx], ssc.ID[idx], label="All TCs")
 ax.bar(otcrns.index[nsidx], otcrns.values[nsidx], color='orange', label="Severe TCs")
-sns.regplot(x=otcrsc.index[idx], y=otcrsc.ID[idx], ax=ax, color='0.5', scatter=False, label='1970-2020 trend')
-sns.regplot(x=otcrsc.index[idx2], y=otcrsc.ID[idx2], ax=ax, color='r', scatter=False, label='1985-2020 trend')
+sns.regplot(x=ssc.index[idx], y=ssc.ID[idx], ax=ax, color='0.5', scatter=False, label='1970-2020 trend')
+sns.regplot(x=ssc.index[idx2], y=ssc.ID[idx2], ax=ax, color='r', scatter=False, label='1985-2020 trend')
 ax.grid(True)
 
 ax.set_yticks(np.arange(0, 21, 2))
@@ -319,7 +328,7 @@ plt.savefig(pjoin(outputPath, "TC_fraction_complete.otcr.png"), bbox_inches='tig
 
 # Calculate the trends for a range of years:
 # Use the IDCKMSTM0S.csv data for this bit
-rdf = regression_trend(sc, 1950, 2000)
+rdf = regression_trend(ssc, 1950, 2000)
 fig, ax = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
 fig.patch.set_facecolor('white')
 

@@ -86,7 +86,7 @@ def filter_tracks_domain(df, minlon=90, maxlon=180, minlat=-40, maxlat=0,
 
 # Start with the default TC best track database:
 inputPath = r"X:\georisk\HaRIA_B_Wind\data\raw\from_bom\tc"
-dataFile = pjoin(inputPath, r"IDCKMSTM0S - 20210722.csv")
+dataFile = pjoin(inputPath, r"IDCKMSTM0S - 20221021.csv")
 outputPath = r"X:\georisk\HaRIA_B_Wind\projects\tcha\data\derived\tcfrequency"
 usecols = [0, 1, 2, 7, 8, 16, 49, 53]
 colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
@@ -140,4 +140,4 @@ plt.text(0.0, -0.1, "Source: http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv",
          transform=ax.transAxes, fontsize='xx-small', ha='left',)
 plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=ax.transAxes, fontsize='xx-small', ha='right')
-plt.savefig(pjoin(outputPath, "TC_tracks.IDCKMSTM0S.1980-2020.png"), bbox_inches='tight')
+plt.savefig(pjoin(outputPath, "TC_tracks.IDCKMSTM0S.1980-2021.png"), bbox_inches='tight')
