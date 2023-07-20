@@ -114,7 +114,7 @@ def loadFile(filename: str) -> pd.DataFrame:
         df = pd.read_csv(filename, names=COLNAMES, delimiter=",",
                          parse_dates=[2], infer_datetime_format=True,
                          skipinitialspace=True, converters=CONVERTERS,
-                         error_bad_lines=False)
+                         on_bad_lines='warn')
     except ValueError:
         try:
             COLNAMES = ['BASIN','Number', 'Datetime','TECHNUM', 'TECH', 'TAU',
@@ -122,14 +122,14 @@ def loadFile(filename: str) -> pd.DataFrame:
             df = pd.read_csv(filename, names=COLNAMES, delimiter=",",
                              parse_dates=[2], infer_datetime_format=True,
                              skipinitialspace=True, converters=CONVERTERS,
-                             error_bad_lines=False)
+                             on_bad_lines='warn')
         except ValueError:
             COLNAMES = ['BASIN','Number', 'Datetime','TECHNUM', 'TECH', 'TAU',
                         'Latitude', 'Longitude', 'Windspeed','Pressure', ]
             df = pd.read_csv(filename, names=COLNAMES, delimiter=",",
                              parse_dates=[2], infer_datetime_format=True,
                              skipinitialspace=True, converters=CONVERTERS,
-                             usecols=range(10), error_bad_lines=False)
+                             usecols=range(10), on_bad_lines='warn')
 
     return df
 
@@ -153,6 +153,7 @@ def load_jtwc_data(path, savepath=None):
     filter_ &= (df['rMax'] > 0.0)
     filter_ &= (df['Poci'] > 0.0)
     filter_ &= (df['dP'] > 0.0)
+    filter_ &= (df['RAD'] == 34) | (df['RAD'] == 35)
     df = df[filter_].copy()
 
     # create time variables

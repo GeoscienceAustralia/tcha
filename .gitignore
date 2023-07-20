@@ -1,8 +1,11 @@
 .vscode/settings.json
 __pycache__/
 tcha.code-workspace
+data/
 
 # Log files, backups, etc.
 *.log
+*.log-*
 *~
 *.stdout
+*.o[0-9][0-9]*

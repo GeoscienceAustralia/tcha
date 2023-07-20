@@ -13,6 +13,8 @@ from six import string_types
 from lmfit import Model, Minimizer, fit_report, conf_interval, printfuncs, report_fit
 import corner
 from datetime import datetime
+import warnings
+warnings.filterwarnings("ignore")
 
 matplotlib.use('tkagg')
 matplotlib.rcParams['grid.linestyle'] = ':'
@@ -55,26 +57,14 @@ X = np.column_stack((df.dP.values[mask], df.Latitude.values[mask]))
 y = np.log(df.r34.values[mask])
 rmod = Model(lin_dp) + Model(lin_lat)
 params = rmod.make_params(alpha=1., beta=-0.001, zeta=.001)
+params['alpha'].set(min=4.722)
 
 mini = Minimizer(resid, params)
 result = mini.minimize()
 print(fit_report(result.params))
-ci = conf_interval(mini, result)
-printfuncs.report_ci(ci)
-print(result.chisqr)
-
-#
-# use MCMC to explore the parameter space
-#
-
-rr = mini.emcee(burn=500, steps=10_000)
-
-ll = [r'$\{0}$'.format(v) for v in rr.var_names]
-with sns.plotting_context("notebook"):
-    corner.corner(
-        rr.flatchain, labels=ll, truths=list(rr.params.valuesdict().values()), no_fill_contours=True,
-        fill_contours=False, plot_density=False, quantiles=[0.05, 0.5, 0.95], data_kwargs=dict(color='r', alpha=0.01)
-    )
+# ci = conf_interval(mini, result)
+# printfuncs.report_ci(ci)
+print("RMSE:", np.sqrt(np.mean(result.residual ** 2)))
 
 #
 # normal test of residuals in log space
@@ -114,6 +104,7 @@ pred = result.eval(x=np.column_stack((df.dP.values, df.Latitude.values)))
 noise_var = np.var(result.residual)
 noise = np.random.normal(loc=0, size=len(pred), scale=np.sqrt(noise_var))
 rm = np.exp(pred + noise)
+print("Standard deviation:", np.sqrt(noise_var))
 
 sns.set_context("poster")
 sns.set_style("whitegrid")
@@ -123,8 +114,8 @@ ax.scatter(df.dP, df.r34, c='k', edgecolor=None, s=50, marker='x', label='Observ
 ax.set_xlim(0, 100)
 ax.set_xlabel(r"$\Delta p$ (hPa)")
 ax.set_ylabel(r"$R_{34}$ (km)")
-ax.set_yticks(np.arange(0, 201, 25))
-ax.set_ylim(0, 350)
+ax.set_yticks(np.arange(0, 201, 50))
+# ax.set_ylim(0, 350)
 ax.legend(loc=1)
 ax.grid(True)
 plt.text(-0.2, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)",
@@ -198,7 +189,7 @@ ax = sns.kdeplot(df.Latitude[mask], df.r34[mask], cmap='Reds', kwargs={'levels':
 ax = sns.kdeplot(df.Latitude, rm, cmap='Blues', kwargs={'levels':levs})
 ax.set_xlim(-30, 0)
 ax.set_xlabel("Latitude")
-ax.set_ylabel(r"$R_{34}$ (nm)")
+ax.set_ylabel(r"$R_{34}$ (km)")
 ax.set_ylim(0, 350)
 ax.grid(True)
 
@@ -210,3 +201,48 @@ plt.text(-0.2, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(acce
 plt.text(1.0, -0.15, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=ax.transAxes, fontsize='xx-small', ha='right')
 plt.savefig(os.path.join(out_path, "R34 - lat R34 model distribution.png"), bbox_inches='tight')
+
+###
+# constrained model
+noise = np.random.normal(loc=0, size=len(pred), scale=np.sqrt(noise_var))
+ln_rmax = 4.22 - 0.0198 * df.dP + 0.0023 * np.abs(df.Latitude)
+ln_rmax += np.random.normal(loc=0, size=len(df), scale=0.401)
+
+# if r34 <
+mask = pred + noise < ln_rmax
+while mask.sum() > 0:
+    noise[mask] = np.random.normal(loc=0, size=mask.sum(), scale=np.sqrt(noise_var))
+    mask = pred + noise < ln_rmax
+
+sns.set_context("poster")
+sns.set_style("whitegrid")
+fig, ax = plt.subplots(1, 1, figsize=(12, 8), sharey=True)
+ax.scatter(df.dP, rm, c='b', cmap=sns.light_palette('blue', as_cmap=True), s=40, label='Model', alpha=0.5)
+ax.scatter(df.dP, df.r34, c='k', edgecolor=None, s=50, marker='x', label='Observations')
+ax.set_xlim(0, 100)
+ax.set_xlabel(r"$\Delta p$ (hPa)")
+ax.set_ylabel(r"$R_{34}$ (km)")
+ax.set_yticks(np.arange(0, 201, 50))
+# ax.set_ylim(0, 350)
+ax.legend(loc=1)
+ax.grid(True)
+plt.text(-0.2, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)",
+          transform=ax.transAxes, fontsize='xx-small', ha='left',)
+plt.text(1.0, -0.15, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
+         transform=ax.transAxes, fontsize='xx-small', ha='right')
+plt.savefig(os.path.join(out_path, "Constrained R34 - model-obs.png"), bbox_inches='tight')
+
+
+##### historical extreme events
+extreme_arr = np.array([
+    [55, 54, -12.5],
+    [1100, 143, 16],
+    [152, 89, -11.7],
+])
+
+extreme_df = pd.DataFrame(
+    extreme_arr, columns=['R34', 'dP', 'Latitude'],
+    index=['Tracey', 'Tip', 'Monica'])
+x = np.column_stack([extreme_arr[:, 1], extreme_arr[:, 2]])
+extreme_df['R34 model mean'] = np.exp(result.eval(x=x))
+print(extreme_df)

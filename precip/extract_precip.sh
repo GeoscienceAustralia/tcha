@@ -8,11 +8,13 @@
 #PBS -lmem=32GB,ncpus=16,jobfs=4000MB
 #PBS -W umask=0002
 #PBS -joe
-#PBS -lstorage=gdata/w85+scratch/w85+gdata/rt52+gdata/dk92
+#PBS -lstorage=gdata/w85+scratch/w85+gdata/rt52+gdata/hh5
 
-module use /g/data/dk92/apps/Modules/modulefiles
-module load NCI-data-analysis/2021.09
+module use /g/data/hh5/public/modules
+
+
+module load conda/analysis3
 export PYTHONPATH=$PYTHONPATH:$HOME/pylib/python
-
+conda activate analysis3
 cd $HOME/tcha/precip
-python3 extract_precip.py 2>&1 extract_precip.stdout
+python extract_precip.py 2>&1 extract_precip.stdout
