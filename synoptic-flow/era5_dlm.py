@@ -76,13 +76,17 @@ def load_dlm(year, month):
 
 
 comm = MPI.COMM_WORLD
-years = np.arange(1981, 2021)
+years = np.arange(1981, 2024)
 rank = comm.Get_rank()
 rank_years = years[(years % comm.size) == rank]
 print("Starting simulation.")
 
 for year in rank_years:
     for month in range(1, 13):
+
+        if os.path.exists(f"/scratch/w85/cxa547/era5dlm/v_dlm_{month}_{year}.nc"):
+            print(f"Already processed {month}/{year}")
+            continue
         t0 = time.time()
         logging.info(f"Loading data for {month}/{year}")
         print(f"Loading data for {month}/{year}")
@@ -96,8 +100,8 @@ for year in rank_years:
         logging.info(f"Saving data for {month}/{year}")
         print(f"Saving data for {month}/{year}")
 
-        udlm.to_netcdf(f"/scratch/w85/kr4383/era5dlm/u_dlm_{month}_{year}.netcdf")
-        vdlm.to_netcdf(f"/scratch/w85/kr4383/era5dlm/v_dlm_{month}_{year}.netcdf")
+        udlm.to_netcdf(f"/scratch/w85/cxa547/era5dlm/u_dlm_{month}_{year}.nc")
+        vdlm.to_netcdf(f"/scratch/w85/cxa547/era5dlm/v_dlm_{month}_{year}.nc")
 
         logging.info(f"Finished saving data for {month}/{year}. Time taken: {time.time() - t1}s")
         print(f"Finished saving data for {month}/{year}. Time taken: {time.time() - t1}s")
