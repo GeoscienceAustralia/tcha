@@ -26,6 +26,7 @@ from windspharm.xarray import VectorWind
 
 from pde import CartesianGrid, solve_poisson_equation, ScalarField
 
+from mpi4py import MPI
 
 
 # this script requires the results of 'era5_dlm.py', bom best track,
@@ -35,8 +36,72 @@ geodesic = pyproj.Geod(ellps='WGS84')
 WIDTH = 6.25
 DATA_DIR = "/g/data/w85/data/tc"
 DLM_DIR = "/scratch/w85/cxa547/tcr/data/era5"
-OUT_DIR = "/scratch/w85/cxa547/bam"
+OUT_DIR = "/scratch/w85/cxa547/envflow/"
 NOISE = False
+
+
+def load_ibtracs_df(season):
+    """
+    Helper function to load the IBTrACS database.
+    Column names are mapped to the same as the BoM dataset to minimise
+    the changes elsewhere in the code
+
+    :param int season: Season to filter data by
+
+    NOTE: Only returns data for SP and SI basins.
+    """
+    dataFile = os.path.join(DATA_DIR, "ibtracs.since1980.list.v04r00.csv")
+    df = pd.read_csv(dataFile,
+                          skiprows=[1],
+                          usecols=[0,1,3,5,6,8,9,11,23],
+                          na_values=[' '],
+                          parse_dates=[1])
+    df.rename(columns={
+        'SID':'DISTURBANCE_ID',
+        'ISO_TIME': 'TM',
+        'WMO_WIND': 'MAX_WIND_SPD',
+        'WMO_PRES':'CENTRAL_PRES',
+        'USA_WIND': 'MAX_WIND_SPD'
+        },
+        inplace=True)
+    df['TM'] = pd.to_datetime(df.TM, format="%Y-%m-%d %H:%M:%S", errors='coerce')
+    df = df[~pd.isnull(df.TM)]
+
+    df = df[df.SEASON == season]
+
+    # NOTE: Only using SP and SI basins here
+    df = df[df['BASIN'].isin(['SP', 'SI'])]
+    df.reset_index(inplace=True)
+    # distance =
+    fwd_azimuth, _, distances = geodesic.inv(
+        df.LON[:-1], df.LAT[:-1],
+        df.LON[1:], df.LAT[1:],
+    )
+
+    df['new_index'] = np.arange(len(df))
+    idxs = df.groupby(['DISTURBANCE_ID']).agg({'new_index': 'max'}).values.flatten()
+    df.drop('new_index', axis=1, inplace=True)
+    df['MAX_WIND_SPD'] = df['MAX_WIND_SPD'] * 0.5144 # Convert max wind speed to m/s for consistency
+
+    dt = np.diff(df.TM).astype(float) / 3_600_000_000_000
+    u = np.zeros_like(df.LAT)
+    v = np.zeros_like(df.LAT)
+    v[:-1] = np.cos(fwd_azimuth * np.pi / 180) * distances / (dt * 1000) / 3.6
+    u[:-1] = np.sin(fwd_azimuth * np.pi / 180) * distances / (dt * 1000) / 3.6
+
+    v[idxs] = 0
+    u[idxs] = 0
+    df['u'] = u
+    df['v'] = v
+
+    dt = np.diff(df.TM).astype(float) / 3_600_000_000_000
+    dt_ = np.zeros(len(df))
+    dt_[:-1] = dt
+    df['dt'] = dt_
+
+    df = df[df.u != 0].copy()
+    print(f"Number of records: {len(df)}")
+    return df
 
 
 def load_bom_df(season):
@@ -90,7 +155,10 @@ def load_bom_df(season):
 def solvePoisson(scalar):
     """
     Solve the 2-d Poisson equation on a `ScalarField`, with defined
-    boundary conditions
+    boundary conditions (0 at the edge of the domain).
+    The scalar field is either the vorticity or divergence, and the
+    returned values are either irrotational flow or non-divergent
+    flow respectively
     """
     bcs = [{'value':0,}, {'value':0}]
     sol = solve_poisson_equation(scalar, bc=bcs)
@@ -100,7 +168,11 @@ def solvePoisson(scalar):
 
 def extract_steering(uda, vda, cLon, cLat, dx, dy, width=4):
     """
-    Calculate the steering flow for a region centred at `cLon`, `cLat`
+    Calculate the steering flow for a region centred at `cLon`, `cLat`.
+
+    This function performs the inversion of the streamfunction and
+    velocity potential associated with the vortex (Lin et al, 2020) and
+    returns the mean u- and v-components of the environmental wind.
 
     :param uda: `xr.DataArray` of u-component of wind
     :param vda: `xr.DataArray` of v-component of wind
@@ -114,7 +186,7 @@ def extract_steering(uda, vda, cLon, cLat, dx, dy, width=4):
     # Take a copy of the datasets:
     uenv = uda.copy()
     venv = vda.copy()
-    levels = uda.levels
+    levels = uda.level
     # Calculate virticity and divergence of the flow:
     w = VectorWind(uda, vda, legfunc='computed')
     vrt, div = w.vrtdiv()
@@ -144,13 +216,24 @@ def extract_steering(uda, vda, cLon, cLat, dx, dy, width=4):
 
         # Remove these local nondivergent and irrotational components from the
         # flow to give the environmental flow.
-        uenv[lev, :, :] = (uda[0] - upsi*dx - uchi*dx)
-        venv[lev, :, :] = (vda[0] - vpsi*dy - vchi*dy)
+        uenv[lev, :, :] = (uda[lev] - upsi*dx - uchi*dx)
+        venv[lev, :, :] = (vda[lev] - vpsi*dy - vchi*dy)
 
     return uenv, venv
 
 def load_steering(uda, vda, df, width=4.0):
+    """
+    Load the steering flow data for a given set of TC records
 
+    :param uda: `xr.DataArray` of eastward component of wind
+    :param vda: `xr.DataArray` of northward component of wind
+    :param df: `pd.DataFrame` of TC observations. This must include at a
+               minimum the time, latitude and longitude of the TC positions,
+               named as 'TM', 'LAT', 'LON' respectively.
+    :param width: Size of the box over which to calculate mean steering flow.
+                  Default is 4 degrees. Loosely based on the 400 km used in
+                  Lin et al. (2023) and Galarneau and Davis (2013).
+    """
     griddx, griddy = lat_lon_grid_deltas(uda.longitude, uda.latitude)
     griddx = np.hstack((griddx.magnitude, griddx.magnitude[:, -1].reshape(-1, 1)))
     griddy = np.abs(np.vstack((griddy.magnitude, griddy.magnitude[-1, :].reshape(1, -1))))
@@ -174,24 +257,15 @@ def load_steering(uda, vda, df, width=4.0):
         output.append(res)
     return output
 
+def process(season):
+    """
+    Run the calculation for a given season
 
-if __name__ == "__main__":
+    :param int season: TC season to calculate environmental flow for
 
-    print("Loading ")
-    season = int(sys.argv[1])
-    df = load_bom_df(season)
-    upath = sorted(glob.glob(os.path.join(DLM_DIR, f"**/era5_u_daily_*.nc")))
-    vpath = sorted(glob.glob(os.path.join(DLM_DIR, f"**/era5_v_daily_*.nc")))
-
-    udss = xr.open_mfdataset(upath, combine='nested', concat_dim='time',
-                             chunks={'latitude': 721, 'longitude': 1440, 'time': -1},
-                             parallel=True)
-    vdss = xr.open_mfdataset(vpath, combine='nested', concat_dim='time',
-                             chunks={'latitude': 721, 'longitude': 1440, 'time': -1},
-                             parallel=True)
-
-    uda = udss['u']
-    vda = vdss['v']
+    :returns: None. Data are saved to a file with the season in the filename.
+    """
+    df = load_ibtracs_df(season)
 
     print("extract steering current from environmental flow:")
     results = load_steering(uda, vda, df)
@@ -201,8 +275,24 @@ if __name__ == "__main__":
     vdf['index'] = vdf['index'].astype(int)
     outdf = df.merge(vdf, left_on='index', right_on='index', how='inner')
     outdf.to_csv(os.path.join(OUT_DIR, f"tcenvflow_serial.{season}.csv"))
-    """
 
-    run("BoM", "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv")
-    #run("OTCR", "http://www.bom.gov.au/cyclone/history/database/OTCR_alldata_final_external.csv")
-    """
+
+# Main code
+upath = sorted(glob.glob(os.path.join(DLM_DIR, f"**/era5_u_daily_*.nc")))
+vpath = sorted(glob.glob(os.path.join(DLM_DIR, f"**/era5_v_daily_*.nc")))
+
+udss = xr.open_mfdataset(upath, combine='nested', concat_dim='time',
+                            chunks={'latitude': 721, 'longitude': 1440, 'time': -1},
+                            parallel=True)
+vdss = xr.open_mfdataset(vpath, combine='nested', concat_dim='time',
+                            chunks={'latitude': 721, 'longitude': 1440, 'time': -1},
+                            parallel=True)
+
+uda = udss['u']
+vda = vdss['v']
+comm = MPI.COMM_WORLD
+years = np.arange(1981, 2023+1)
+rank = comm.Get_rank()
+rank_years = years[(years % comm.size) == rank]
+for year in rank_years:
+    process(year)
