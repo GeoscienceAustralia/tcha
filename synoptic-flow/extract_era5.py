@@ -16,12 +16,12 @@ import dask.array as da
 NCPUS = int(os.environ.get('NCPUS'))
 
 start_year = 1981
-end_year = 2021
+end_year = 2023
 
 years = range(start_year, end_year+1)
 
 # single-level variables
-base_dir = "/scratch/w85/cxa547/tcr/data/era5"
+base_dir = "/scratch/w85/cxa547/tcr/data/era5-new"
 os.makedirs(base_dir, exist_ok = True)
 
 mon2d = ['sst', 'sp']
@@ -35,24 +35,36 @@ pressure_levels= [70, 100, 125, 150, 175, 200,
                   775, 800, 825, 850, 875, 900,
                   925, 950, 975,1000,]
 
-# the pressure levels to integrate for DLM integration
-dlmprs = np.array(
+# The pressure levels to integrate for DLM integration
+# I define two here - a deep (`dlmd`) and shallow (`dlms`)
+# representing the two steering layers for weak and intense storms
+# in Velden and Leslie (1991) - see their Figure 2 and Table 2.
+dlmd = np.array(
         [300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850]
     )
+dlms = np.array(
+        [500, 550, 600, 650, 700, 750, 775, 800, 825, 850]
+    )
 
-
-def calcdlm(ds, var):
+def calcdlm(ds, var, prs):
     """
     Calculate mass-weighted vertically-averaged deep layer mean flow
+    Use a simple trapezoidal approximation for the weighted integration.
 
+    :param ds: `xr.Dataset` containing wind speed at multiple levels
+    :param var: variable name from the dataset
+    :param prs: `np.array` of pressure values to use in the calculation
+                of the deep-layer mean flow
     """
     # trapezoidal integration coefficients
-    coeff = np.zeros(len(dlmprs))
-    coeff[1:] += 0.5 * np.diff(dlmprs)
-    coeff[:-1] += 0.5 * np.diff(dlmprs)
+    coeff = np.zeros(len(prs))
+    minprs = dlmprs.min()
+    maxprs = dlmprs.max()
+    coeff[1:] += 0.5 * np.diff(prs)
+    coeff[:-1] += 0.5 * np.diff(prs)
     coeff = coeff.reshape((1, -1, 1, 1))
-    uenv = ds[var].sel(level=slice(300, 850))
-    udlm = (coeff * uenv).sum(axis=1) / 550
+    uenv = ds[var].sel(level=slice(minprs, maxprs))
+    udlm = (coeff * uenv).sum(axis=1) / (maxprs - minprs)
     return udlm
 
 def process(year):
@@ -98,15 +110,13 @@ def process(year):
         outds = ds.isel(time=slice(0, ntimes, 6), longitude=slice(0, 1440, 4), latitude=slice(0, 721, 4))
         outds = outds.sel(level=[850, 250])
         outds.to_netcdf(destfn)
-        dlmds = calcdlm(ds.isel(time=slice(0, ntimes, 6), longitude=slice(0, 1440, 4), latitude=slice(0, 721, 4)), var)
+
+        # Calculate deep-layer mean flow for two different depths
+        dlmdd = calcdlm(ds.isel(time=slice(0, ntimes, 6), longitude=slice(0, 1440, 4), latitude=slice(0, 721, 4)), var, dlmd)
+        dlmds = calcdlm(ds.isel(time=slice(0, ntimes, 6), longitude=slice(0, 1440, 4), latitude=slice(0, 721, 4)), var, dlms)
         destfn = os.path.join(dest_dir, f"era5_{var}dlm_daily_{year:0d}.nc")
-        dlmds.to_netcdf(destfn)
-
-
-#p = Pool(NCPUS)
-#output = p.map(process, years)
-#p.close()
-#p.join()
+        dlm = xr.Dataset(data_vars={f"{var}s":dlmds, f"{var}d":dlmd})
+        dlm.to_netcdf(destfn)
 
 
 comm = MPI.COMM_WORLD
