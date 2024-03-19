@@ -105,12 +105,61 @@ def extract_steering(uda, vda, cLon, cLat, dx, dy, width=4):
 
     uenv = uda.copy()
     venv = vda.copy()
-    
+
     uenv[0, :, :] = (uda[0] - upsi850*dx - uchi850*dx)
     venv[0, :, :] = (vda[0] - vpsi850*dy - vchi850*dy)
     uenv[1, :, :] = (uda[1] - upsi250*dx - uchi250*dx)
     venv[1, :, :] = (vda[1] - vpsi250*dy - vchi250*dy)
     return uenv, venv
+
+def plot_dlm_flow(uda, vda, df, width=4):
+    griddx, griddy = lat_lon_grid_deltas(uda.longitude, uda.latitude)
+    griddx = np.hstack((griddx.magnitude, griddx.magnitude[:, -1].reshape(-1, 1)))
+    griddy = np.abs(np.vstack((griddy.magnitude, griddy.magnitude[-1, :].reshape(1, -1))))
+    for row in df.itertuples():
+        dt = row.TM.to_numpy()
+        lat_cntr = 0.25 * np.round(row.LAT * 4)
+        lon_cntr = 0.25 * np.round(row.LON * 4)
+
+        lat_slice = slice(lat_cntr + width, lat_cntr - width)
+        long_slice = slice(lon_cntr - width, lon_cntr + width)
+
+        # Select data
+        us = uda.sel(time=dt, method='nearest')
+        vs = vda.sel(time=dt, method='nearest')
+        uenv, venv = extract_steering(us, vs, lon_cntr, lat_cntr, griddx, griddy)
+
+        fig, ax = plt.subplots(1, 2, subplot_kw={'projection':ccrs.PlateCarree()},
+                               figsize=(6, 8), sharex=True, sharey=True)
+        levels = np.arange(0, 40.1, 2)
+        ax[0].contourf(us.longitude, us.latitude, np.sqrt(us**2+vs**2), levels=levels, extend="max", cmap="viridis_r")
+        ax[0].barbs(us.longitude, us.latitude, us, vs, flip_barb=True, length=5)
+        ax[0].set_title("Full DLM flow [m/s]")
+        ax[1].contourf(uenv.longitude, uenv.latitude, np.sqrt(uenv**2+venv**2), levels=levels, extend="max", cmap="viridis_r")
+        ax[1].barbs(uenv.longitude, uenv.latitude, uenv, venv, flip_barb=True, length=5)
+        ax[1].add_patch(mpatches.Rectangle(xy=[lon_cntr - width, lat_cntr - width],
+                           width=2*width, height=2*width,
+                           facecolor='none', edgecolor='r',
+                           linewidth=2,
+                           transform=ccrs.PlateCarree()))
+        ax[1].set_title("Environmental DLM flow [m/s]")
+        for axes in ax.flatten():
+            axes.plot(row.LON, row.LAT, marker=tcmarkers.SH_HU, color='r', markeredgecolor='r', markersize=7.5)
+            axes.coastlines(color='0.5', linewidth=1.5)
+            gl = axes.gridlines(draw_labels=True, linestyle='--')
+            gl.xformatter = LONGITUDE_FORMATTER
+            gl.yformatter = LATITUDE_FORMATTER
+            gl.xlabel_style={'size': 'x-small'}
+            gl.ylabel_style={'size': 'x-small'}
+            gl.top_labels = False
+            gl.right_labels = False
+            axes.set_extent((lon_cntr - 3*width, lon_cntr + 3*width, lat_cntr-2*width, lat_cntr+2*width))
+
+        fig.suptitle(f"{row.DISTURBANCE_ID} - {row.TM}")
+        plotfn = os.path.join(OUT_DIR, f"{row.DISTURBANCE_ID}.dlmflow.png")
+        plt.savefig(plotfn, bbox_inches='tight')
+        plt.close(fig)
+
 
 def plot_flow(uda, vda, df, width=4.0):
     griddx, griddy = lat_lon_grid_deltas(uda.longitude, uda.latitude)
@@ -123,13 +172,13 @@ def plot_flow(uda, vda, df, width=4.0):
 
         lat_slice = slice(lat_cntr + width, lat_cntr - width)
         long_slice = slice(lon_cntr - width, lon_cntr + width)
-        
+
         # Select data
         us = uda.sel(time=dt, method='nearest')
         vs = vda.sel(time=dt, method='nearest')
         uenv, venv = extract_steering(us, vs, lon_cntr, lat_cntr, griddx, griddy)
 
-        fig, ax = plt.subplots(2, 2, subplot_kw={'projection':ccrs.PlateCarree()}, 
+        fig, ax = plt.subplots(2, 2, subplot_kw={'projection':ccrs.PlateCarree()},
                                figsize=(12, 8), sharex=True, sharey=True)
         levels = np.arange(0, 40.1, 2)
         ax[0, 0].contourf(us.longitude, us.latitude, np.sqrt(us[0]**2+vs[0]**2), levels=levels, extend="max", cmap="viridis_r")
@@ -140,7 +189,7 @@ def plot_flow(uda, vda, df, width=4.0):
         ax[1, 0].add_patch(mpatches.Rectangle(xy=[lon_cntr - width, lat_cntr - width],
                            width=2*width, height=2*width,
                            facecolor='none', edgecolor='r',
-                           linewidth=2, 
+                           linewidth=2,
                            transform=ccrs.PlateCarree()))
         ax[1, 0].set_title("Environmental flow (850 hPa) [m/s]")
         ax[0, 1].contourf(us.longitude, us.latitude, np.sqrt(us[1]**2+vs[1]**2), levels=levels, extend="max", cmap="viridis_r")
@@ -152,7 +201,7 @@ def plot_flow(uda, vda, df, width=4.0):
                            xy=[lon_cntr - width, lat_cntr - width],
                            width=2*width, height=2*width,
                            facecolor='none', edgecolor='r',
-                           linewidth=2, 
+                           linewidth=2,
                            transform=ccrs.PlateCarree()))
         ax[1, 1].set_title("Environmental flow (250 hPa) [m/s]")
 
@@ -172,7 +221,7 @@ def plot_flow(uda, vda, df, width=4.0):
         plotfn = os.path.join(OUT_DIR, f"{row.DISTURBANCE_ID}.envflow.png")
         plt.savefig(plotfn, bbox_inches='tight')
         plt.close(fig)
-        
+
 
 df = load_bom_df()
 df = df[df.MAX_WIND_SPD.notnull()]

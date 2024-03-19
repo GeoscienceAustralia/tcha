@@ -1,11 +1,11 @@
 #!/bin/bash
 #PBS -Pw85
-#PBS -qhugemem
+#PBS -qnormal
 #PBS -N envflowbatch
 #PBS -m ae
 #PBS -M craig.arthur@ga.gov.au
 #PBS -lwalltime=24:00:00
-#PBS -lmem=1470GB,ncpus=48,jobfs=4000MB
+#PBS -lmem=190GB,ncpus=48,jobfs=4000MB
 #PBS -joe
 #PBS -W umask=002
 #PBS -lstorage=gdata/w85+scratch/w85+gdata/hh5+gdata/rt52
@@ -21,5 +21,5 @@ module load conda/analysis3
 cd $HOME/tcha/synoptic-flow
 export PYTHONPATH=$PYTHONPATH:/scratch/$PROJECT/$USER/python/lib/python3.10/site-packages
 
-mpirun -np $PBS_NCPUS python3 envflow.py $YEAR > envflow.batch.log 2>&1
+mpirun -np $PBS_NCPUS python3 envflow.py > envflow.batch.log 2>&1
 

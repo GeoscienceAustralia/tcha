@@ -58,8 +58,8 @@ def calcdlm(ds, var, prs):
     """
     # trapezoidal integration coefficients
     coeff = np.zeros(len(prs))
-    minprs = dlmprs.min()
-    maxprs = dlmprs.max()
+    minprs = prs.min()
+    maxprs = prs.max()
     coeff[1:] += 0.5 * np.diff(prs)
     coeff[:-1] += 0.5 * np.diff(prs)
     coeff = coeff.reshape((1, -1, 1, 1))
@@ -109,13 +109,18 @@ def process(year):
         ntimes = len(ds.time)
         outds = ds.isel(time=slice(0, ntimes, 6), longitude=slice(0, 1440, 4), latitude=slice(0, 721, 4))
         outds = outds.sel(level=[850, 250])
+        outds.attrs = ds.attrs
         outds.to_netcdf(destfn)
 
         # Calculate deep-layer mean flow for two different depths
         dlmdd = calcdlm(ds.isel(time=slice(0, ntimes, 6), longitude=slice(0, 1440, 4), latitude=slice(0, 721, 4)), var, dlmd)
         dlmds = calcdlm(ds.isel(time=slice(0, ntimes, 6), longitude=slice(0, 1440, 4), latitude=slice(0, 721, 4)), var, dlms)
         destfn = os.path.join(dest_dir, f"era5_{var}dlm_daily_{year:0d}.nc")
-        dlm = xr.Dataset(data_vars={f"{var}s":dlmds, f"{var}d":dlmd})
+        dvar = xr.concat([dlmds, dlmdd], dim='level')
+        dvar = dvar.expand_dims({'level': [0, 1]})
+        dvar = dvar.transpose('time', 'level', 'latitude', 'longitude')
+        dlm = xr.Dataset(data_vars={var: dvar})
+        dlm.attrs = ds.attrs
         dlm.to_netcdf(destfn)
 
 
