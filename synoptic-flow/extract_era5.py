@@ -117,7 +117,6 @@ def process(year):
         dlmds = calcdlm(ds.isel(time=slice(0, ntimes, 6), longitude=slice(0, 1440, 4), latitude=slice(0, 721, 4)), var, dlms)
         destfn = os.path.join(dest_dir, f"era5_{var}dlm_daily_{year:0d}.nc")
         dvar = xr.concat([dlmds, dlmdd], dim='level')
-        dvar = dvar.expand_dims({'level': [0, 1]})
         dvar = dvar.transpose('time', 'level', 'latitude', 'longitude')
         dlm = xr.Dataset(data_vars={var: dvar})
         dlm.attrs = ds.attrs
