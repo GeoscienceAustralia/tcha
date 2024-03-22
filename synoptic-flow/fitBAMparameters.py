@@ -57,15 +57,17 @@ def plot_scatter(df, filename):
     uresult = rmod.fit(u, p, xl=ul, xu=uu)
     vresult = rmod.fit(v, p, xl=vl, xu=vu)
 
-    # Fit the second model - fixed 
+    # Fit the second model - fixed
     ufresult = fmod.fit(u, p, xl=ul, xu=uu)
     vfresult = fmod.fit(v, p, xl=vl, xu=vu)
 
     ua = uresult.params['alpha'].value
     va = vresult.params['alpha'].value
+
+    print("Result of fitting all data")
     print(uresult.fit_report())
     print(vresult.fit_report())
-    # Plot the results of the first model: 
+    # Plot the results of the first model:
     # This model doesn't filter in any way (intensity, basin, time period, etc.)
     fig, ax = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
     ax[0].plot(ua*ul + (1-ua)*uu, u, 'o', alpha=0.5)
@@ -114,9 +116,9 @@ def fit_model(df):
         vresult = rmod.fit(v, p, xl=vl, xu=vu)
         ufresult = fmod.fit(u, p, xl=ul, xu=uu)
         vfresult = fmod.fit(v, p, xl=vl, xu=vu)
-        
+
         resdf.loc[len(resdf.index)] = [
-            x, 
+            x,
             uresult.params['alpha'].value,
             vresult.params['alpha'].value,
             uresult.params['alpha'].stderr,
@@ -167,9 +169,10 @@ def plotResults(df, filename):
     axes[0].plot(x[:-3], lresult.best_fit, color='k',
                  linestyle='--', label="Linear fit")
     axes[0].grid(True)
-    axes[0].set_ylim((0.50, 0.85))
+    axes[0].set_ylim((0.0, 1.0))
     axes[0].set_ylabel(r"$\alpha(v)$")
     axes[0].legend(ncols=2)
+
 
     axes[1].plot(x, df['ursq'], color='b')
     axes[1].plot(x, df['vrsq'], color='r', label=r"$\alpha (v)$")
@@ -177,16 +180,16 @@ def plotResults(df, filename):
                  linestyle='--', label=r"Constant $\alpha$")
     axes[1].plot(x, df['vfrsq'], color='r', linestyle='--')
     axes[1].grid(True)
-    axes[1].set_ylim((0, 1))
+    axes[1].set_ylim((-1, 1))
     axes[1].set_ylabel(r"$r^{2}$")
     axes[1].set_xlabel("Intensity [m/s]")
     axes[1].legend(ncols=2)
     plt.text(0.95, 0.05, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
             transform=fig.transFigure, ha='right')
     plt.savefig(os.path.join(BASEDIR, filename), bbox_inches='tight')
-    
+
 def plotModel(df, fitdf, filename):
-    fig, ax = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
+    fig, ax = plt.subplots(1, 2, figsize=(12, 6), sharey=True)
     for i, x in enumerate(np.arange(10, 70, 5)):
         ualpha = fitdf.loc[i, 'au']
         valpha = fitdf.loc[i, 'av']
@@ -197,7 +200,7 @@ def plotModel(df, fitdf, filename):
         v = ddf['v']
         vl = ddf['v850']
         vu = ddf['v250']
-        
+
         upred = ualpha*ul + (1 - ualpha)*uu
         vpred = valpha*vl + (1 - valpha)*vu
         ax[0].plot(upred, u, 'o', label=f"{x} m/s")
@@ -208,8 +211,8 @@ def plotModel(df, fitdf, filename):
     ax[0].set_xlabel(r"Predicted $u_t$ [m/s]")
     ax[0].set_ylabel(r"Observed $u_t$ [m/s]")
     ax[0].grid()
-    ax[0].legend()
-    ax[0].text(0.05, 0.95, "u", transform=ax[0].transAxes,
+    #ax[0].legend()
+    ax[0].text(0.05, 0.95, r"$u_t$", transform=ax[0].transAxes,
             fontweight='bold', va='top')
     ax[1].set_ylim((-15, 15))
     ax[1].set_xlim((-15, 15))
@@ -218,27 +221,31 @@ def plotModel(df, fitdf, filename):
     ax[1].yaxis.tick_right()
     ax[1].set_ylabel(r"Observed $v_t$ [m/s]")
     ax[1].set_xlabel(r"Predicted $v_t$ [m/s]")
-    ax[1].text(0.05, 0.95, "v", transform=ax[1].transAxes,
+    ax[1].text(0.05, 0.95, r"$v_t$", transform=ax[1].transAxes,
             fontweight='bold', va='top')
-
+    plt.figlegend(bbox_to_anchor=(.5, 0), loc="lower center",
+                bbox_transform=fig.transFigure, ncol=4,
+                title="Storm intensity [m/s]")
+    fig.subplots_adjust(bottom=0.25)
     plt.text(0.95, 0.025, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
             transform=fig.transFigure, ha='right', fontsize='xx-small')
     plt.savefig(os.path.join(BASEDIR, filename),
                 bbox_inches='tight')
-        
+
 fitdf = fit_model(df)
 plot_scatter(df, filename="tcenvflow_scatter.png")
 plotResults(fitdf, filename="tcenvflow_fit.png")
 plotModel(df, fitdf, filename="tcenvflow_fullfit.png")
 df.drop("Unnamed: 0", axis=1).to_csv(os.path.join(BASEDIR, "tcenvflow.csv"), index=False)
-
+fitdf.to_csv(os.path.join(BASEDIR, "tcenvflow.fitstats.csv"), index=False)
 for basin in df['BASIN'].unique():
     print(basin)
     basinfit = fit_model(df[df['BASIN']==basin])
+    basinfit.to_csv(os.path.join(BASEDIR, f"tcenvflow.fitstats.{basin}.csv"), index=False)
     plot_scatter(df[df['BASIN']==basin],
                  filename=f"tcenvflow_scatter.{basin}.png")
 
     plotResults(basinfit, filename=f"tcenvflow_fit.{basin}.png")
     plotModel(df[df['BASIN']==basin], basinfit, filename=f"tcenvflow_fullfit.{basin}.png")
 
-    
+
