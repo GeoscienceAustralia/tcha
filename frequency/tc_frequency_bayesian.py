@@ -66,8 +66,18 @@ import numpy as np
 import xarray as xr
 import seaborn as sns
 import arviz as az
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from matplotlib.ticker import MaxNLocator
+
 from datetime import datetime
+
+mpl.rcParams['grid.linestyle'] = ':'
+mpl.rcParams['grid.linewidth'] = 0.5
+mpl.rcParams['savefig.dpi'] = 600
+locator = mdates.AutoDateLocator(minticks=10, maxticks=20)
+formatter = mdates.ConciseDateFormatter(locator)
 
 # We start with loading the TC track data. There are multiple possible sources
 # of TC track data - IBTrACS relies on the Bureau of Meteorology's best track
@@ -127,7 +137,8 @@ mtrace.posterior['ymodel'] = mtrace.posterior['lambda'] * \
     xr.DataArray(np.ones(len(years)))
 
 _, ax = plt.subplots(figsize=(12, 6))
-az.plot_lm(idata=mtrace, y="obs",  num_samples=100, axes=ax, y_model='ymodel',
+az.plot_lm(idata=mtrace, y=tccount, x=years, num_samples=100,
+           axes=ax, y_model='ymodel',
            kind_pp="hdi", kind_model='hdi',
            y_model_mean_kwargs={"lw": 2, "color": 'g', 'ls': '--'},
            y_kwargs={'marker': None, 'color': '0.75', 'label': '_obs'},
@@ -140,6 +151,7 @@ ax.set_xticklabels(np.arange(1980, 2021, 5))
 ax.set_xlabel("Season")
 ax.set_ylabel("TC count")
 ax.set_title("Mean model")
+ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 sns.despine()
 plt.text(0.0, -0.1, f"Source: {source}",
          transform=ax.transAxes, fontsize='xx-small', ha='left',)
@@ -232,20 +244,26 @@ plt.savefig(pjoin(outputPath, "linear_posterior_trace.png"),
 
 ltrace.posterior['ymodel'] = ltrace.posterior['alpha'] + \
     ltrace.posterior['beta'] * xr.DataArray(years)
+
 _, ax = plt.subplots(figsize=(12, 6))
-az.plot_lm(idata=ltrace, y="obs",  num_samples=100, axes=ax,
+ax.bar(years, tccount.values, fc='0.9', ec='k')
+
+az.plot_lm(idata=ltrace, y=tccount, x=years, num_samples=100, axes=ax,
            y_model='ymodel', kind_pp="hdi",
            kind_model='hdi',
            y_model_mean_kwargs={"lw": 2, "color": 'g', 'ls': '--'},
            y_kwargs={'marker': None, 'color': '0.75', 'label': '_obs'},
-           y_model_fill_kwargs={'alpha': 0.25})
-ax.bar(years, tccount.values, fc='0.9', ec='k', zorder=0)
+           y_model_fill_kwargs={'alpha': 0.25},
+           y_hat_fill_kwargs={'color':'orange',
+                              "hdi_prob": 0.95})
+
 ax.legend(loc=1)
 ax.set_xlabel("Season")
 ax.set_ylabel("TC count")
 ax.set_title("Linear trend model")
 ax.set_xticks(np.arange(-1, 41, 5))
 ax.set_xticklabels(np.arange(1980, 2021, 5))
+ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 plt.text(0.0, -0.1, f"Source: {source}",
          transform=ax.transAxes, fontsize='xx-small', ha='left',)
 plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
@@ -345,7 +363,8 @@ plt.savefig(pjoin(outputPath, "exponential_posterior_trace.png"),
 etrace.posterior['ymodel'] = etrace.posterior['alpha'] * \
     np.exp(etrace.posterior['mu'] * xr.DataArray(years))
 _, ax = plt.subplots(figsize=(12, 6))
-az.plot_lm(idata=etrace, y="obs",  num_samples=100, axes=ax, y_model='ymodel',
+az.plot_lm(idata=etrace, y=tccount, x=years, num_samples=100,
+           axes=ax, y_model='ymodel',
            kind_pp="hdi", kind_model='hdi',
            y_model_mean_kwargs={"lw": 2, "color": 'g', 'ls': '--'},
            y_kwargs={'marker': None, 'color': '0.75', 'label': '_obs'},
@@ -355,6 +374,7 @@ ax.set_xlabel('Season')
 ax.set_ylabel('TC count')
 ax.set_xticks(np.arange(-1, 41, 5))
 ax.set_xticklabels(np.arange(1980, 2021, 5))
+ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 ax.set_title("Exponential trend model")
 ax.legend(loc=1)
 
@@ -368,8 +388,9 @@ plt.savefig(pjoin(
 
 
 fig, ax = plt.subplots(1, 1)
-ax.hist(ltrace.posterior_predictive['obs'].values.flatten(), bins=np.arange(
-    0, 26, 1), density=True, alpha=0.75, width=0.75, label="Sampled")
+ax.hist(ltrace.posterior_predictive['obs'].values.flatten(),
+        bins=np.arange(0, 26, 1), density=True,
+        alpha=0.75, width=0.75, label="Sampled")
 ax.hist(tccount.values, bins=np.arange(0, 26, 1), density=True,
         ec='k', fc='white', alpha=0.5, width=0.5, label="Observed")
 ax.set_xlabel("Seasonal TC count")
