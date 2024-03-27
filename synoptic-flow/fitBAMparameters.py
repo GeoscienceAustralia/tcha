@@ -71,6 +71,7 @@ def plot_scatter(df, filename):
     # This model doesn't filter in any way (intensity, basin, time period, etc.)
     fig, ax = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
     ax[0].plot(ua*ul + (1-ua)*uu, u, 'o', alpha=0.5)
+    sns.kdeplot(x=ua*ul + (1-ua)*uu, y=u, levels=5, color='w', linewidths=1, ax=ax[0])
     ax[0].set_ylim((-15, 15))
     ax[0].set_xlim((-15, 15))
     ax[0].set_xlabel(r"Predicted $v_t$ [m/s]")
@@ -80,6 +81,7 @@ def plot_scatter(df, filename):
     ax[0].text(0.05, 0.95, eqstr, transform=ax[0].transAxes,
             fontweight='bold', va='top')
     ax[1].plot(va*vl + (1-va)*vu, v, 'o', alpha=0.5)
+    sns.kdeplot(x=va*vl + (1-va)*vu, y=v, levels=5, color='w', linewidths=1, ax=ax[1])
     ax[1].yaxis.tick_right()
     ax[1].yaxis.set_label_position("right")
 
@@ -230,6 +232,38 @@ def plotModel(df, fitdf, filename):
     plt.text(0.95, 0.025, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
             transform=fig.transFigure, ha='right', fontsize='xx-small')
     plt.savefig(os.path.join(BASEDIR, filename),
+                bbox_inches='tight')
+    
+    fig, ax = plt.subplots(1, 1, figsize=(6, 6))
+    for i, x in enumerate(np.arange(10, 70, 5)):
+        ualpha = fitdf.loc[i, 'au']
+        valpha = fitdf.loc[i, 'av']
+        ddf = df[df['band']==x]
+        u = ddf['u'] # Observed u component
+        ul = ddf['u850'] # Low-level u component of environmental flow
+        uu = ddf['u250'] # Upper-level u component of environmental flow
+        v = ddf['v']
+        vl = ddf['v850']
+        vu = ddf['v250']
+
+        upred = ualpha*ul + (1 - ualpha)*uu
+        vpred = valpha*vl + (1 - valpha)*vu
+        
+        magu = np.sqrt(u**2 + v**2)
+        magupred = np.sqrt(upred**2 + vpred**2)
+        ax.plot(magupred, magu, 'o', label=f"{x} m/s")
+    ax.set_ylim((0, 20))
+    ax.set_xlim((0, 20))
+    ax.set_xlabel(r"Predicted $u_t$ [m/s]")
+    ax.set_ylabel(r"Observed $u_t$ [m/s]")
+    ax.grid()
+    plt.figlegend(bbox_to_anchor=(.5, 0), loc="lower center",
+                bbox_transform=fig.transFigure, ncol=4,
+                title="Storm intensity [m/s]")
+    fig.subplots_adjust(bottom=0.25)
+    plt.text(0.95, 0.025, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
+            transform=fig.transFigure, ha='right', fontsize='xx-small')
+    plt.savefig(os.path.join(BASEDIR, "mag_"+filename),
                 bbox_inches='tight')
 
 fitdf = fit_model(df)

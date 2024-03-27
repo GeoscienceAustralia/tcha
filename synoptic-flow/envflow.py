@@ -74,6 +74,8 @@ def load_ibtracs_df(season):
     df["TM"] = pd.to_datetime(
         df.TM, format="%Y-%m-%d %H:%M:%S", errors="coerce")
     df = df[~pd.isnull(df.TM)]
+
+    # Filter to every 6 hours (to match sub-daily ERA data)
     df["hour"] = df["TM"].dt.hour
     df = df[df["hour"].isin([0, 6, 12, 18])]
     df.drop(columns=["hour"], inplace=True)
