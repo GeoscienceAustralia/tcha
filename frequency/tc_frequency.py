@@ -75,7 +75,7 @@ def regression_trend(numbers, start_year, end_year):
         r_sq = model.score(x, y)
         mean = y.mean()
         var =y.var()
-        results.loc[year] = [slope, intercept, r_sq, mean, var]
+        results.loc[year] = [slope[0], intercept, r_sq, mean, var]
 
     return results
 
@@ -110,7 +110,7 @@ def filter_tracks_domain(df, minlon=90, maxlon=180, minlat=-40, maxlat=0,
 
 # Start with the default TC best track database:
 inputPath = r"X:\georisk\HaRIA_B_Wind\data\raw\from_bom\tc"
-dataFile = pjoin(inputPath, r"IDCKMSTM0S - 20221021.csv")
+dataFile = pjoin(inputPath, r"IDCKMSTM0S - 20230921.csv")
 outputPath = r"..\data\frequency"
 usecols = [0, 1, 2, 7, 8, 16, 49, 53]
 colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
@@ -142,18 +142,18 @@ df['IDSEAS'] = new[0].str[:6].str.strip('AU').astype(int)
 ssc = df.groupby(['IDSEAS']).nunique()
 # This just ensures we capture the seasons with a zero count
 sc = pd.Series(index=range(ssc.index.min(), ssc.index.max()+1), dtype=int, data=0)
-sc.loc[ssc.index] = ssc.ID
+sc.loc[ssc.index] = np.array(ssc.ID.values, dtype='int32')
 
 # Determine the number of severe TCs.
 # take the number of TCs with maximum wind speed > 32 m/s
 xc = df.groupby(['DISTURBANCE_ID',]).agg({
-    'CENTRAL_PRES': np.min,
-    'MAX_WIND_GUST': np.max,
-    'MAX_WIND_SPD': np.max,
-    'ID':np.max, 'IDSEAS': 'max'})
+    'CENTRAL_PRES': 'min',
+    'MAX_WIND_GUST': 'max',
+    'MAX_WIND_SPD': 'max',
+    'ID': 'max', 'IDSEAS': 'max'})
 nns = xc[xc['MAX_WIND_SPD'] > 32].groupby('IDSEAS').nunique()['ID']
 ns = pd.Series(index=range(nns.index.min(), nns.index.max()+1), dtype=int, data=0)
-ns.loc[nns.index] = nns
+ns.loc[nns.index] = np.array(nns.values, dtype='int32')
 
 idx = sc.index >= 1970
 idx2 = sc.index >= 1985
@@ -201,7 +201,7 @@ ssc.to_csv(pjoin(outputPath, "all_tcs.csv"))
 
 # Calculate and plot the fraction of observations with central pressure, maximum
 # wind speed and maximum wind gust by season.
-fracdf = df.groupby('IDSEAS').apply(lambda x: x.notnull().mean())
+fracdf = df.groupby('IDSEAS').apply(lambda x: x.notnull().mean(), include_groups=False)
 fracdf.to_csv(pjoin(outputPath, "fraction_complete.csv"))
 fig, ax = plt.subplots(figsize=(10, 5))
 fig.patch.set_facecolor('white')
@@ -250,19 +250,19 @@ otcrdf['IDSEAS'] = new[0].str[:6].str.strip('AU').astype(int)
 # Calculate the number of unique values in each season:
 ssc = otcrdf.groupby(['IDSEAS']).nunique()
 otcrsc = pd.Series(index=range(ssc.index.min(), ssc.index.max()+1), dtype=int, data=0)
-otcrsc.loc[ssc.index] = ssc.ID
+otcrsc.loc[ssc.index] = np.array(ssc.ID.values, dtype='int32')
 
 # Determine the number of severe TCs.
 # take the number of TCs with maximum wind speed > 63 kts
 # NOTE: The OTCR data uses knots, not metres/second!
 otcrxc = otcrdf.groupby(['DISTURBANCE_ID',]).agg({
-    'CENTRAL_PRES': np.min,
-    'MAX_WIND_SPD': np.max,
-    'ID':np.max, 'IDSEAS': 'max'})
+    'CENTRAL_PRES': 'min',
+    'MAX_WIND_SPD': 'max',
+    'ID': 'max', 'IDSEAS': 'max'})
 
 nns = otcrxc[otcrxc['MAX_WIND_SPD'] > 63].groupby('IDSEAS').nunique()['ID']
 otcrns = pd.Series(index=range(nns.index.min(), nns.index.max()+1), dtype=int, data=0)
-otcrns.loc[nns.index] = nns
+otcrns.loc[nns.index] = np.array(nns.values, dtype='int32')
 
 idx = otcrsc.index >= 1980
 idx2 = otcrsc.index >= 1985
@@ -309,7 +309,7 @@ otcrsc.to_csv(pjoin(outputPath, "all_tcs_otcr.csv"))
 
 # Calculate and plot the fraction of observations with central pressure, maximum
 # wind speed and maximum wind gust by season.
-fracdf = otcrdf.groupby('IDSEAS').apply(lambda x: x.notnull().mean())
+fracdf = otcrdf.groupby('IDSEAS').apply(lambda x: x.notnull().mean(), include_groups=False)
 fracdf.to_csv(pjoin(outputPath, "fraction_complete.otcr.csv"))
 fig, ax = plt.subplots(figsize=(10, 5))
 fig.patch.set_facecolor('white')
