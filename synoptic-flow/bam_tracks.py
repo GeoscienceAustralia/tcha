@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.signal as sps
 import os
+import glob
 import pandas as pd
 from matplotlib import pyplot as plt
 import pyproj
@@ -20,6 +21,10 @@ import time
 from track_utils import plot_tracks, createGrid, plot_density, gridDensity, addGeometry, countCrossings
 from geopy.distance import geodesic as gdg
 from datetime import datetime
+from metpy.calc import lat_lon_grid_deltas
+from windspharm.xarray import VectorWind
+
+from pde import CartesianGrid, solve_poisson_equation, ScalarField
 
 
 # this script requires the results of 'era5_dlm.py', bom best track,
@@ -27,8 +32,9 @@ from datetime import datetime
 
 geodesic = pyproj.Geod(ellps='WGS84')
 WIDTH = 6.25
-DATA_DIR = os.path.expanduser("~/geoscience/data")
-OUT_DIR = os.path.expanduser("~/geoscience/data/plots")
+DATA_DIR = "/g/data/w85/data/tc"
+DLM_DIR = "/scratch/w85/cxa547/tcr/data/era5"
+OUT_DIR = "/scratch/w85/cxa547/bam"
 NOISE = False
 
 
@@ -88,10 +94,10 @@ def load_bom_df():
     )
 
     df['new_index'] = np.arange(len(df))
-    idxs = df.groupby(['DISTURBANCE_ID']).agg({'new_index': np.max}).values.flatten()
+    idxs = df.groupby(['DISTURBANCE_ID']).agg({'new_index': 'max'}).values.flatten()
     df.drop('new_index', axis=1, inplace=True)
 
-    dt = np.diff(df.TM).astype(np.float) / 3_600_000_000_000
+    dt = np.diff(df.TM).astype(float) / 3_600_000_000_000
     u = np.zeros_like(df.LAT)
     v = np.zeros_like(df.LAT)
     v[:-1] = np.cos(fwd_azimuth * np.pi / 180) * distances / (dt * 1000)
@@ -102,7 +108,7 @@ def load_bom_df():
     df['u'] = u
     df['v'] = v
 
-    dt = np.diff(df.TM).astype(np.float) / 3_600_000_000_000
+    dt = np.diff(df.TM).astype(float) / 3_600_000_000_000
     dt_ = np.zeros(len(df))
     dt_[:-1] = dt
     df['dt'] = dt_
@@ -320,7 +326,7 @@ def run(name, source):
     ####
     ###
     ##
-    # fit the BAM model
+    print("fit the BAM model")
     mask = ~np.isnan(u_steering)
 
     rmod = Model(lin_model)
@@ -349,6 +355,7 @@ def run(name, source):
     fit_plot(df.u, u_steering, uresult, u_residuals, mask, name, "u", source)
     fit_plot(df.v, v_steering, vresult, v_residuals, mask, name, "v", source)
 
+    """
     # run the track simulation and plot the tracks
     df = simulation(df, uds, vds, uresult, vresult, u_std, v_std)
     plot_tracks(
@@ -546,9 +553,9 @@ def run(name, source):
              transform=ax.transAxes, ha='right', fontsize='x-small', )
     plt.text(0.0, -0.3, f"Source: {source}", transform=ax.transAxes, fontsize='x-small', ha='left', )
     plt.savefig(os.path.join(OUT_DIR, f"{name}_landfall_{WIDTH}_{NOISE}.png"))
-
+    """
 
 if __name__ == "__main__":
 
     run("BoM", "http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv")
-    run("OTCR", "http://www.bom.gov.au/cyclone/history/database/OTCR_alldata_final_external.csv")
+    #run("OTCR", "http://www.bom.gov.au/cyclone/history/database/OTCR_alldata_final_external.csv")
