@@ -1,3 +1,35 @@
+"""
+envflow.py - calculate the environmental steering flow for TCs
+
+Using ERA5 reanalysis of 850 and 250 hPa sub-daily (6 hours) winds,
+calculate the environmental flow in the vicinity of each TC
+observation.
+
+The steering wind is calculated using "vortex surgery" to remove the
+TC vortex from the reanalysis data to determine the background flow.
+The details of this process are described in Galarneau and Davis (2013).
+We use the same approach to extract the environmental wind at 850 hPa
+and 250 hPa for each TC observation from ERA5 reanalysis (Hersbach et al.,
+2020) for all storms in the Australian region.
+
+The output is the TC track info, with additional fields representing the
+eastward (`u`) and northward (`v`) components of the storm translation speed,
+plus the same for the 850 and 250 hPa winds around the storm. Initially set
+to +/- 4 degrees of the storm centre (as at March 2024).
+
+Dependencies:
+pde - py-pde provides methods and classes for sovling partial differential
+    equations. This is used to solve the inversion of the laplacian to
+    calculate streamflow and velocity potential from the divergence and
+    vorticity fields. https://py-pde.readthedocs.io/en/latest/
+
+Author: Craig Arthur
+
+NOTE: check all paths. The `pde` library is installed in a user scratch
+directory; output paths are also in a user scratch directory.
+"""
+
+
 import os
 import sys
 import glob
@@ -9,45 +41,32 @@ from pde import CartesianGrid, solve_poisson_equation, ScalarField
 from windspharm.xarray import VectorWind
 from metpy.calc import lat_lon_grid_deltas
 from datetime import datetime
-from geopy.distance import geodesic as gdg
-from shapely.geometry import LineString, Point
-import geopandas as gpd
-import geopy
-from calendar import monthrange
 import xarray as xr
 import dask.array as da
 import numpy as np
-import scipy.signal as sps
 
 import pandas as pd
 import pyproj
-from lmfit import Model
-from sklearn.linear_model import LinearRegression
-import statsmodels.api as sm
-import scipy.stats as stats
-from scipy.interpolate import interp2d
 
-from vincenty import vincenty
-
-
-# this script requires the results of 'era5_dlm.py', bom best track,
-# and OCTR tracks are stored in the DATA_DIR folder
+# This script requires the results of 'extract_era5.py'
+# BoM best track and IBTrACS are stored in the DATA_DIR folder
 
 geodesic = pyproj.Geod(ellps="WGS84")
 WIDTH = 6.25
 DATA_DIR = "/g/data/w85/data/tc"
 DLM_DIR = "/scratch/w85/cxa547/tcr/data/era5"
-OUT_DIR = "/scratch/w85/cxa547/envflow/"
-NOISE = False
+OUT_DIR = "/scratch/w85/cxa547/envflow/EP"
+BASINS = ['EP']
 
 
-def load_ibtracs_df(season):
+def load_ibtracs_df(season, basins=['SI', 'SP']):
     """
     Helper function to load the IBTrACS database.
     Column names are mapped to the same as the BoM dataset to minimise
     the changes elsewhere in the code
 
     :param int season: Season to filter data by
+    :param list basins: select only those TCs from the given basins
 
     NOTE: Only returns data for SP and SI basins.
     """
@@ -85,8 +104,8 @@ def load_ibtracs_df(season):
     # IBTrACS includes spur tracks (bits of tracks that are
     # different to the official) - these need to be dropped.
     df = df[df.TRACK_TYPE == "main"]
-    # NOTE: Only using SP and SI basins here
-    df = df[df["BASIN"].isin(["SP", "SI"])]
+    # NOTE: Only using specified basins here
+    df = df[df["BASIN"].isin(basins)]
 
     df.reset_index(inplace=True)
     fwd_azimuth, _, distances = geodesic.inv(
@@ -322,7 +341,7 @@ def process(season):
 
     :returns: None. Data are saved to a file with the season in the filename.
     """
-    df = load_ibtracs_df(season)
+    df = load_ibtracs_df(season, BASINS)
 
     print("extract steering current from environmental flow:")
     results = load_steering(uda, vda, df)
