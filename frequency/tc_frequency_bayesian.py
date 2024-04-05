@@ -386,6 +386,11 @@ plt.savefig(pjoin(
     outputPath, "seasonal_frequency_exponential_posterior_predictive.png"),
     bbox_inches='tight')
 
+# Save a set of samples to a csv file for later use in sampling
+# TC seasonal numbers:
+mtrace.posterior_predictive['obs'][0].to_dataframe().to_csv(
+    pjoin(outputPath, "tccount.samples.csv")
+    )
 
 fig, ax = plt.subplots(1, 1)
 ax.hist(ltrace.posterior_predictive['obs'].values.flatten(),
