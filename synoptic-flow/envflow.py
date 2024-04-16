@@ -17,6 +17,9 @@ eastward (`u`) and northward (`v`) components of the storm translation speed,
 plus the same for the 850 and 250 hPa winds around the storm. Initially set
 to +/- 4 degrees of the storm centre (as at March 2024).
 
+We add a cyclic point at 180E to ensure there's no strange anomalies from a 
+missing value at this longitude.
+
 Dependencies:
 pde - py-pde provides methods and classes for sovling partial differential
     equations. This is used to solve the inversion of the laplacian to
@@ -45,6 +48,8 @@ import xarray as xr
 import dask.array as da
 import numpy as np
 
+import cartopy.util as cutil
+
 import pandas as pd
 import pyproj
 
@@ -55,9 +60,30 @@ geodesic = pyproj.Geod(ellps="WGS84")
 WIDTH = 6.25
 DATA_DIR = "/g/data/w85/data/tc"
 DLM_DIR = "/scratch/w85/cxa547/tcr/data/era5"
-OUT_DIR = "/scratch/w85/cxa547/envflow/EP"
-BASINS = ['EP']
+OUT_DIR = "/scratch/w85/cxa547/envflow/cyclic"
+BASINS = ['SP','SI']
 
+def cyclic_wrapper(x, dim="longitude"):
+    """
+    Use cartopy.util.add_cyclic_point with an xarray Dataset to 
+    add a cyclic or wrap-around pixel to the `lon` dimension. This can be useful
+    for plotting with `cartopy`
+    
+    So add_cyclic_point() works on 'dim' via xarray Dataset.map()
+    
+    :param x: `xr.Dataset` to process
+    :param str dim: Dimension of the dataset to wrap on (default "longitude")
+    """
+    wrap_data, wrap_lon = cutil.add_cyclic_point(
+        x.values, 
+        coord=x.coords[dim].data,
+        axis=x.dims.index(dim)
+    )
+    return xr.DataArray(
+        wrap_data, 
+        coords={dim: wrap_lon, **x.drop_vars(dim).coords}, 
+        dims=x.dims
+    )
 
 def load_ibtracs_df(season, basins=['SI', 'SP']):
     """
@@ -68,13 +94,13 @@ def load_ibtracs_df(season, basins=['SI', 'SP']):
     :param int season: Season to filter data by
     :param list basins: select only those TCs from the given basins
 
-    NOTE: Only returns data for SP and SI basins.
     """
     dataFile = os.path.join(DATA_DIR, "ibtracs.since1980.list.v04r00.csv")
     df = pd.read_csv(
         dataFile,
         skiprows=[1],
         usecols=[0, 1, 3, 5, 6, 8, 9, 11, 13, 23],
+        keep_default_na=False,
         na_values=[" "],
         parse_dates=[1],
         date_format="%Y-%m-%d %H:%M:%S",
@@ -104,7 +130,6 @@ def load_ibtracs_df(season, basins=['SI', 'SP']):
     # IBTrACS includes spur tracks (bits of tracks that are
     # different to the official) - these need to be dropped.
     df = df[df.TRACK_TYPE == "main"]
-    # NOTE: Only using specified basins here
     df = df[df["BASIN"].isin(basins)]
 
     df.reset_index(inplace=True)
@@ -303,7 +328,8 @@ def load_steering(uda, vda, df, width=4.0):
     griddx = np.hstack(
         (griddx.magnitude, griddx.magnitude[:, -1].reshape(-1, 1)))
     griddy = np.abs(
-        np.vstack((griddy.magnitude, griddy.magnitude[-1, :].reshape(1, -1)))
+        np.vstack(
+            (griddy.magnitude, griddy.magnitude[-1, :].reshape(1, -1)))
     )
     output = []
     for row in df.itertuples():
@@ -318,7 +344,7 @@ def load_steering(uda, vda, df, width=4.0):
         us = uda.sel(time=dt, method="nearest")
         vs = vda.sel(time=dt, method="nearest")
         uenv, venv = extract_steering(
-            us, vs, lon_cntr, lat_cntr, griddx, griddy)
+            us, vs, lon_cntr, lat_cntr, griddx, griddy, width)
 
         u_steering = (
             uenv.sel(latitude=lat_slice, longitude=long_slice).mean(
@@ -374,6 +400,8 @@ vdss = xr.open_mfdataset(
     parallel=True,
 )
 
+udss = udss.map(cyclic_wrapper, keep_attrs=True)
+vdss = vdss.map(cyclic_wrapper, keep_attrs=True)
 uda = udss["u"]
 vda = vdss["v"]
 

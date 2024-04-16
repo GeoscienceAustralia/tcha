@@ -18,7 +18,7 @@ from datetime import datetime
 sns.set_palette('viridis', n_colors=12)
 
 
-BASEDIR = r"X:\georisk\HaRIA_B_Wind\projects\tcha\data\derived\envflow"
+BASEDIR = "/scratch/w85/cxa547/envflow/6deg"
 filelist = sorted(glob.glob(os.path.join(BASEDIR, "tcenvflow_serial.*.csv")))
 df = pd.concat((pd.read_csv(f) for f in filelist), ignore_index=True)
 
