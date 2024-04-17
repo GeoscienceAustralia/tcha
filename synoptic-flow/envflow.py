@@ -99,7 +99,7 @@ def load_ibtracs_df(season, basins=['SI', 'SP']):
     df = pd.read_csv(
         dataFile,
         skiprows=[1],
-        usecols=[0, 1, 3, 5, 6, 8, 9, 11, 13, 23],
+        usecols=[0, 1, 3, 5, 6, 8, 9, 10, 11, 13, 23],
         keep_default_na=False,
         na_values=[" "],
         parse_dates=[1],
@@ -109,7 +109,7 @@ def load_ibtracs_df(season, basins=['SI', 'SP']):
         columns={
             "SID": "DISTURBANCE_ID",
             "ISO_TIME": "TM",
-            "WMO_WIND": "MAX_WIND_SPD",
+            #"WMO_WIND": "MAX_WIND_SPD",
             "WMO_PRES": "CENTRAL_PRES",
             "USA_WIND": "MAX_WIND_SPD",
         },
@@ -324,7 +324,10 @@ def load_steering(uda, vda, df, width=4.0):
                   Default is 4 degrees. Loosely based on the 400 km used in
                   Lin et al. (2023) and Galarneau and Davis (2013).
     """
-    griddx, griddy = lat_lon_grid_deltas(uda.longitude, uda.latitude)
+    griddx, griddy = lat_lon_grid_deltas(
+        np.hstack((uda.longitude.values, 180)),
+        uda.latitude.values
+        )
     griddx = np.hstack(
         (griddx.magnitude, griddx.magnitude[:, -1].reshape(-1, 1)))
     griddy = np.abs(
@@ -343,6 +346,8 @@ def load_steering(uda, vda, df, width=4.0):
         # Select data
         us = uda.sel(time=dt, method="nearest")
         vs = vda.sel(time=dt, method="nearest")
+        us = cyclic_wrapper(us, "longitude")
+        vs = cyclic_wrapper(vs, "longitude")
         uenv, venv = extract_steering(
             us, vs, lon_cntr, lat_cntr, griddx, griddy, width)
 
@@ -368,7 +373,6 @@ def process(season):
     :returns: None. Data are saved to a file with the season in the filename.
     """
     df = load_ibtracs_df(season, BASINS)
-
     print("extract steering current from environmental flow:")
     results = load_steering(uda, vda, df)
 
@@ -377,14 +381,18 @@ def process(season):
         [r for r in results]).squeeze(), columns=cols)
     vdf["index"] = vdf["index"].astype(int)
     outdf = df.merge(vdf, left_on="index", right_on="index", how="inner")
+    print(f"Finished processing {season}")
     outdf.to_csv(os.path.join(OUT_DIR, f"tcenvflow_serial.{season}.csv"))
 
 
 # Main code:
+
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
 upath = sorted(glob.glob(os.path.join(DLM_DIR, f"**/era5_u_daily_*.nc")))
 vpath = sorted(glob.glob(os.path.join(DLM_DIR, f"**/era5_v_daily_*.nc")))
 
-# Load the files as a multifile dataset
+print("Load the files as a multifile dataset")
 udss = xr.open_mfdataset(
     upath,
     combine="nested",
@@ -400,15 +408,19 @@ vdss = xr.open_mfdataset(
     parallel=True,
 )
 
-udss = udss.map(cyclic_wrapper, keep_attrs=True)
-vdss = vdss.map(cyclic_wrapper, keep_attrs=True)
+# This shifts to a central longitude of 180E, rather than 0E
+udss = udss.roll(longitude=-180, roll_coords=True)
+udss['longitude'] = np.where(udss['longitude'] < 0, udss['longitude'] + 360, udss['longitude'])
+
+vdss = vdss.roll(longitude=-180, roll_coords=True)
+vdss['longitude'] = np.where(vdss['longitude'] < 0, vdss['longitude'] + 360, vdss['longitude'])
+
+
 uda = udss["u"]
 vda = vdss["v"]
 
 # Scatter across available processors:
-comm = MPI.COMM_WORLD
 years = np.arange(1981, 2023)
-rank = comm.Get_rank()
 rank_years = years[(years % comm.size) == rank]
 for year in rank_years:
     process(year)

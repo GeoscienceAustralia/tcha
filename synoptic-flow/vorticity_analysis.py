@@ -140,6 +140,12 @@ def load_ibtracs_df(season=None):
 
 
 def calcTClonPercentiles():
+    """
+    Calculate percentiles of longitude values in each basin
+    
+    :returns: `pd.DataFrame` of 10th and 90th percentile of longitude
+    values in each TC basin.
+    """
     tcdf = load_ibtracs_df()
     tcdf.loc[tcdf['LON']<0, 'LON'] = tcdf['LON'] + 360
     basins = tcdf.BASIN.unique()

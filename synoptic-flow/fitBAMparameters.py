@@ -17,8 +17,22 @@ import seaborn as sns
 from datetime import datetime
 sns.set_palette('viridis', n_colors=12)
 
+def savefig(filename, *args, **kwargs):
+    """
+    Add a timestamp to each figure when saving
 
-BASEDIR = "/scratch/w85/cxa547/envflow/6deg"
+    :param str filename: Path to store the figure at
+    :param args: Additional arguments to pass to `plt.savefig`
+    :param kwargs: Additional keyword arguments to pass to `plt.savefig`
+    """
+    fig = plt.gcf()
+    plt.text(0.99, 0.01, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
+            transform=fig.transFigure, ha='right', va='bottom',
+            fontsize='xx-small')
+    plt.savefig(filename, *args, **kwargs)
+
+
+BASEDIR = "/scratch/w85/cxa547/envflow/cyclic"
 filelist = sorted(glob.glob(os.path.join(BASEDIR, "tcenvflow_serial.*.csv")))
 df = pd.concat((pd.read_csv(f) for f in filelist), ignore_index=True)
 
@@ -111,9 +125,7 @@ def plot_scatter(df, filename):
     ax[1].text(0.05, 0.95, eqstr, transform=ax[1].transAxes,
                fontweight='bold', va='top')
 
-    plt.text(0.95, 0.05, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
-             transform=fig.transFigure, ha='right', fontsize='xx-small')
-    plt.savefig(os.path.join(BASEDIR, filename),
+    savefig(os.path.join(BASEDIR, filename),
                 bbox_inches='tight')
 
 
@@ -240,9 +252,7 @@ def plotResults(df, filename):
     axes[1].set_ylabel(r"$r^{2}$")
     axes[1].set_xlabel("Intensity [m/s]")
     axes[1].legend(ncols=2)
-    plt.text(0.95, 0.05, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
-             transform=fig.transFigure, ha='right')
-    plt.savefig(os.path.join(BASEDIR, filename), bbox_inches='tight')
+    savefig(os.path.join(BASEDIR, filename), bbox_inches='tight')
 
 
 def plotModel(df, fitdf, filename):
@@ -283,10 +293,8 @@ def plotModel(df, fitdf, filename):
                   bbox_transform=fig.transFigure, ncol=4,
                   title="Storm intensity [m/s]")
     fig.subplots_adjust(bottom=0.25)
-    plt.text(0.95, 0.025, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
-             transform=fig.transFigure, ha='right', fontsize='xx-small')
-    plt.savefig(os.path.join(BASEDIR, filename),
-                bbox_inches='tight')
+    savefig(os.path.join(BASEDIR, filename),
+            bbox_inches='tight')
 
     fig, ax = plt.subplots(1, 1, figsize=(6, 6))
     for i, x in enumerate(np.arange(10, 70, 5)):
@@ -315,10 +323,8 @@ def plotModel(df, fitdf, filename):
                   bbox_transform=fig.transFigure, ncol=4,
                   title="Storm intensity [m/s]")
     fig.subplots_adjust(bottom=0.25)
-    plt.text(0.95, 0.025, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
-             transform=fig.transFigure, ha='right', fontsize='xx-small')
-    plt.savefig(os.path.join(BASEDIR, "mag_"+filename),
-                bbox_inches='tight')
+    savefig(os.path.join(BASEDIR, "mag_"+filename),
+            bbox_inches='tight')
 
 
 def plotModelLongitude(df, fitdf, filename):
@@ -359,10 +365,8 @@ def plotModelLongitude(df, fitdf, filename):
                   bbox_transform=fig.transFigure, ncol=4,
                   title=r"Longitude [$^{\circ}$E]")
     fig.subplots_adjust(bottom=0.25)
-    plt.text(0.95, 0.025, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
-             transform=fig.transFigure, ha='right', fontsize='xx-small')
-    plt.savefig(os.path.join(BASEDIR, filename),
-                bbox_inches='tight')
+    savefig(os.path.join(BASEDIR, filename),
+            bbox_inches='tight')
 
 
 def plotResultsLongitude(df, filename):
@@ -393,10 +397,7 @@ def plotResultsLongitude(df, filename):
     axes[1].set_ylabel(r"$r^{2}$")
     axes[1].set_xlabel(r"Longitude [$^{\circ}$E]")
     axes[1].legend(ncols=2)
-    plt.text(0.95, 0.05, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
-             transform=fig.transFigure, ha='right',
-             fontsize='xx-small')
-    plt.savefig(os.path.join(BASEDIR, filename), bbox_inches='tight')
+    savefig(os.path.join(BASEDIR, filename), bbox_inches='tight')
 
 
 fitdf = fit_model(df)
@@ -408,9 +409,15 @@ plotModel(df, fitdf, filename="tcenvflow_fullfit.png")
 plotModelLongitude(df, fitdf_lon, filename="tcenvflow_fullfit.longitude.png")
 
 df.drop("Unnamed: 0", axis=1).to_csv(
-    os.path.join(BASEDIR, "tcenvflow.csv"), index=False)
+    os.path.join(BASEDIR, "tcenvflow.csv"),
+    index=False
+    )
+
 fitdf.to_csv(
-    os.path.join(BASEDIR, "tcenvflow.fitstats.csv"), index=False)
+    os.path.join(BASEDIR, "tcenvflow.fitstats.csv"),
+    index=False
+    )
+
 for basin in df['BASIN'].unique():
     print(basin)
     basinfit = fit_model(df[df['BASIN'] == basin])
