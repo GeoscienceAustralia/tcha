@@ -1,6 +1,8 @@
 """
 Fit beta-advection model parameters to TC motion
 
+
+
 Author: Craig Arthur
 2024-03-20
 """
@@ -12,6 +14,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
+from matplotlib.lines import Line2D
 import lmfit
 import seaborn as sns
 from datetime import datetime
@@ -39,16 +42,24 @@ df = pd.concat((pd.read_csv(f) for f in filelist), ignore_index=True)
 df.loc[df['LON'] < 0, "LON"] = df['LON'] + 360
 df.dropna(subset=['u850', 'u250', 'v850', 'v250'], inplace=True)
 
+# Add bands for intensity and longitude:
+df['band'] = pd.cut(df['MAX_WIND_SPD'], np.arange(10, 71, 5),
+                    labels=np.arange(10, 70, 5))
+df['lonband'] = pd.cut(df['LON'], np.arange(30, 250.1, 20),
+                       labels=np.arange(40, 250, 20))
+
 
 # Define the different models that will be used:
 def twolevel_model(alpha, xl, xu):
     return alpha*xl + (1-alpha)*xu
 
-
 # This model has fixed ratio for lower and upper flow:
 def fixed_model(xl, xu):
     return 0.8*xl + 0.2*xu
 
+# This model includes a component related to the beta effect:
+def beta_model(alpha, beta, xl, xu, phi):
+    return alpha*xl + (1-alpha)*xu + beta*np.cos(np.radians(phi))
 
 # For fitting linear regression of alpha with intensity:
 def lin_model(m, b, x):
@@ -58,11 +69,17 @@ def lin_model(m, b, x):
 # Set up the models:
 #  `rmod` has varying alpha with wind speed
 #  `fmod` has fixed alpha = 0.8
+#  `bmod` includes beta effect
 alpha = lmfit.Parameter('alpha', value=0.8, min=0, max=1)
+beta = lmfit.Parameter('beta', value=0)
 p = lmfit.Parameters()
 p.add(alpha)
+pb = lmfit.Parameters()
+pb.add(alpha)
+pb.add(beta)
 rmod = lmfit.Model(twolevel_model, independent_vars=['xl', 'xu'])
 fmod = lmfit.Model(fixed_model, independent_vars=['xl', 'xu'])
+bmod = lmfit.Model(beta_model, independent_vars=['xl', 'xu', 'phi'])
 
 
 def plot_scatter(df, filename):
@@ -94,7 +111,11 @@ def plot_scatter(df, filename):
     va = vresult.params['alpha'].value
 
     print("Result of fitting all data")
+    print("Zonal component")
+    print("===============")
     print(uresult.fit_report())
+    print("Meridional component")
+    print("====================")
     print(vresult.fit_report())
     # Plot the results of the first model:
     # This model doesn't filter in any way
@@ -128,73 +149,98 @@ def plot_scatter(df, filename):
     savefig(os.path.join(BASEDIR, filename),
                 bbox_inches='tight')
 
+def fit(df):
+    """
+    This fits the three models to the data and returns a
+    dataframe that summarises the statistics of the fitted variables
 
-# Add bands for intensity and longitude:
-df['band'] = pd.cut(df['MAX_WIND_SPD'], np.arange(10, 71, 5),
-                    labels=np.arange(10, 70, 5))
-df['lonband'] = pd.cut(df['LON'], np.arange(30, 250.1, 20),
-                       labels=np.arange(40, 250, 20))
-
+    """
+    u = df['u']  # Observed u component
+    ul = df['u850']  # Low-level u component of environmental flow
+    uu = df['u250']  # Upper-level u component of environmental flow
+    v = df['v']
+    vl = df['v850']
+    vu = df['v250']
+    phi = df['LAT']
+    uresult = rmod.fit(u, p, xl=ul, xu=uu)
+    vresult = rmod.fit(v, p, xl=vl, xu=vu)
+    ufresult = fmod.fit(u, p, xl=ul, xu=uu)
+    vfresult = fmod.fit(v, p, xl=vl, xu=vu)
+    ubresult = bmod.fit(u, pb, xl=ul, xu=uu, phi=phi)
+    vbresult = bmod.fit(v, pb, xl=vl, xu=vu, phi=phi)
+    results = [
+        uresult.params['alpha'].value,
+        vresult.params['alpha'].value,
+        uresult.params['alpha'].stderr,
+        vresult.params['alpha'].stderr,
+        ubresult.params['alpha'].value,
+        ubresult.params['beta'].value,
+        vbresult.params['alpha'].value,
+        vbresult.params['beta'].value,
+        ubresult.params['alpha'].stderr,
+        vbresult.params['alpha'].stderr,
+        ubresult.params['beta'].stderr,
+        vbresult.params['beta'].stderr,
+        uresult.rsquared,
+        vresult.rsquared,
+        ubresult.rsquared,
+        vbresult.rsquared,
+        ufresult.rsquared,
+        vfresult.rsquared]
+    return results
 
 def fit_model(df):
-    resdf = pd.DataFrame(columns=['i', 'au', 'av', 'aust', 'avst',
-                                  'ursq', 'ufrsq', 'vrsq', 'vfrsq'])
+    """
+    Fit the BAM for a range of intensity values:
+
+    :param df: `pd.DataFrame` containing translation velocity components,
+               850- and 250-hPa environmental flow for the storm position,
+
+    :returns: `pd.DataFrame` containing alpha values, standard errors and
+                r-squared values for each intensity range.
+    """
+    resdf = pd.DataFrame(columns=['i', 'au', 'av',
+                                  'aust', 'avst',
+                                  'abu', 'abbu',
+                                  'abv', 'abbv',
+                                  'abust', 'abvst',
+                                  'abbust', 'abbvst',
+                                  'ursq', 'vrsq',
+                                  'ubrsq', 'vbrsq',
+                                  'ufrsq', 'vfrsq'])
 
     for i, x in enumerate(np.arange(10, 70, 5)):
         ddf = df[df['band'] == x]
-        model = lmfit.Model(twolevel_model, independent_vars=['xl', 'xu'])
-        u = ddf['u']  # Observed u component
-        ul = ddf['u850']  # Low-level u component of environmental flow
-        uu = ddf['u250']  # Upper-level u component of environmental flow
-        v = ddf['v']
-        vl = ddf['v850']
-        vu = ddf['v250']
-        uresult = rmod.fit(u, p, xl=ul, xu=uu)
-        vresult = rmod.fit(v, p, xl=vl, xu=vu)
-        ufresult = fmod.fit(u, p, xl=ul, xu=uu)
-        vfresult = fmod.fit(v, p, xl=vl, xu=vu)
+        res = fit(ddf)
+        resdf.loc[len(resdf.index)] = [x] + res
 
-        resdf.loc[len(resdf.index)] = [
-            x,
-            uresult.params['alpha'].value,
-            vresult.params['alpha'].value,
-            uresult.params['alpha'].stderr,
-            vresult.params['alpha'].stderr,
-            uresult.rsquared,
-            ufresult.rsquared,
-            vresult.rsquared,
-            vfresult.rsquared]
     return resdf
 
 
 def fit_model_longitude(df):
-    resdf = pd.DataFrame(columns=['i', 'au', 'av', 'aust', 'avst',
-                                  'ursq', 'ufrsq', 'vrsq', 'vfrsq'])
+    """
+    Fit the basic BAM for a range of longitude bands
+
+    :param df: `pd.DataFrame` containing translation velocity components,
+               850- and 250-hPa environmental flow for the storm position,
+
+    :returns: `pd.DataFrame` containing alpha values, standard errors and
+                r-squared values for each longitude band.
+    """
+    resdf = pd.DataFrame(columns=['i', 'au', 'av',
+                                  'aust', 'avst',
+                                  'abu', 'abbu',
+                                  'abv', 'abbv',
+                                  'abust', 'abvst',
+                                  'abbust', 'abbvst',
+                                  'ursq', 'vrsq',
+                                  'ubrsq', 'vbrsq',
+                                  'ufrsq', 'vfrsq'])
 
     for i, x in enumerate(np.arange(40, 250.1, 20)):
         ddf = df[df['lonband'] == x]
-        model = lmfit.Model(twolevel_model, independent_vars=['xl', 'xu'])
-        u = ddf['u']  # Observed u component
-        ul = ddf['u850']  # Low-level u component of environmental flow
-        uu = ddf['u250']  # Upper-level u component of environmental flow
-        v = ddf['v']
-        vl = ddf['v850']
-        vu = ddf['v250']
-        uresult = rmod.fit(u, p, xl=ul, xu=uu)
-        vresult = rmod.fit(v, p, xl=vl, xu=vu)
-        ufresult = fmod.fit(u, p, xl=ul, xu=uu)
-        vfresult = fmod.fit(v, p, xl=vl, xu=vu)
-
-        resdf.loc[len(resdf.index)] = [
-            x,
-            uresult.params['alpha'].value,
-            vresult.params['alpha'].value,
-            uresult.params['alpha'].stderr,
-            vresult.params['alpha'].stderr,
-            uresult.rsquared,
-            ufresult.rsquared,
-            vresult.rsquared,
-            vfresult.rsquared]
+        res = fit(ddf)
+        resdf.loc[len(resdf.index)] = [x] + res
     return resdf
 
 
@@ -220,7 +266,10 @@ def fit_alpha_intensity(df):
 
     lmod = lmfit.Model(lin_model, independent_vars=['x'])
     lresult = lmod.fit((au[:-3]+av[:-3])/2, lp, x=np.arange(10, 55, 5))
-    print(lresult.rsquared)
+    print("Fitting alpha as a function intensity")
+    print(lresult.fit_report())
+    # The maximum and minimum values can be used to set the range of values
+    # that alpha can take:
     print(lresult.best_fit.max(), lresult.best_fit.min())
     return lresult
 
@@ -238,20 +287,21 @@ def plotResults(df, filename):
     axes[0].plot(x[:-3], lresult.best_fit, color='k',
                  linestyle='--', label="Linear fit")
     axes[0].grid(True)
-    axes[0].set_ylim((0.0, 1.0))
+    axes[0].set_ylim((0.5, 1.0))
     axes[0].set_ylabel(r"$\alpha(v)$")
     axes[0].legend(ncols=2)
 
     axes[1].plot(x, df['ursq'], color='b')
-    axes[1].plot(x, df['vrsq'], color='r', label=r"$\alpha (v)$")
-    axes[1].plot(x, df['ufrsq'], color='b',
-                 linestyle='--', label=r"Constant $\alpha$")
+    axes[1].plot(x, df['vrsq'], color='r')
+    axes[1].plot(x, df['ufrsq'], color='b', linestyle='--')
     axes[1].plot(x, df['vfrsq'], color='r', linestyle='--')
     axes[1].grid(True)
     axes[1].set_ylim((-1, 1))
     axes[1].set_ylabel(r"$r^{2}$")
     axes[1].set_xlabel("Intensity [m/s]")
-    axes[1].legend(ncols=2)
+    clines = [Line2D([0], [0], color='k', lw=2),
+              Line2D([0], [0], color='k', lw=2, linestyle='--')]
+    axes[1].legend(clines, [r"$\alpha (v)$", r"Constant $\alpha$"], ncols=2)
     savefig(os.path.join(BASEDIR, filename), bbox_inches='tight')
 
 
@@ -393,7 +443,7 @@ def plotResultsLongitude(df, filename):
                  linestyle='--', label=r"Constant $\alpha$")
     axes[1].plot(x, df['vfrsq'], color='r', linestyle='--')
     axes[1].grid(True)
-    axes[1].set_ylim((-1, 1))
+    axes[1].set_ylim((0, 1))
     axes[1].set_ylabel(r"$r^{2}$")
     axes[1].set_xlabel(r"Longitude [$^{\circ}$E]")
     axes[1].legend(ncols=2)

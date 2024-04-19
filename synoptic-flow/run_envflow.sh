@@ -21,5 +21,5 @@ module load conda/analysis3
 cd $HOME/tcha/synoptic-flow
 export PYTHONPATH=$PYTHONPATH:/scratch/$PROJECT/$USER/python/lib/python3.10/site-packages
 
-mpirun -np $PBS_NCPUS python3 envflow.py > envflow.batch.log 2>&1
+mpirun -np $PBS_NCPUS python3 envflow.py > envflow.WP.log 2>&1
 

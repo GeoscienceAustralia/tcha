@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 import seaborn as sns
-BASEDIR="/scratch/w85/cxa547/envflow"
+BASEDIR="/scratch/w85/cxa547/envflow/cyclic"
 filename = os.path.join(BASEDIR, "tcenvflow.csv")
 df = pd.read_csv(filename)
 df = df[~df['MAX_WIND_SPD'].isna()]
@@ -24,8 +24,8 @@ spdf['sv'] = spdf['v850'] - spdf['v250']
 sidf['su'] = sidf['u850'] - sidf['u250']
 sidf['sv'] = sidf['v850'] - sidf['v250']
 cols = ['LAT', 'MAX_WIND_SPD', 'u', 'v', 'du', 'dv', 'u850', 'v850', 'u250', 'v250', 'su', 'sv']
-sns.pairplot(spdf[cols])
-sns.pairplot(sidf[cols])
+#sns.pairplot(spdf[cols])
+#sns.pairplot(sidf[cols])
 
 spdf[cols].corr().to_csv(os.path.join(BASEDIR, "SPcorr.csv"))
 sidf[cols].corr().to_csv(os.path.join(BASEDIR, "SIcorr.csv"))
