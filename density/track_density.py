@@ -182,8 +182,8 @@ def addGeometry(trackdf: pd.DataFrame, storm_id_field: str, lonname='LON', latna
             segment = LineString([[t[lonname].iloc[n], t[latname].iloc[n]],
                                   [t[lonname].iloc[n+1], t[latname].iloc[n+1]]])
             segments.append(segment)
-        gdf = gpd.GeoDataFrame.from_records(t[:-1])
-        gdf['geometry'] = segments
+        gdf = gpd.GeoDataFrame(t[:-1])
+        gdf.set_geometry(segments, inplace=True)
         tracks.append(gdf)
 
     outgdf = pd.concat(tracks)
