@@ -17,7 +17,7 @@ eastward (`u`) and northward (`v`) components of the storm translation speed,
 plus the same for the 850 and 250 hPa winds around the storm. Initially set
 to +/- 4 degrees of the storm centre (as at March 2024).
 
-We add a cyclic point at 180E to ensure there's no strange anomalies from a 
+We add a cyclic point at 180E to ensure there's no strange anomalies from a
 missing value at this longitude.
 
 Dependencies:
@@ -65,23 +65,23 @@ BASINS = ['SP','SI']
 
 def cyclic_wrapper(x, dim="longitude"):
     """
-    Use cartopy.util.add_cyclic_point with an xarray Dataset to 
+    Use cartopy.util.add_cyclic_point with an xarray Dataset to
     add a cyclic or wrap-around pixel to the `lon` dimension. This can be useful
     for plotting with `cartopy`
-    
+
     So add_cyclic_point() works on 'dim' via xarray Dataset.map()
-    
+
     :param x: `xr.Dataset` to process
     :param str dim: Dimension of the dataset to wrap on (default "longitude")
     """
     wrap_data, wrap_lon = cutil.add_cyclic_point(
-        x.values, 
+        x.values,
         coord=x.coords[dim].data,
         axis=x.dims.index(dim)
     )
     return xr.DataArray(
-        wrap_data, 
-        coords={dim: wrap_lon, **x.drop_vars(dim).coords}, 
+        wrap_data,
+        coords={dim: wrap_lon, **x.drop_vars(dim).coords},
         dims=x.dims
     )
 

@@ -377,7 +377,17 @@ def plotModel(df, fitdf, filename):
             bbox_inches='tight')
 
 
-def plotModelLongitude(df, fitdf, filename):
+def plotModelLongitude(df: pd.DataFrame, fitdf: pd.DataFrame, filename: str):
+    """
+    Plot the fitted model as a scatter plot of predicted vs observed
+    translation speed for zonal and meridional components. This version
+    groups the observations by longitude bands.
+
+    :param df: `pd.DataFrame` containing all the observations and
+    extracted 850 & 250 hPa wind components
+    :param fitdf: `pd.DataFrame` containing the model fit parameters
+    :param filename: file path for saving the figure.
+    """
     fig, ax = plt.subplots(1, 2, figsize=(12, 6), sharey=True)
     for i, x in enumerate(np.arange(40, 240.1, 20)):
         ualpha = fitdf.loc[i, 'au']
@@ -419,7 +429,13 @@ def plotModelLongitude(df, fitdf, filename):
             bbox_inches='tight')
 
 
-def plotResultsLongitude(df, filename):
+def plotResultsLongitude(df: pd.DataFrame, filename: str):
+    """
+    Plot the fitted BAM model when grouped by longitude
+
+    :param df: `pd.DataFrame` containing results of fitting BAM to observations
+    :param str filename: file path for saving the figure
+    """
     x = np.arange(40, 240.1, 20)
     fig, axes = plt.subplots(2, 1, figsize=(8, 8), sharex=True)
     axes[0].errorbar(df['i'], df['au'], yerr=df['aust'],
