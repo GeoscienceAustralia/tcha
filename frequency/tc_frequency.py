@@ -110,7 +110,7 @@ def filter_tracks_domain(df, minlon=90, maxlon=180, minlat=-40, maxlat=0,
 
 # Start with the default TC best track database:
 inputPath = r"X:\georisk\HaRIA_B_Wind\data\raw\from_bom\tc"
-dataFile = pjoin(inputPath, r"IDCKMSTM0S - 20230921.csv")
+dataFile = pjoin(inputPath, r"IDCKMSTM0S - 20240502.csv")
 outputPath = r"..\data\frequency"
 usecols = [0, 1, 2, 7, 8, 16, 49, 53]
 colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
@@ -156,7 +156,7 @@ ns = pd.Series(index=range(nns.index.min(), nns.index.max()+1), dtype=int, data=
 ns.loc[nns.index] = np.array(nns.values, dtype='int32')
 
 idx = sc.index >= 1970
-idx2 = sc.index >= 1985
+idx2 = sc.index >= 1980
 nsidx = ns.index >= 1970
 fig, ax = plt.subplots(figsize=(10, 6))
 fig.patch.set_facecolor('white')
@@ -180,8 +180,8 @@ fig, ax = plt.subplots(figsize=(10, 6))
 fig.patch.set_facecolor('white')
 ax.bar(ssc.index[idx], ssc.ID[idx], label="All TCs")
 ax.bar(ns.index[nsidx], ns.values[nsidx], color='orange', label="Severe TCs")
-sns.regplot(x=ssc.index[idx], y=ssc.ID[idx], ax=ax, color='0.5', scatter=False, label='1970-2020 trend')
-sns.regplot(x=ssc.index[idx2], y=ssc.ID[idx2], ax=ax, color='r', scatter=False, label='1985-2020 trend')
+sns.regplot(x=ssc.index[idx], y=ssc.ID[idx], ax=ax, color='0.5', scatter=False, label='1970-2023 trend')
+sns.regplot(x=ssc.index[idx2], y=ssc.ID[idx2], ax=ax, color='r', scatter=False, label='1980-2023 trend')
 
 ax.grid(True)
 ax.set_yticks(np.arange(0, 21, 2))
@@ -198,6 +198,26 @@ xlim = ax.get_xlim()
 
 ns.to_csv(pjoin(outputPath, "severe_tcs.csv"))
 ssc.to_csv(pjoin(outputPath, "all_tcs.csv"))
+
+# Calculate the trends for a range of years:
+# Use the IDCKMSTM0S.csv data for this bit
+rdf = regression_trend(ssc, 1950, 2000)
+fig, ax = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
+fig.patch.set_facecolor('white')
+
+ax[0].plot(rdf.index, rdf.slope*10)
+ax[0].set_ylabel("Trend [TCs/decade]")
+ax[0].grid(True)
+ax[1].plot(rdf.index, rdf.rsq)
+ax[1].set_ylabel(r"$R^2$")
+ax[1].grid(True)
+ax[1].xaxis.set_major_locator(locator)
+ax[1].xaxis.set_major_formatter(formatter)
+plt.text(0.0, -0.1, "Source: http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv",
+         transform=ax[1].transAxes, fontsize='xx-small', ha='left',)
+plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
+         transform=ax[1].transAxes, fontsize='xx-small', ha='right')
+plt.savefig(pjoin(outputPath, "TC_trends.png"), bbox_inches='tight')
 
 # Calculate and plot the fraction of observations with central pressure, maximum
 # wind speed and maximum wind gust by season.
@@ -324,27 +344,6 @@ plt.text(0.0, -0.1,
 plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=ax.transAxes, fontsize='xx-small', ha='right')
 plt.savefig(pjoin(outputPath, "TC_fraction_complete.otcr.png"), bbox_inches='tight')
-
-
-# Calculate the trends for a range of years:
-# Use the IDCKMSTM0S.csv data for this bit
-rdf = regression_trend(ssc, 1950, 2000)
-fig, ax = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
-fig.patch.set_facecolor('white')
-
-ax[0].plot(rdf.index, rdf.slope*10)
-ax[0].set_ylabel("Trend [TCs/decade]")
-ax[0].grid(True)
-ax[1].plot(rdf.index, rdf.rsq)
-ax[1].set_ylabel(r"$R^2$")
-ax[1].grid(True)
-ax[1].xaxis.set_major_locator(locator)
-ax[1].xaxis.set_major_formatter(formatter)
-plt.text(0.0, -0.1, "Source: http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv",
-         transform=ax[1].transAxes, fontsize='xx-small', ha='left',)
-plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
-         transform=ax[1].transAxes, fontsize='xx-small', ha='right')
-plt.savefig(pjoin(outputPath, "TC_trends.png"), bbox_inches='tight')
 
 fig, ax = plt.subplots(1, 1, figsize=(10, 6), sharex=True)
 fig.patch.set_facecolor('white')
