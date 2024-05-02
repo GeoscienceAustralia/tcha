@@ -23,9 +23,9 @@ grid boundary at the dateline (which cuts across the South Pacific basin).
 Dependencies:
 -------------
 pde - py-pde provides methods and classes for sovling partial differential
-    equations. This is used to solve the inversion of the laplacian to
-    calculate streamflow and velocity potential from the divergence and
-    vorticity fields. https://py-pde.readthedocs.io/en/latest/
+equations. This is used to solve the inversion of the laplacian to calculate
+streamflow and velocity potential from the divergence and vorticity fields.
+https://py-pde.readthedocs.io/en/latest/
 
 cartopy - cartopy.util.add_cyclic_point adds an extra grid point to an array
 and the corresponding coordinate to close the gap on a global dataset at the
