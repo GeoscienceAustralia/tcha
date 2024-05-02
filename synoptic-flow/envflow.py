@@ -17,14 +17,24 @@ eastward (`u`) and northward (`v`) components of the storm translation speed,
 plus the same for the 850 and 250 hPa winds around the storm. Initially set
 to +/- 4 degrees of the storm centre (as at March 2024).
 
-We add a cyclic point at 180E to ensure there's no strange anomalies from a
-missing value at this longitude.
+We rotate the longitude coordinate to the range [0, 360) to avoid having the
+grid boundary at the dateline (which cuts across the South Pacific basin).
 
 Dependencies:
+-------------
 pde - py-pde provides methods and classes for sovling partial differential
     equations. This is used to solve the inversion of the laplacian to
     calculate streamflow and velocity potential from the divergence and
     vorticity fields. https://py-pde.readthedocs.io/en/latest/
+
+cartopy - cartopy.util.add_cyclic_point adds an extra grid point to an array
+and the corresponding coordinate to close the gap on a global dataset at the
+grid boundary. See
+https://scitools.org.uk/cartopy/docs/latest/gallery/scalar_data/wrapping_global.html
+
+windspharm - for vector wind calculations using spherical harmonics.
+https://ajdawson.github.io/windspharm/latest/
+
 
 Author: Craig Arthur
 

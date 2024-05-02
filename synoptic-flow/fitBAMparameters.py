@@ -296,7 +296,7 @@ def plotResults(df, filename):
     axes[1].plot(x, df['ufrsq'], color='b', linestyle='--')
     axes[1].plot(x, df['vfrsq'], color='r', linestyle='--')
     axes[1].grid(True)
-    axes[1].set_ylim((-1, 1))
+    axes[1].set_ylim((0, 1))
     axes[1].set_ylabel(r"$r^{2}$")
     axes[1].set_xlabel("Intensity [m/s]")
     clines = [Line2D([0], [0], color='k', lw=2),
