@@ -1,9 +1,25 @@
 import os
+from datetime import datetime
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 import pyproj
 geodesic = pyproj.Geod(ellps="WGS84")
 DATA_DIR=r"X:\georisk\HaRIA_B_Wind\data\raw\from_noaa\ibtracs\v04r00"
+
+def savefig(filename, *args, **kwargs):
+    """
+    Add a timestamp to each figure when saving
+
+    :param str filename: Path to store the figure at
+    :param args: Additional arguments to pass to `plt.savefig`
+    :param kwargs: Additional keyword arguments to pass to `plt.savefig`
+    """
+    fig = plt.gcf()
+    plt.text(0.99, 0.0, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
+            transform=fig.transFigure, ha='right', va='bottom',
+            fontsize='xx-small')
+    plt.savefig(filename, *args, **kwargs)
 
 def load_ibtracs_df(basins=None, season=None):
     """
