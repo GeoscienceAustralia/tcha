@@ -3,6 +3,8 @@ Calculate intensity change
 
 Calculates 6-hourly and 24 hourly intensity change in observed TC tracks
 
+Uses 10-minute mean intensity change.
+
 """
 
 import os
@@ -12,7 +14,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-DATA_DIR=r"X:\georisk\HaRIA_B_Wind\data\raw\from_noaa\ibtracs\v04r00"
 OUTPUTDIR = r"..\data\intensity"
 path = os.path.dirname(os.getcwd())
 sys.path.append(path)
@@ -30,13 +31,13 @@ import seaborn as sns
 fig, ax = plt.subplots(1, 2, figsize=(10, 5))
 bins = np.arange(-70, 70.1, 5)
 sns.histplot(data=udf, x="6hrdI", bins=bins, color="skyblue", edgecolor="black", stat="probability", ax=ax[0])
-ax[0].set_title("6-hourly Intensity Change Distribution")
-ax[0].set_xlabel("Intensity Change")
+ax[0].set_title("6-hourly intensity change distribution")
+ax[0].set_xlabel("Intensity change [m/s]")
 ax[0].set_ylabel("Probability")
 
 sns.histplot(data=udf, x="24hrdI", bins=bins, color='salmon', edgecolor='black', stat='probability', ax=ax[1])
-ax[1].set_title('24-hourly Intensity Change Distribution')
-ax[1].set_xlabel('Intensity Change')
+ax[1].set_title('24-hourly intensity change distribution')
+ax[1].set_xlabel('Intensity change [m/s]')
 ax[1].set_ylabel('Probability')
 
 plt.text(0.01, 0.0, "Source: IBTrACS doi:10.25921/82ty-9e16",
