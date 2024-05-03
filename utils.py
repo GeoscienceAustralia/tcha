@@ -58,6 +58,9 @@ def load_ibtracs_df(basins=None, season=None):
     df = df[df["hour"].isin([0, 6, 12, 18])]
     df.drop(columns=["hour"], inplace=True)
 
+    # Move longitudes to [0, 360)
+    df.loc[df['LON'] < 0, "LON"] = df['LON'] + 360
+
     # Filter by season if given:
     df['SEASON'] = df['SEASON'].astype(int)
     if season:
@@ -74,12 +77,14 @@ def load_ibtracs_df(basins=None, season=None):
     # Fill any missing wind speed reports with data from US records
     # We have to convert from a 1-minute sustained wind to a
     # 10-minute mean, using the conversions described in WMO TD1555 (2010).
-    # Convert max wind speed to m/s for consistency
-    # NOTE: I don't handle the case of New Dehli, which uses a 3-minute mean
+    # NOTE:
+    # 1) I don't handle the case of New Dehli, which uses a 3-minute mean
     # wind speed.
+    # 2) Returns wind speeds in knots (rounded to 2 decimal places)
+
     df.fillna({"MAX_WIND_SPD": df["WMO_WIND"]}, inplace=True)
     df.fillna({"MAX_WIND_SPD": df["USA_WIND"] / 1.029}, inplace=True)
-    df["MAX_WIND_SPD"] = np.round(df["MAX_WIND_SPD"] * 0.5144, 2)
+    df["MAX_WIND_SPD"] = np.round(df["MAX_WIND_SPD"], 2)
 
     df.reset_index(inplace=True)
 
