@@ -19,94 +19,17 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import seaborn as sns
 
+import sys
+sys.path.append(os.path.dirname(os.getcwd()))
+from utils import load_ibtracs_df
 
 import pyproj
-
 geodesic = pyproj.Geod(ellps="WGS84")
 
 
 DATA_DIR = r"C:\WorkSpace\data\tc"
 OUTPUT_DIR = r"..\data\frequency"
 SOURCE = "https://www.ncei.noaa.gov/products/international-best-track-archive"
-
-
-def load_ibtracs_df():
-    """
-    Helper function to load the IBTrACS database.
-    Column names are mapped to the same as the BoM dataset to minimise
-    the changes elsewhere in the code
-
-    """
-    dataFile = os.path.join(DATA_DIR, "ibtracs.since1980.list.v04r00.csv")
-    df = pd.read_csv(
-        dataFile,
-        skiprows=[1],
-        usecols=[0, 1, 3, 5, 6, 8, 9, 11, 13, 23],
-        keep_default_na=False,
-        na_values=[" "],
-        parse_dates=[1],
-        date_format="%Y-%m-%d %H:%M:%S",
-    )
-    df.rename(
-        columns={
-            "SID": "DISTURBANCE_ID",
-            "ISO_TIME": "TM",
-            "WMO_WIND": "MAX_WIND_SPD",
-            "WMO_PRES": "CENTRAL_PRES",
-            "USA_WIND": "MAX_WIND_SPD",
-        },
-        inplace=True,
-    )
-
-    df["TM"] = pd.to_datetime(
-        df.TM, format="%Y-%m-%d %H:%M:%S", errors="coerce")
-    df = df[~pd.isnull(df.TM)]
-
-    # Filter to every 6 hours (to match sub-daily ERA data)
-    df["hour"] = df["TM"].dt.hour
-    df = df[df["hour"].isin([0, 6, 12, 18])]
-    df.drop(columns=["hour"], inplace=True)
-    df["SEASON"] = df["SEASON"].astype(int)
-    # df = df[df.SEASON == season]
-
-    # IBTrACS includes spur tracks (bits of tracks that are
-    # different to the official) - these need to be dropped.
-    df = df[df.TRACK_TYPE == "main"]
-
-    df.reset_index(inplace=True)
-    fwd_azimuth, _, distances = geodesic.inv(
-        df.LON[:-1],
-        df.LAT[:-1],
-        df.LON[1:],
-        df.LAT[1:],
-    )
-
-    df["new_index"] = np.arange(len(df))
-    idxs = df.groupby(["DISTURBANCE_ID"]).agg(
-        {"new_index": "max"}).values.flatten()
-    df.drop("new_index", axis=1, inplace=True)
-    # Convert max wind speed to m/s for consistency
-    df["MAX_WIND_SPD"] = df["MAX_WIND_SPD"] * 0.5144
-
-    dt = np.diff(df.TM).astype(float) / 3_600_000_000_000
-    u = np.zeros_like(df.LAT)
-    v = np.zeros_like(df.LAT)
-    v[:-1] = np.cos(fwd_azimuth * np.pi / 180) * distances / (dt * 1000) / 3.6
-    u[:-1] = np.sin(fwd_azimuth * np.pi / 180) * distances / (dt * 1000) / 3.6
-
-    v[idxs] = 0
-    u[idxs] = 0
-    df["u"] = u
-    df["v"] = v
-
-    dt = np.diff(df.TM).astype(float) / 3_600_000_000_000
-    dt_ = np.zeros(len(df))
-    dt_[:-1] = dt
-    df["dt"] = dt_
-
-    df = df[df.u != 0].copy()
-    print(f"Number of records: {len(df)}")
-    return df
 
 
 def calculateFrequency(df):
