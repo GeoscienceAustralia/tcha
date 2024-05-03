@@ -44,14 +44,25 @@ plt.text(0.01, 0.0, "Source: IBTrACS doi:10.25921/82ty-9e16",
 savefig(os.path.join(OUTPUTDIR, "latitude_maximum_intensity.jpg"),
         dpi=600, bbox_inches='tight')
 
-xbins = np.arange(40, 220.1, 2.5)
-ybins = np.arange(-40, 0.1, 2.5)
+xbins = np.arange(40, 220.1, 2.0)
+ybins = np.arange(-40, 0.1, 2.0)
+
+from copy import copy
+
+palette = copy(plt.get_cmap("viridis_r"))
+palette.set_under("white", 1.0)
 
 fig, axes = plt.subplots(2, 1, figsize=(12, 8), subplot_kw={"projection": projection})
-sns.histplot(udf, x="LON", y="LAT", bins=(xbins, ybins), ax=axes[0], transform=transform, cbar=True,
-             cbar_kws={"orientation": "horizontal", "aspect": 50, "label": "TC count"})
-sns.histplot(lmidf, x="LON", y="LAT", bins=(xbins, ybins), ax=axes[1], transform=transform, cbar=True,
-             cbar_kws={"orientation": "horizontal", "aspect": 50, "label": "Maximum intensity count"})
+
+tdhist, xedges, yedges = np.histogram2d(udf['LON'], udf['LAT'], bins=[xbins, ybins])
+lmihist, _, _ = np.histogram2d(lmidf['LON'], lmidf['LAT'], bins=[xbins, ybins])
+nseasons = udf.iloc[-1].TM.year - udf.iloc[0].TM.year + 1
+
+cb = axes[0].pcolormesh(xedges, yedges, tdhist.T/nseasons, transform=transform, cmap=palette)
+fig.colorbar(cb, ax=axes[0], orientation="horizontal", label="TCs/year", aspect=50)
+
+cb = axes[1].pcolormesh(xedges, yedges, lmihist.T/nseasons, transform=transform, cmap=palette)
+fig.colorbar(cb, ax=axes[1], orientation="horizontal", label="Max intensity TCs/year", aspect=50)
 
 for ax in axes:
     ax.coastlines()
@@ -65,10 +76,9 @@ for ax in axes:
 
     # TODO:
     # Fix longitude grid interval
-    # normalise by number of years (i.e. value is number of obs/year)
 
 plt.text(0.01, 0.0, "Source: IBTrACS doi:10.25921/82ty-9e16",
         transform=fig.transFigure, ha='left', va='bottom',
         fontsize='xx-small')
-savefig(os.path.join(OUTPUTDIR, "trackdensity"),
+savefig(os.path.join(OUTPUTDIR, "trackdensity.jpg"),
         dpi=600, bbox_inches='tight')
