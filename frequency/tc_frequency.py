@@ -27,7 +27,7 @@ from matplotlib import patheffects
 from shapely.geometry import box as sbox
 from shapely.geometry import LineString
 
-from sklearn.linear_model import LinearRegression
+import statsmodels.api as sm
 
 mpl.rcParams['grid.linestyle'] = ':'
 mpl.rcParams['grid.linewidth'] = 0.5
@@ -62,20 +62,23 @@ def regression_trend(numbers, start_year, end_year):
     value for each regression.
     """
     years = pd.to_datetime([datetime(y, 1, 1) for y in range(start_year, end_year+1)])
-    results = pd.DataFrame(columns=['slope', 'intercept', 'rsq', 'mean', 'var'],
+    results = pd.DataFrame(columns=['slope', 'intercept', 'rsq', 'mean', 'var', 'p-slope', 'p-intercept'],
                            index=years)
     for year in years:
         idx = numbers.index >= year.year
         x = numbers.index[idx].values.reshape(-1, 1)
         y = numbers.ID[idx].values
-        model = LinearRegression()
-        model.fit(x, y)
-        slope = model.coef_
-        intercept = model.intercept_
-        r_sq = model.score(x, y)
+
+        X = sm.add_constant(x)
+        est = sm.OLS(y, X)
+        res = est.fit()
+
+        intercept, slope = res.params
+        pintercept, pslope = res.pvalues
+        rsq = res.rsquared
         mean = y.mean()
-        var =y.var()
-        results.loc[year] = [slope[0], intercept, r_sq, mean, var]
+        var = y.var()
+        results.loc[year] = [slope, intercept, rsq, mean, var, pslope, pintercept]
 
     return results
 
