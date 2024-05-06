@@ -5,6 +5,11 @@ Using ERA5 reanalysis of 850 and 250 hPa sub-daily (6 hours) winds,
 calculate the environmental flow in the vicinity of each TC
 observation.
 
+Requires the ERA5 data to be extracted from the ERA5 replication dataset
+on the NCI. This has been done using `extract_era5.py`. We rotate the 
+longitude coordinate to the range [0, 360) to avoid having the grid boundary
+at the dateline (which cuts across the South Pacific basin). 
+
 The steering wind is calculated using "vortex surgery" to remove the
 TC vortex from the reanalysis data to determine the background flow.
 The details of this process are described in Galarneau and Davis (2013).
@@ -35,6 +40,14 @@ https://scitools.org.uk/cartopy/docs/latest/gallery/scalar_data/wrapping_global.
 windspharm - for vector wind calculations using spherical harmonics.
 https://ajdawson.github.io/windspharm/latest/
 
+References:
+Galarneau, T. J., and C. A. Davis, 2013: Diagnosing Forecast Errors in Tropical
+Cyclone Motion. Monthly Weather Review, 141, 405-430, 
+https://doi.org/10.1175/MWR-D-12-00071.1
+
+Hersbach, H., and Coauthors, 2020: The ERA5 global reanalysis. Quarterly Journal
+of the Royal Meteorological Society, 146, 1999-2049, 
+https://doi.org/10.1002/qj.3803
 
 Author: Craig Arthur
 
@@ -67,7 +80,7 @@ import pyproj
 # BoM best track and IBTrACS are stored in the DATA_DIR folder
 
 geodesic = pyproj.Geod(ellps="WGS84")
-WIDTH = 6.25
+WIDTH = 4.0
 DATA_DIR = "/g/data/w85/data/tc"
 DLM_DIR = "/scratch/w85/cxa547/tcr/data/era5"
 OUT_DIR = "/scratch/w85/cxa547/envflow/cyclic"
@@ -154,6 +167,9 @@ def load_ibtracs_df(season, basins=['SI', 'SP']):
     idxs = df.groupby(["DISTURBANCE_ID"]).agg(
         {"new_index": "max"}).values.flatten()
     df.drop("new_index", axis=1, inplace=True)
+    # Replace any missing values with the WMO source data, converted to a 1-minute sustained wind speed
+    # Only considering SI and SP basins, where the WMO sources *should* be 10-minute means!
+    df.fillna({"MAX_WIND_SPD": df["WMO_WIND"] * 1.029}, inplace=True)
     # Convert max wind speed to m/s for consistency
     df["MAX_WIND_SPD"] = (df["MAX_WIND_SPD"] * 0.5144)
 
@@ -261,7 +277,7 @@ def solvePoisson(scalar):
     return uu, vv
 
 
-def extract_steering(uda, vda, cLon, cLat, dx, dy, width=4):
+def extract_steering(uda, vda, cLon, cLat, dx, dy, width=4.0):
     """
     Calculate the steering flow for a region centred at `cLon`, `cLat`.
 
@@ -331,7 +347,7 @@ def load_steering(uda, vda, df, width=4.0):
                minimum the time, latitude and longitude of the TC positions,
                named as 'TM', 'LAT', 'LON' respectively.
     :param width: Size of the box over which to calculate mean steering flow.
-                  Default is 4 degrees. Loosely based on the 400 km used in
+                  Default is 4 degrees. Based on the 400 km used in
                   Lin et al. (2023) and Galarneau and Davis (2013).
     """
     griddx, griddy = lat_lon_grid_deltas(
@@ -384,7 +400,7 @@ def process(season):
     """
     df = load_ibtracs_df(season, BASINS)
     print("extract steering current from environmental flow:")
-    results = load_steering(uda, vda, df)
+    results = load_steering(uda, vda, df, width=WIDTH)
 
     cols = ["index", "u850", "u250", "v850", "v250"]
     vdf = pd.DataFrame(data=np.array(

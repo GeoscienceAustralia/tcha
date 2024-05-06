@@ -1,7 +1,14 @@
 """
 Fit beta-advection model parameters to TC motion
 
+This is used in conjunction with extract_era5.py and envflow.py
+to calculate the BAM parameters described in Lin et al. 2023.
 
+References:
+Lin, J., R. Rousseau-Rizzi, C.-Y. Lee, and A. Sobel, 2023: An Open-Source,
+Physics-Based, Tropical Cyclone Downscaling Model With Intensity-Dependent
+Steering. Journal of Advances in Modeling Earth Systems, 15, e2023MS003686,
+https://doi.org/10.1029/2023MS003686.
 
 Author: Craig Arthur
 2024-03-20
@@ -38,7 +45,7 @@ def savefig(filename, *args, **kwargs):
 BASEDIR = "/scratch/w85/cxa547/envflow/cyclic"
 filelist = sorted(glob.glob(os.path.join(BASEDIR, "tcenvflow_serial.*.csv")))
 df = pd.concat((pd.read_csv(f) for f in filelist), ignore_index=True)
-
+df['MAX_WIND_SPD'].fillna(df['WMO_WIND'], inplace=True)
 df.loc[df['LON'] < 0, "LON"] = df['LON'] + 360
 df.dropna(subset=['u850', 'u250', 'v850', 'v250'], inplace=True)
 
@@ -307,6 +314,8 @@ def plotResults(df, filename):
 
 def plotModel(df, fitdf, filename):
     fig, ax = plt.subplots(1, 2, figsize=(12, 6), sharey=True)
+    df['upred'] = np.nan
+    df['vpred'] = np.nan
     for i, x in enumerate(np.arange(10, 70, 5)):
         ualpha = fitdf.loc[i, 'au']
         valpha = fitdf.loc[i, 'av']
@@ -320,6 +329,8 @@ def plotModel(df, fitdf, filename):
 
         upred = ualpha*ul + (1 - ualpha)*uu
         vpred = valpha*vl + (1 - valpha)*vu
+        df.loc[df['band'] == x, 'upred'] = upred
+        df.loc[df['band'] == x, 'vpred'] = vpred
         ax[0].plot(upred, u, 'o', label=f"{x} m/s")
         ax[1].plot(vpred, v, 'o')
 
@@ -375,6 +386,11 @@ def plotModel(df, fitdf, filename):
     fig.subplots_adjust(bottom=0.25)
     savefig(os.path.join(BASEDIR, "mag_"+filename),
             bbox_inches='tight')
+    
+    # Save predicted translation vector to file:
+    df.drop("Unnamed: 0", axis=1).to_csv(
+        os.path.join(BASEDIR, "tcenvflow.pred.csv"),
+        index=False)
 
 
 def plotModelLongitude(df: pd.DataFrame, fitdf: pd.DataFrame, filename: str):
@@ -484,15 +500,15 @@ fitdf.to_csv(
     index=False
     )
 
-for basin in df['BASIN'].unique():
-    print(basin)
-    basinfit = fit_model(df[df['BASIN'] == basin])
-    basinfit.to_csv(
-        os.path.join(BASEDIR, f"tcenvflow.fitstats.{basin}.csv"),
-        index=False)
-    plot_scatter(df[df['BASIN'] == basin],
-                 filename=f"tcenvflow_scatter.{basin}.png")
+#for basin in df['BASIN'].unique():
+#    print(basin)
+#    basinfit = fit_model(df[df['BASIN'] == basin])
+#    basinfit.to_csv(
+#        os.path.join(BASEDIR, f"tcenvflow.fitstats.{basin}.csv"),
+#        index=False)
+#    plot_scatter(df[df['BASIN'] == basin],
+#                 filename=f"tcenvflow_scatter.{basin}.png")
 
-    plotResults(basinfit, filename=f"tcenvflow_fit.{basin}.png")
-    plotModel(df[df['BASIN'] == basin], basinfit,
-              filename=f"tcenvflow_fullfit.{basin}.png")
+#    plotResults(basinfit, filename=f"tcenvflow_fit.{basin}.png")
+#    plotModel(df[df['BASIN'] == basin], basinfit,
+#              filename=f"tcenvflow_fullfit.{basin}.png")
