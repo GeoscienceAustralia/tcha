@@ -1,8 +1,12 @@
 """
-Analysis of climatological vorticity and divergence in the Southern Hemisphere
+Analysis of climatological vorticity and divergence in the Southern Hemisphere.
+
+This also extracts the climatological mean values of meridional gradient of
+vorticity and zonal wind and the zonal gradient of meridional wind, which is
+used in subsequent analysis of the magnitude of beta drift. 
 
 Requires pre-calculated file of winds at 850 & 250 hPa, including variance
-and covariance. This is created by Lin's TC model code (ref)
+and covariance. This is created by Lin's TC model code (ref).
 
 Dependencies:
 - xarray
@@ -53,7 +57,7 @@ def savefig(filename, *args, **kwargs):
             fontsize='xx-small')
     plt.savefig(filename, *args, **kwargs)
 
-def load_ibtracs_df(season=None):
+def load_ibtracs_df(basins=None, season=None):
     """
     Helper function to load the IBTrACS database.
     Column names are mapped to the same as the BoM dataset to minimise
@@ -101,7 +105,8 @@ def load_ibtracs_df(season=None):
     # different to the official) - these need to be dropped.
     df = df[df.TRACK_TYPE == "main"]
     # NOTE: Only using SP and SI basins here
-    # df = df[df["BASIN"].isin(["SP", "SI"])]
+    if basins:
+        df = df[df["BASIN"].isin(basins)]
 
     df.reset_index(inplace=True)
     fwd_azimuth, _, distances = geodesic.inv(
@@ -157,6 +162,28 @@ def calcTClonPercentiles():
 
     return percentiles
 
+def cyclic_wrapper(x, dim="longitude"):
+    """
+    Use cartopy.util.add_cyclic_point with an xarray Dataset to
+    add a cyclic or wrap-around pixel to the `lon` dimension. This can be useful
+    for plotting with `cartopy`
+
+    So add_cyclic_point() works on 'dim' via xarray Dataset.map()
+
+    :param x: `xr.Dataset` to process
+    :param str dim: Dimension of the dataset to wrap on (default "longitude")
+    """
+    wrap_data, wrap_lon = cutil.add_cyclic_point(
+        x.values,
+        coord=x.coords[dim].data,
+        axis=x.dims.index(dim)
+    )
+    return xr.DataArray(
+        wrap_data,
+        coords={dim: wrap_lon, **x.drop_vars(dim).coords},
+        dims=x.dims
+    )
+
 BASEDIR = "/scratch/w85/cxa547/tcr/data/era5"
 windfile = os.path.join(BASEDIR, "env_wnd_era5_198101_202112.nc")
 ds = xr.open_dataset(windfile)
@@ -181,6 +208,19 @@ w250 = VectorWind(ua250, va250, legfunc="computed")
 vrt250, div250 = w250.vrtdiv(truncation=17)
 vrt250x, vrt250y = w250.gradient(vrt250)
 
+# Calculate vorticity/divergence for deep layer mean. 
+# Use simplified model of 0.8u_850 + 0.2u_250.
+# Also calculate meridional and zonal shear of the DLM vorticity and 
+# components.
+# See Zhao et al. (2009) https://doi.org/10.1029/2009GL040126
+uDLM = 0.8 * ua850 + 0.2 * ua250
+vDLM = 0.8 * va850 + 0.2 * va250
+wDLM = VectorWind(uDLM, vDLM, legfunc="computed")
+vrtDLM, divDLM = wDLM.vrtdiv(truncation=17)
+vrtDLMx, vrtDLMy = wDLM.gradient(vrtDLM)
+duDLMdx, duDLMdy = wDLM.gradient(uDLM)
+dvDLMdx, dvDLMdy = wDLM.gradient(vDLM)
+
 # Enable plotting across the dateline:
 vrt850c, clon, clat = cutil.add_cyclic(vrt850, vrt850.lon, vrt850.lat)
 vrt250c, clon, clat = cutil.add_cyclic(vrt250, vrt250.lon, vrt250.lat)
@@ -189,6 +229,12 @@ div250c, clon, clat = cutil.add_cyclic(div250, div250.lon, div250.lat)
 
 vrt850yc, clon, clat = cutil.add_cyclic(vrt850y, vrt850y.lon, vrt850y.lat)
 vrt250yc, clon, clat = cutil.add_cyclic(vrt250y, vrt250y.lon, vrt250y.lat)
+
+vrtDLMx = cyclic_wrapper(vrtDLMx, "lon")
+vrtDLMy = cyclic_wrapper(vrtDLMy, "lon")
+
+duDLMdy = cyclic_wrapper(duDLMdy, "lon")
+dvDLMdx = cyclic_wrapper(dvDLMdx, "lon")
 
 # Mean vorticity between 5 & 25S:
 vrtsh850 = vrt850.sel(lat=slice(-5, -25)).mean(dim='lat')
@@ -825,3 +871,52 @@ fig.suptitle(r"$\partial \zeta_{850}/\partial y \times 10^{-11}$ [m$^{-1}$s$^{-1
 ax[1].set_xlim((50, 210))
 fig.tight_layout()
 savefig("vortgrad.850.longitude.profile.png")
+
+# Calculate climatological mean gradients of vorticity, zonal and meridional flow
+# for all storms in the Southern Hemisphere. This is to test the results of
+# Zhao et al. (2009), https://doi.org/10.1029/2009GL040126
+vrtDLMxsh_djf850 = vrtDLMx.sel(time=vrtDLMx.time.dt.season=="DJF")
+vrtDLMxsh_seasonal = vrtDLMxsh_djf850.groupby(vrtDLMxsh_djf850.time.dt.year).mean("time").mean(axis=0)
+vrtDLMysh_djf850 = vrtDLMy.sel(time=vrtDLMy.time.dt.season=="DJF")
+vrtDLMysh_seasonal = vrtDLMysh_djf850.groupby(vrtDLMysh_djf850.time.dt.year).mean("time").mean(axis=0)
+
+duDLMdysh_djf850 = duDLMdy.sel(time=duDLMdy.time.dt.season=="DJF")
+duDLMdysh_seasonal = duDLMdysh_djf850.groupby(duDLMdysh_djf850.time.dt.year).mean("time").mean(axis=0)
+dvDLMdxsh_djf850 = dvDLMdx.sel(time=dvDLMdx.time.dt.season=="DJF")
+dvDLMdxsh_seasonal = dvDLMdxsh_djf850.groupby(dvDLMdxsh_djf850.time.dt.year).mean("time").mean(axis=0)
+
+
+df = load_ibtracs_df(basins=['SP', 'SI'])
+width = 4.0
+
+output = []
+for row in df.itertuples():
+    dt = row.TM.to_numpy()
+    print(f"Calculating environmental flow at {dt}")
+    lat_cntr = 0.25 * np.round(row.LAT * 4)
+    lon_cntr = 0.25 * np.round(row.LON * 4)
+    lat_slice = slice(lat_cntr + width, lat_cntr - width)
+    long_slice = slice(lon_cntr - width, lon_cntr + width)
+    
+    dzdy = (
+        vrtDLMysh_seasonal.sel(lat=lat_slice, lon=long_slice).mean(
+            axis=(0, 1)).values
+    )
+    dudy = (
+        duDLMdysh_seasonal.sel(lat=lat_slice, lon=long_slice).mean(
+            axis=(0, 1)).values
+    )
+    dvdx = (
+        dvDLMdxsh_seasonal.sel(lat=lat_slice, lon=long_slice).mean(
+            axis=(0, 1)).values
+    )
+     
+    res = np.hstack((row.index, dzdy, dudy, dvdx))
+    output.append(res)
+    
+cols = ["index", "dzdy", "dudy", "dvdx"]
+vdf = pd.DataFrame(data=np.array(
+    [r for r in output]).squeeze(), columns=cols)
+vdf["index"] = vdf["index"].astype(int)
+outdf = df.merge(vdf, left_on="index", right_on="index", how="inner")
+outdf.to_csv("betaclim.SH.csv", index=False)
