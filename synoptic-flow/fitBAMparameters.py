@@ -312,7 +312,7 @@ def plotResults(df, filename):
     savefig(os.path.join(BASEDIR, filename), bbox_inches='tight')
 
 
-def plotModel(df, fitdf, filename):
+def plotModel(df, fitdf, filename, basin):
     fig, ax = plt.subplots(1, 2, figsize=(12, 6), sharey=True)
     df['upred'] = np.nan
     df['vpred'] = np.nan
@@ -386,10 +386,10 @@ def plotModel(df, fitdf, filename):
     fig.subplots_adjust(bottom=0.25)
     savefig(os.path.join(BASEDIR, "mag_"+filename),
             bbox_inches='tight')
-    
+
     # Save predicted translation vector to file:
     df.drop("Unnamed: 0", axis=1).to_csv(
-        os.path.join(BASEDIR, "tcenvflow.pred.csv"),
+        os.path.join(BASEDIR, f"tcenvflow.pred.{basin}.csv"),
         index=False)
 
 
@@ -487,7 +487,7 @@ fitdf_lon = fit_model_longitude(df)
 plot_scatter(df, filename="tcenvflow_scatter.png")
 plotResults(fitdf, filename="tcenvflow_fit.png")
 plotResultsLongitude(fitdf_lon, filename="tcenvflow_fit.longitude.png")
-plotModel(df, fitdf, filename="tcenvflow_fullfit.png")
+plotModel(df, fitdf, filename="tcenvflow_fullfit.png", basin="SH")
 plotModelLongitude(df, fitdf_lon, filename="tcenvflow_fullfit.longitude.png")
 
 df.drop("Unnamed: 0", axis=1).to_csv(
@@ -500,15 +500,16 @@ fitdf.to_csv(
     index=False
     )
 
-#for basin in df['BASIN'].unique():
-#    print(basin)
-#    basinfit = fit_model(df[df['BASIN'] == basin])
-#    basinfit.to_csv(
-#        os.path.join(BASEDIR, f"tcenvflow.fitstats.{basin}.csv"),
-#        index=False)
-#    plot_scatter(df[df['BASIN'] == basin],
-#                 filename=f"tcenvflow_scatter.{basin}.png")
+for basin in df['BASIN'].unique():
+    print(basin)
+    basinfit = fit_model(df[df['BASIN'] == basin])
+    basinfit.to_csv(
+        os.path.join(BASEDIR, f"tcenvflow.fitstats.{basin}.csv"),
+        index=False)
+    plot_scatter(df[df['BASIN'] == basin],
+                 filename=f"tcenvflow_scatter.{basin}.png")
 
-#    plotResults(basinfit, filename=f"tcenvflow_fit.{basin}.png")
-#    plotModel(df[df['BASIN'] == basin], basinfit,
-#              filename=f"tcenvflow_fullfit.{basin}.png")
+    plotResults(basinfit, filename=f"tcenvflow_fit.{basin}.png")
+    plotModel(df[df['BASIN'] == basin], basinfit,
+              filename=f"tcenvflow_fullfit.{basin}.png",
+              basin=basin)
