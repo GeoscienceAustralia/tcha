@@ -194,8 +194,7 @@ month_length = ds.time.dt.days_in_month
 
 # This shifts to a central longitude of 180E, rather than 0E
 ds = ds.roll(lon=-180, roll_coords=True)
-ds['lona'] = np.where(ds['lon'] < 0, ds['lon'] + 360, ds['lon'])
-ds['lon'] = ds['lona']
+ds['lon'] = np.where(ds['lon'] < 0, ds['lon'] + 360, ds['lon'])
 
 # Calculate vorticity/divergence at 850 & 250 hPa
 ua850 = ds['ua850_Mean']
