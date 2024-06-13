@@ -82,9 +82,9 @@ import pyproj
 geodesic = pyproj.Geod(ellps="WGS84")
 WIDTH = 4.0
 DATA_DIR = "/g/data/w85/data/tc"
-DLM_DIR = "/scratch/w85/cxa547/tcr/data/era5-3lev"
-OUT_DIR = "/scratch/w85/cxa547/envflow/SH3lev"
-BASINS = ['SI', 'SP']
+DLM_DIR = "/scratch/w85/cxa547/tcr/data/era5"
+OUT_DIR = "/scratch/w85/cxa547/envflow/cyclic"
+BASINS = ['SP','SI']
 
 def cyclic_wrapper(x, dim="longitude"):
     """
