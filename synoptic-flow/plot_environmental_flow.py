@@ -26,7 +26,7 @@ geodesic = pyproj.Geod(ellps='WGS84')
 
 DATA_DIR = "/g/data/w85/data/tc"
 DLM_DIR = "/scratch/w85/cxa547/tcr/data/era5"
-OUT_DIR = "/scratch/w85/cxa547/envflow"
+OUT_DIR = "/scratch/w85/cxa547/envflow/tcmax"
 
 def load_bom_df():
     """
@@ -177,26 +177,38 @@ def plot_flow(uda, vda, df, width=4.0):
         us = uda.sel(time=dt, method='nearest')
         vs = vda.sel(time=dt, method='nearest')
         uenv, venv = extract_steering(us, vs, lon_cntr, lat_cntr, griddx, griddy)
+        
+        usteer = uenv.sel(longitude=long_slice, latitude=lat_slice).mean(dim=('longitude', 'latitude')).values
+        vsteer = venv.sel(longitude=long_slice, latitude=lat_slice).mean(dim=('longitude', 'latitude')).values
 
         fig, ax = plt.subplots(2, 2, subplot_kw={'projection':ccrs.PlateCarree()},
                                figsize=(12, 8), sharex=True, sharey=True)
         levels = np.arange(0, 40.1, 2)
         ax[0, 0].contourf(us.longitude, us.latitude, np.sqrt(us[0]**2+vs[0]**2), levels=levels, extend="max", cmap="viridis_r")
         ax[0, 0].barbs(us.longitude, us.latitude, us[0], vs[0], flip_barb=True, length=5)
+        ax[0, 0].arrow(lon_cntr, lat_cntr, row.u/10, row.v/10, fc='r', ec='r', width=0.2)
         ax[0, 0].set_title("Full flow (850 hPa) [m/s]")
+
         ax[1, 0].contourf(uenv.longitude, uenv.latitude, np.sqrt(uenv[0]**2+venv[0]**2), levels=levels, extend="max", cmap="viridis_r")
         ax[1, 0].barbs(uenv.longitude, uenv.latitude, uenv[0], venv[0], flip_barb=True, length=5)
+        ax[1, 0].arrow(lon_cntr, lat_cntr, row.u/10, row.v/10, fc='w', ec='k', width=0.2)
+        ax[1, 0].arrow(lon_cntr, lat_cntr, 3.6*usteer[0]/10, 3.6*vsteer[0]/10, fc='r', ec='r', width=0.2 )
         ax[1, 0].add_patch(mpatches.Rectangle(xy=[lon_cntr - width, lat_cntr - width],
                            width=2*width, height=2*width,
                            facecolor='none', edgecolor='r',
                            linewidth=2,
                            transform=ccrs.PlateCarree()))
         ax[1, 0].set_title("Environmental flow (850 hPa) [m/s]")
+
         ax[0, 1].contourf(us.longitude, us.latitude, np.sqrt(us[1]**2+vs[1]**2), levels=levels, extend="max", cmap="viridis_r")
         ax[0, 1].barbs(us.longitude, us.latitude, us[1], vs[1], flip_barb=True, length=5)
+        ax[0, 1].arrow(lon_cntr, lat_cntr, row.u/10, row.v/10, fc='r', ec='r', width=0.2)
         ax[0, 1].set_title("Full flow (250 hPa) [m/s]")
+
         ax[1, 1].contourf(uenv.longitude, uenv.latitude, np.sqrt(uenv[1]**2+venv[1]**2), levels=levels, extend="max", cmap="viridis_r")
         ax[1, 1].barbs(uenv.longitude, uenv.latitude, uenv[1], venv[1], flip_barb=True, length=5)
+        ax[1, 1].arrow(lon_cntr, lat_cntr, row.u/10, row.v/10, fc='w', ec='k', width=0.2 )
+        ax[1, 1].arrow(lon_cntr, lat_cntr, 3.6*usteer[1]/10, 3.6*vsteer[1]/10, fc='r', ec='r', width=0.2 )
         ax[1, 1].add_patch(mpatches.Rectangle(
                            xy=[lon_cntr - width, lat_cntr - width],
                            width=2*width, height=2*width,
@@ -206,8 +218,8 @@ def plot_flow(uda, vda, df, width=4.0):
         ax[1, 1].set_title("Environmental flow (250 hPa) [m/s]")
 
         for axes in ax.flatten():
-            axes.plot(row.LON, row.LAT, marker=tcmarkers.SH_HU, color='r', markeredgecolor='r', markersize=7.5)
-            axes.coastlines(color='0.5', linewidth=1.5)
+            axes.plot(row.LON, row.LAT, marker=tcmarkers.SH_HU, color='w', markeredgecolor='k', markersize=10)
+            axes.coastlines(color='0.75', linewidth=1.0)
             gl = axes.gridlines(draw_labels=True, linestyle='--')
             gl.xformatter = LONGITUDE_FORMATTER
             gl.yformatter = LATITUDE_FORMATTER
