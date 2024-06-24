@@ -36,7 +36,7 @@ NCPUS = int(os.environ.get("NCPUS"))
 start_year = 1981
 end_year = 2023
 
-years = range(start_year, end_year + 1)
+years = np.arange(start_year, end_year + 1)
 
 # single-level variables
 base_dir = "/scratch/w85/cxa547/tcr/data/era5"
