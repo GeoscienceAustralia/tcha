@@ -125,7 +125,7 @@ with pm.Model() as mmodel:
     lambda_ = pm.Normal("lambda", mu=tccount.mean(), sigma=np.std(tccount))
     observation = pm.Poisson("obs", lambda_, observed=tccount.values)
     step = pm.Metropolis()
-    mtrace = pm.sample(20000, tune=10000, step=step, return_inferencedata=True, chains=4, cores=1)
+    mtrace = pm.sample(20000, tune=10000, step=step, return_inferencedata=True, chains=4, cores=1, idata_kwargs={"log_likelihood": True})
     mtrace.extend(pm.sample_posterior_predictive(mtrace))
 
 # The median rate from this process is 10.6 and the 90% credible interval is
@@ -204,7 +204,7 @@ with pm.Model() as lmodel:
     lambda_ = alpha + beta * years
     observation = pm.Poisson("obs", lambda_, observed=tccount.values)
     step = pm.Metropolis()
-    ltrace = pm.sample(20000, tune=10000, step=step, return_inferencedata=True, chains=4, cores=1)
+    ltrace = pm.sample(20000, tune=10000, step=step, return_inferencedata=True, chains=4, cores=1, idata_kwargs={"log_likelihood": True})
     ltrace.extend(pm.sample_posterior_predictive(ltrace))
 
 # Plot the trace of the alpha and beta parameters, including 90th percentile
@@ -312,7 +312,7 @@ with pm.Model() as model:
     observation = pm.Poisson("obs", lambda_, observed=tccount.values)
 
     step = pm.Metropolis()
-    etrace = pm.sample(20000, tune=10000, step=step, return_inferencedata=True, chains=4, cores=1)
+    etrace = pm.sample(20000, tune=10000, step=step, return_inferencedata=True, chains=4, cores=1, idata_kwargs={"log_likelihood": True})
     etrace.extend(pm.sample_posterior_predictive(etrace))
 
 
@@ -413,6 +413,16 @@ plt.savefig(pjoin(
 # Finally, to determine the most suitable model, we use leave-one-out (LOO)
 # cross-validation. For our current model choices, the results are almost
 # indistiguishable.
-print(f"Mean: {az.loo(mtrace).loo:.2f}")
-print(f"Linear: {az.loo(ltrace).loo:.2f}")
-print(f"Exponential: {az.loo(etrace).loo:.2f}")
+print(f"Mean: {az.loo(mtrace).elpd_loo:.2f}")
+print(f"Linear: {az.loo(ltrace).elpd_loo:.2f}")
+print(f"Exponential: {az.loo(etrace).elpd_loo:.2f}")
+
+mc = az.compare(
+    {"Mean": mtrace,
+     "Linear": ltrace,
+     "Exponential": etrace},
+    ic="loo"
+)
+
+az.plot_compare(mc)
+plt.savefig(pjoin(outputPath, "model_comparison.png"), bbox_inches="tight")
