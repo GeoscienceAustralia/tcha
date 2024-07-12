@@ -43,7 +43,7 @@ def season(year, month):
 
 
 def fit_nbinom(X, initial_params=None):
-    infinitesimal = np.finfo(np.float).eps
+    infinitesimal = np.finfo(float).eps
 
     def log_likelihood(params, *args):
         r, p = params
@@ -99,16 +99,16 @@ def filter_tracks_domain(df, minlon=90, maxlon=180, minlat=-40, maxlat=0,
                          idcode='num', latname='lat', lonname='lon'):
     """
     Takes a `DataFrame` and filters on the basis of whether the track interscts
-    the given domain, which is specified by the minimum and maximum longitude and 
+    the given domain, which is specified by the minimum and maximum longitude and
     latitude.
-    
-    NOTE: This assumes the tracks and bounding box are in the same geographic 
-    coordinate system (i.e. generally a latitude-longitude coordinate system). 
+
+    NOTE: This assumes the tracks and bounding box are in the same geographic
+    coordinate system (i.e. generally a latitude-longitude coordinate system).
     It will NOT support different projections (e.g. UTM data for the bounds and
     geographic for the tracks).
-    
-    NOTE: This doesn't work if there is only one point for the track. 
-    
+
+    NOTE: This doesn't work if there is only one point for the track.
+
     :param df: :class:`pandas.DataFrame` that holds the TCLV data
     :param float minlon: minimum longitude of the bounding box
     :param float minlat: minimum latitude of the bounding box
@@ -147,9 +147,9 @@ def fit_dist(numbers, start_year, end_year):
         idx = numbers.index >= year.year
         x = numbers.ID[idx]
         mu = x.mean()
-        sigma = x.var() 
+        sigma = x.var()
         p = mu / sigma
-        r = p * mu / (1 - p)   
+        r = p * mu / (1 - p)
         poissonnll = -np.log(x.map(lambda val: poisson.pmf(val, mu)).prod())
         results.loc[results.shape[0]] = [year.year, 'poisson', mu, sigma, p, r, poissonnll]
 
@@ -189,7 +189,7 @@ df['IDSEAS'] = new[0].str[:6].str.strip('AU').astype(int)
 # Calculate the number of unique values in each season:
 sc = df.groupby(['IDSEAS']).nunique()
 
-# Determine the number of severe TCs. 
+# Determine the number of severe TCs.
 # take the number of TCs with maximum wind speed > 32 m/s
 xc = df.groupby(['DISTURBANCE_ID',]).agg({
     'CENTRAL_PRES': np.min,
