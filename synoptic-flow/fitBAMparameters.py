@@ -1,7 +1,14 @@
 """
 Fit beta-advection model parameters to TC motion
 
+This is used in conjunction with extract_era5.py and envflow.py
+to calculate the BAM parameters described in Lin et al. 2023.
 
+References:
+Lin, J., R. Rousseau-Rizzi, C.-Y. Lee, and A. Sobel, 2023: An Open-Source,
+Physics-Based, Tropical Cyclone Downscaling Model With Intensity-Dependent
+Steering. Journal of Advances in Modeling Earth Systems, 15, e2023MS003686,
+https://doi.org/10.1029/2023MS003686.
 
 Author: Craig Arthur
 2024-03-20
@@ -37,16 +44,19 @@ def savefig(filename, *args, **kwargs):
 
 BASEDIR = "/scratch/w85/cxa547/envflow/cyclic"
 filelist = sorted(glob.glob(os.path.join(BASEDIR, "tcenvflow_serial.*.csv")))
-df = pd.concat((pd.read_csv(f) for f in filelist), ignore_index=True)
-
+df = pd.concat((pd.read_csv(f, keep_default_na=False, na_values=[' ', '']) for f in filelist), ignore_index=True)
+df['MAX_WIND_SPD'].fillna(df['WMO_WIND'], inplace=True)
 df.loc[df['LON'] < 0, "LON"] = df['LON'] + 360
 df.dropna(subset=['u850', 'u250', 'v850', 'v250'], inplace=True)
+# Remove any records with missing wind speed values, even after replacing with WMO_WIND
+df = df.drop(df[df['MAX_WIND_SPD']==''].index)
+df = df.astype({'MAX_WIND_SPD': float})
 
 # Add bands for intensity and longitude:
 df['band'] = pd.cut(df['MAX_WIND_SPD'], np.arange(10, 71, 5),
                     labels=np.arange(10, 70, 5))
-df['lonband'] = pd.cut(df['LON'], np.arange(30, 250.1, 20),
-                       labels=np.arange(40, 250, 20))
+#df['lonband'] = pd.cut(df['LON'], np.arange(30, 250.1, 20),
+#                       labels=np.arange(40, 250, 20))
 
 
 # Define the different models that will be used:
@@ -65,6 +75,9 @@ def beta_model(alpha, beta, xl, xu, phi):
 def lin_model(m, b, x):
     return (m*x + b)
 
+def threelevel_model(alpha, beta, gamma, xl, xm, xu):
+    return (alpha*xl + beta*xm + gamma*xu) / (alpha + beta + gamma)
+
 
 # Set up the models:
 #  `rmod` has varying alpha with wind speed
@@ -77,10 +90,15 @@ p.add(alpha)
 pb = lmfit.Parameters()
 pb.add(alpha)
 pb.add(beta)
+
+pt = lmfit.Parameters()
+pt.add('alpha', value=0.5, min=0, max=1)
+pt.add('beta', value=0.3, min=0, max=1)
+pt.add('gamma', value=0.2, min=0, max=1)
 rmod = lmfit.Model(twolevel_model, independent_vars=['xl', 'xu'])
 fmod = lmfit.Model(fixed_model, independent_vars=['xl', 'xu'])
 bmod = lmfit.Model(beta_model, independent_vars=['xl', 'xu', 'phi'])
-
+tmod = lmfit.Model(threelevel_model, independent_vars=['xl', 'xm', 'xu'])
 
 def plot_scatter(df, filename):
     """
@@ -289,7 +307,7 @@ def plotResults(df, filename):
     axes[0].grid(True)
     axes[0].set_ylim((0.5, 1.0))
     axes[0].set_ylabel(r"$\alpha(v)$")
-    axes[0].legend(ncols=2)
+    axes[0].legend() #ncols=2)
 
     axes[1].plot(x, df['ursq'], color='b')
     axes[1].plot(x, df['vrsq'], color='r')
@@ -301,12 +319,14 @@ def plotResults(df, filename):
     axes[1].set_xlabel("Intensity [m/s]")
     clines = [Line2D([0], [0], color='k', lw=2),
               Line2D([0], [0], color='k', lw=2, linestyle='--')]
-    axes[1].legend(clines, [r"$\alpha (v)$", r"Constant $\alpha$"], ncols=2)
+    axes[1].legend(clines, [r"$\alpha (v)$", r"Constant $\alpha$"]) #, ncols=2)
     savefig(os.path.join(BASEDIR, filename), bbox_inches='tight')
 
 
-def plotModel(df, fitdf, filename):
+def plotModel(df, fitdf, filename, basin):
     fig, ax = plt.subplots(1, 2, figsize=(12, 6), sharey=True)
+    df['upred'] = np.nan
+    df['vpred'] = np.nan
     for i, x in enumerate(np.arange(10, 70, 5)):
         ualpha = fitdf.loc[i, 'au']
         valpha = fitdf.loc[i, 'av']
@@ -320,6 +340,8 @@ def plotModel(df, fitdf, filename):
 
         upred = ualpha*ul + (1 - ualpha)*uu
         vpred = valpha*vl + (1 - valpha)*vu
+        df.loc[df['band'] == x, 'upred'] = upred
+        df.loc[df['band'] == x, 'vpred'] = vpred
         ax[0].plot(upred, u, 'o', label=f"{x} m/s")
         ax[1].plot(vpred, v, 'o')
 
@@ -329,7 +351,7 @@ def plotModel(df, fitdf, filename):
     ax[0].set_ylabel(r"Observed $u_t$ [m/s]")
     ax[0].grid()
     ax[0].text(0.05, 0.95, r"$u_t$", transform=ax[0].transAxes,
-               fontweight='bold', va='top')
+               fontweight='bold', va='top', fontsize='large')
     ax[1].set_ylim((-15, 15))
     ax[1].set_xlim((-15, 15))
     ax[1].grid()
@@ -338,7 +360,7 @@ def plotModel(df, fitdf, filename):
     ax[1].set_ylabel(r"Observed $v_t$ [m/s]")
     ax[1].set_xlabel(r"Predicted $v_t$ [m/s]")
     ax[1].text(0.05, 0.95, r"$v_t$", transform=ax[1].transAxes,
-               fontweight='bold', va='top')
+               fontweight='bold', va='top', fontsize='large')
     plt.figlegend(bbox_to_anchor=(.5, 0), loc="lower center",
                   bbox_transform=fig.transFigure, ncol=4,
                   title="Storm intensity [m/s]")
@@ -375,6 +397,11 @@ def plotModel(df, fitdf, filename):
     fig.subplots_adjust(bottom=0.25)
     savefig(os.path.join(BASEDIR, "mag_"+filename),
             bbox_inches='tight')
+
+    # Save predicted translation vector to file:
+    df.drop("Unnamed: 0", axis=1).to_csv(
+        os.path.join(BASEDIR, f"tcenvflow.pred.{basin}.csv"),
+        index=False)
 
 
 def plotModelLongitude(df: pd.DataFrame, fitdf: pd.DataFrame, filename: str):
@@ -467,12 +494,12 @@ def plotResultsLongitude(df: pd.DataFrame, filename: str):
 
 
 fitdf = fit_model(df)
-fitdf_lon = fit_model_longitude(df)
+#fitdf_lon = fit_model_longitude(df)
 plot_scatter(df, filename="tcenvflow_scatter.png")
 plotResults(fitdf, filename="tcenvflow_fit.png")
-plotResultsLongitude(fitdf_lon, filename="tcenvflow_fit.longitude.png")
-plotModel(df, fitdf, filename="tcenvflow_fullfit.png")
-plotModelLongitude(df, fitdf_lon, filename="tcenvflow_fullfit.longitude.png")
+#plotResultsLongitude(fitdf_lon, filename="tcenvflow_fit.longitude.png")
+plotModel(df, fitdf, filename="tcenvflow_fullfit.png", basin="SH")
+#plotModelLongitude(df, fitdf_lon, filename="tcenvflow_fullfit.longitude.png")
 
 df.drop("Unnamed: 0", axis=1).to_csv(
     os.path.join(BASEDIR, "tcenvflow.csv"),
@@ -495,4 +522,5 @@ for basin in df['BASIN'].unique():
 
     plotResults(basinfit, filename=f"tcenvflow_fit.{basin}.png")
     plotModel(df[df['BASIN'] == basin], basinfit,
-              filename=f"tcenvflow_fullfit.{basin}.png")
+              filename=f"tcenvflow_fullfit.{basin}.png",
+              basin=basin)

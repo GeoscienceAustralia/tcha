@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-BASEDIR="/scratch/w85/cxa547/envflow/WP"
+BASEDIR="/scratch/w85/cxa547/envflow/cyclic"
 
 
 def savefig(filename, *args, **kwargs):
@@ -21,14 +21,16 @@ def savefig(filename, *args, **kwargs):
             fontsize='xx-small')
     plt.savefig(filename, *args, **kwargs)
     
-filename = os.path.join(BASEDIR, "tcenvflow.csv")
+filename = os.path.join(BASEDIR, "tcenvflow.pred.csv")
 df = pd.read_csv(filename)
 df = df[~df['MAX_WIND_SPD'].isna()]
 df = df[df['v'] <= 50]
 
 basins = df.BASIN.unique()
 cols = ['LAT', 'MAX_WIND_SPD', 'u', 'v', 'du', 'dv', 
-        'u850', 'v850', 'u250', 'v250', 'su', 'sv']
+        'u850', 'v850', 'u250', 'v250', 'su', 'sv', 'ub', 'vb']
+df['ub'] = df['u'] - df['upred']
+df['vb'] = df['v'] - df['vpred']
 
 for basin in basins:
     print(f"Calculating correlations for {basin}")

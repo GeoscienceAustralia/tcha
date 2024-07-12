@@ -5,6 +5,11 @@ Using ERA5 reanalysis of 850 and 250 hPa sub-daily (6 hours) winds,
 calculate the environmental flow in the vicinity of each TC
 observation.
 
+Requires the ERA5 data to be extracted from the ERA5 replication dataset
+on the NCI. This has been done using `extract_era5.py`. We rotate the
+longitude coordinate to the range [0, 360) to avoid having the grid boundary
+at the dateline (which cuts across the South Pacific basin).
+
 The steering wind is calculated using "vortex surgery" to remove the
 TC vortex from the reanalysis data to determine the background flow.
 The details of this process are described in Galarneau and Davis (2013).
@@ -35,6 +40,14 @@ https://scitools.org.uk/cartopy/docs/latest/gallery/scalar_data/wrapping_global.
 windspharm - for vector wind calculations using spherical harmonics.
 https://ajdawson.github.io/windspharm/latest/
 
+References:
+Galarneau, T. J., and C. A. Davis, 2013: Diagnosing Forecast Errors in Tropical
+Cyclone Motion. Monthly Weather Review, 141, 405-430,
+https://doi.org/10.1175/MWR-D-12-00071.1
+
+Hersbach, H., and Coauthors, 2020: The ERA5 global reanalysis. Quarterly Journal
+of the Royal Meteorological Society, 146, 1999-2049,
+https://doi.org/10.1002/qj.3803
 
 Author: Craig Arthur
 
@@ -67,7 +80,7 @@ import pyproj
 # BoM best track and IBTrACS are stored in the DATA_DIR folder
 
 geodesic = pyproj.Geod(ellps="WGS84")
-WIDTH = 6.25
+WIDTH = 4.0
 DATA_DIR = "/g/data/w85/data/tc"
 DLM_DIR = "/scratch/w85/cxa547/tcr/data/era5"
 OUT_DIR = "/scratch/w85/cxa547/envflow/cyclic"
@@ -129,7 +142,8 @@ def load_ibtracs_df(season, basins=['SI', 'SP']):
     df["TM"] = pd.to_datetime(
         df.TM, format="%Y-%m-%d %H:%M:%S", errors="coerce")
     df = df[~pd.isnull(df.TM)]
-
+    # Move everything to longitudes of [0, 360)
+    df.loc[df['LON'] < 0, "LON"] = df['LON'] + 360
     # Filter to every 6 hours (to match sub-daily ERA data)
     df["hour"] = df["TM"].dt.hour
     df = df[df["hour"].isin([0, 6, 12, 18])]
@@ -139,7 +153,7 @@ def load_ibtracs_df(season, basins=['SI', 'SP']):
 
     # IBTrACS includes spur tracks (bits of tracks that are
     # different to the official) - these need to be dropped.
-    df = df[df.TRACK_TYPE == "main"]
+    df = df[df.TRACK_TYPE.isin(["main", "PROVISIONAL"])]
     df = df[df["BASIN"].isin(basins)]
 
     df.reset_index(inplace=True)
@@ -154,6 +168,9 @@ def load_ibtracs_df(season, basins=['SI', 'SP']):
     idxs = df.groupby(["DISTURBANCE_ID"]).agg(
         {"new_index": "max"}).values.flatten()
     df.drop("new_index", axis=1, inplace=True)
+    # Replace any missing values with the WMO source data, converted to a 1-minute sustained wind speed
+    # Only considering SI and SP basins, where the WMO sources *should* be 10-minute means!
+    df.fillna({"MAX_WIND_SPD": df["WMO_WIND"] * 1.029}, inplace=True)
     # Convert max wind speed to m/s for consistency
     df["MAX_WIND_SPD"] = (df["MAX_WIND_SPD"] * 0.5144)
 
@@ -257,11 +274,11 @@ def solvePoisson(scalar):
     bcs = [{"value": 0},
            {"value": 0},]
     sol = solve_poisson_equation(scalar, bc=bcs)
-    uu, vv = np.gradient(sol.data)
-    return uu, vv
+    dsdx, dsdy = np.gradient(sol.data)
+    return dsdx, dsdy
 
 
-def extract_steering(uda, vda, cLon, cLat, dx, dy, width=4):
+def extract_steering(uda, vda, cLon, cLat, dx, dy, width=4.0):
     """
     Calculate the steering flow for a region centred at `cLon`, `cLat`.
 
@@ -331,7 +348,7 @@ def load_steering(uda, vda, df, width=4.0):
                minimum the time, latitude and longitude of the TC positions,
                named as 'TM', 'LAT', 'LON' respectively.
     :param width: Size of the box over which to calculate mean steering flow.
-                  Default is 4 degrees. Loosely based on the 400 km used in
+                  Default is 4 degrees. Based on the 400 km used in
                   Lin et al. (2023) and Galarneau and Davis (2013).
     """
     griddx, griddy = lat_lon_grid_deltas(
@@ -384,9 +401,10 @@ def process(season):
     """
     df = load_ibtracs_df(season, BASINS)
     print("extract steering current from environmental flow:")
-    results = load_steering(uda, vda, df)
-
-    cols = ["index", "u850", "u250", "v850", "v250"]
+    results = load_steering(uda, vda, df, width=WIDTH)
+    ucols = [f'u{lev}' for lev in uda.level.values]
+    vcols = [f'v{lev}' for lev in vda.level.values]
+    cols = ["index"] + ucols + vcols
     vdf = pd.DataFrame(data=np.array(
         [r for r in results]).squeeze(), columns=cols)
     vdf["index"] = vdf["index"].astype(int)
