@@ -4,8 +4,14 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import pyproj
+import cartopy.util as cutil
+import xarray as xr
+
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+
 geodesic = pyproj.Geod(ellps="WGS84")
-DATA_DIR=r"X:\georisk\HaRIA_B_Wind\data\raw\from_noaa\ibtracs\v04r00"
+DATA_DIR = "/g/data/w85/data/tc"
 
 def savefig(filename, *args, **kwargs):
     """
@@ -117,5 +123,27 @@ def load_ibtracs_df(basins=None, season=None):
     df["dt"] = dt_
 
     df = df[df.u != 0].copy()
-    print(f"Number of records: {len(df)}")
+    print(f"Number of TC records: {len(df)}")
     return df
+
+def cyclic_wrapper(x, dim="longitude"):
+    """
+    Use cartopy.util.add_cyclic_point with an xarray Dataset to
+    add a cyclic or wrap-around pixel to the `lon` dimension. This can be useful
+    for plotting with `cartopy`
+
+    So add_cyclic_point() works on 'dim' via xarray Dataset.map()
+
+    :param x: `xr.Dataset` to process
+    :param str dim: Dimension of the dataset to wrap on (default "longitude")
+    """
+    wrap_data, wrap_lon = cutil.add_cyclic_point(
+        x.values,
+        coord=x.coords[dim].data,
+        axis=x.dims.index(dim)
+    )
+    return xr.DataArray(
+        wrap_data,
+        coords={dim: wrap_lon, **x.drop_vars(dim).coords},
+        dims=x.dims
+    )
