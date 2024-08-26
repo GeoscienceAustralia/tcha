@@ -64,8 +64,9 @@ sys.path.append("/scratch/w85/cxa547/python/lib/python3.10/site-packages")
 
 from mpi4py import MPI
 from pde import CartesianGrid, solve_poisson_equation, ScalarField
-from windspharm.xarray import VectorWind
-from metpy.calc import lat_lon_grid_deltas
+#from windspharm.xarray import VectorWind
+from metpy.calc import lat_lon_grid_deltas, vorticity, divergence
+from metpy.units import units
 from datetime import datetime
 import xarray as xr
 import dask.array as da
@@ -299,9 +300,14 @@ def extract_steering(uda, vda, cLon, cLat, dx, dy, width=4.0):
     uenv = uda.copy()
     venv = vda.copy()
     levels = uda.level
-    # Calculate virticity and divergence of the flow:
-    w = VectorWind(uda, vda, legfunc="computed")
-    vrt, div = w.vrtdiv()
+    mps = units.meter / units.second
+    # Calculate vorticity and divergence of the flow:
+    vrt = vorticity(uda * mps, vda * mps)
+    vrt = vrt.metpy.dequantify()
+    div = divergence(uda * mps, vda * mps)
+    div = div.metpy.dequantify()
+    #w = VectorWind(uda, vda, legfunc="computed")
+    #vrt, div = w.vrtdiv()
     vrtz = xr.zeros_like(vrt)
     divz = xr.zeros_like(div)
     lat_slice = slice(cLat + width, cLat - width)
@@ -426,14 +432,14 @@ udss = xr.open_mfdataset(
     combine="nested",
     concat_dim="time",
     chunks={"latitude": 721, "longitude": 1440, "time": -1},
-    parallel=True,
+    #parallel=True,
 )
 vdss = xr.open_mfdataset(
     vpath,
     combine="nested",
     concat_dim="time",
     chunks={"latitude": 721, "longitude": 1440, "time": -1},
-    parallel=True,
+    #parallel=True,
 )
 
 # This shifts to a central longitude of 180E, rather than 0E
@@ -448,7 +454,7 @@ uda = udss["u"]
 vda = vdss["v"]
 
 # Scatter across available processors:
-years = np.arange(1981, 2023)
+years = np.arange(1981, 2024)
 rank_years = years[(years % comm.size) == rank]
 for year in rank_years:
     process(year)
