@@ -95,17 +95,6 @@ def calculateXi(ds, level):
 def processYear(basepath, year, outpath, config):
     windfiles = windfilelist(basepath, year)
     ds = xr.open_mfdataset(windfiles)
-    minLon = config.getfloat('Domain', 'MinLon')
-    maxLon = config.getfloat('Domain', 'MaxLon')
-    minLat = config.getfloat('Domain', 'MinLat')
-    maxLat = config.getfloat('Domain', 'MaxLat')
-
-    # Take a subset of the data based on the domain set in the config file:
-    # NOTE: Order of latitude dimension is 90N - 90S, so maxLat *must* be
-    # the northern edge of the domain.
-    # The vertical level also needs to be reversed for this structure of the
-    # ERA5 data (level=slice(None, None, -1))
-
     eta = calculateEta(ds, level=850.)
     beta = calculateGradEta(ds, level=700.)
     xi = calculateXi(ds, level=700.)
@@ -116,15 +105,13 @@ def processYear(basepath, year, outpath, config):
         xi.rename('xi')],
         compat='override')
 
-
     outds.eta.attrs['standard_name'] ='850 hPa absolute vorticity'
     outds.eta.attrs['units'] = 's^-1'
     outds.beta.attrs['standard_name'] ='700 hPa meridonal gradient of absolute vorticity'
     outds.beta.attrs['units'] = 'm^-1 s^-1'
     outds.xi.attrs['standard_name'] = 'Ratio of absolute vorticity to gradient of absolute vorticity'
     outds.xi.attrs['units'] = 's^-1'
-    outputfile = os.path.join(outpath,
-                              f"abv.{year}.nc")
+    outputfile = os.path.join(outpath, f"abv.{year}.nc")
 
     LOGGER.info(f"Saving data to {outputfile}")
 
