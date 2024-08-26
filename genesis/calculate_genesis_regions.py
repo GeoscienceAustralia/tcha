@@ -65,6 +65,7 @@ def calculateXi(ds, level):
     Calculate the xi term in equation 12 from Tory et al. 2018.
 
     """
+    LOGGER.info("Calculating vorticity parameter")
     R = mpconst.earth_avg_radius
     omega = mpconst.earth_avg_angular_vel
     
@@ -84,6 +85,7 @@ def calculateShear(ds, upper, lower):
     """
     Calculate magnitude of vertical wind shear
     """
+    LOGGER.info("Calculating wind shear")
     uu = ds.sel(level=upper)['u']
     ul = ds.sel(level=lower)['u']
     vu = ds.sel(level=upper)['v']
@@ -96,13 +98,14 @@ def calculateShear(ds, upper, lower):
 
 def calculateRH(ds, level):
     """Calculate relative humidity"""
+    LOGGER.info("Calculating relative humidity")
     rds = ds.isel(longitude=slice(0, 1440, 4), latitude=slice(0, 721, 4))
     rds = rds.roll(longitude=-180, roll_coords=True)
     rds["longitude"] = np.where(
         rds["longitude"] < 0, rds["longitude"] + 360, rds["longitude"]
     )
-    rh = mpcalc.smooth_n_point(rh, 9, 2)
     rh = rds.sel(level=level)['r']
+    rh = mpcalc.smooth_n_point(rh, 9, 2)
     return rh.metpy.dequantify()
     
 def calculateTCGP(vmax, xi, rh, shear):
@@ -119,7 +122,7 @@ def calculateTCGP(vmax, xi, rh, shear):
     :param shear: `xr.DataArray` of 200-850 hPa wind shear
     
     """
-
+    LOGGER.info("Calculating TC genesis parameter")
     nu = xr.where(((vmax / 40) - 1) < 0, 0, (vmax / 40) - 1)
     mu = xr.where(((xi / 2e-5) - 1) < 0, 0, (xi / 2e-5) - 1)
     rho = xr.where(((rh / 40) - 1) < 0, 0, (rh / 40) - 1)
@@ -136,6 +139,7 @@ def calculateMeans(da, quantile=0.9):
     :param quantile: quantile level to calculate [0.0, 1.0]
     
     """
+    LOGGER.info("Calculating monthly long term means and quantiles")
     mongrp = da.groupby('time.month')
     monmean = mongrp.mean(dim="time")
     monquant = mongrp.quantile(quantile, dim="time")
@@ -200,7 +204,6 @@ def process(basepath, config):
     
     outds['tcgp'].attrs['standard_name'] = "TC genesis parameter"
     outds['tcgp'].attrs['units'] = ''
-    outds['tcgp'].attrs['valid_range'] = (0, 10)
     outds['shear'].attrs['standard_name'] = "200-850 hPa wind shear"
     outds['shear'].attrs['units'] = 'm/s'
     outds['vmax'].attrs['standard_name'] = 'potential intensity'
@@ -213,7 +216,7 @@ def process(basepath, config):
     outds.attrs['title'] = "Tropical cyclone genesis parameter"
     outds.attrs['description'] = "TC genesis parameter and components"
     curdate = datetime.datetime.now()
-    history = (f"{curdate:%Y-%m-%d %H:%M:%s}: {' '.join(sys.argv)}")
+    history = (f"{curdate:%Y-%m-%d %H:%M:%S}: {' '.join(sys.argv)}")
     outds.attrs['history'] = history
     outds.attrs['version'] = COMMIT
     
@@ -228,18 +231,16 @@ def process(basepath, config):
     })
     meands['tcgpmean'].attrs['standard_name'] = "Monthly mean TC genesis parameter"
     meands['tcgpmean'].attrs['units'] = ''
-    meands['tcgpmean'].attrs['valid_range'] = (0, 10)
     meands['tcgpquant'].attrs['standard_name'] = "Quantile TC genesis parameter"
     meands['tcgpquant'].attrs['units'] = ''
-    meands['tcgpquant'].attrs['valid_range'] = (0, 10)
 
     meands.attrs['title'] = "LTM Tropical cyclone genesis parameter"
     meands.attrs['description'] = "TC genesis parameter monthly long term mean"
     curdate = datetime.datetime.now()
-    history = (f"{curdate:%Y-%m-%d %H:%M:%s}: {' '.join(sys.argv)}")
+    history = (f"{curdate:%Y-%m-%d %H:%M:%S}: {' '.join(sys.argv)}")
     meands.attrs['history'] = history
     meands.attrs['version'] = COMMIT
-    outfile = os.path.join(outpath, "tcgc.monltm.nc")
+    outfile = os.path.join(outpath, "tcgp.monltm.nc")
     saveTCGP(meands, outfile)
 
 def main():
