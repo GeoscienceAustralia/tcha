@@ -3,7 +3,7 @@ Analysis of climatological vorticity and divergence in the Southern Hemisphere.
 
 This also extracts the climatological mean values of meridional gradient of
 vorticity and zonal wind and the zonal gradient of meridional wind, which is
-used in subsequent analysis of the magnitude of beta drift. 
+used in subsequent analysis of the magnitude of beta drift.
 
 Requires pre-calculated file of winds at 850 & 250 hPa, including variance
 and covariance. This is created by Lin's TC model code (ref).
@@ -36,6 +36,8 @@ from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 from windspharm.xarray import VectorWind
 
 DATA_DIR = "/g/data/w85/data/tc"
+BASEDIR = "/scratch/w85/cxa547/tcr/data/era5"
+OUTPUTDIR = "/scratch/w85/cxa547/envflow/SH"
 geodesic = pyproj.Geod(ellps="WGS84")
 
 # Set spectral truncation to T30 (approx. 4 degrees)
@@ -150,7 +152,7 @@ def load_ibtracs_df(basins=None, season=None):
 def calcTClonPercentiles():
     """
     Calculate percentiles of longitude values in each basin
-    
+
     :returns: `pd.DataFrame` of 10th and 90th percentile of longitude
     values in each TC basin.
     """
@@ -187,7 +189,6 @@ def cyclic_wrapper(x, dim="longitude"):
         dims=x.dims
     )
 
-BASEDIR = "/scratch/w85/cxa547/tcr/data/era5"
 windfile = os.path.join(BASEDIR, "env_wnd_era5_198101_202112.nc")
 ds = xr.open_dataset(windfile)
 month_length = ds.time.dt.days_in_month
@@ -210,9 +211,9 @@ w250 = VectorWind(ua250, va250, legfunc="computed")
 vrt250, div250 = w250.vrtdiv(truncation=TRUNCATION)
 vrt250x, vrt250y = w250.gradient(vrt250)
 
-# Calculate vorticity/divergence for deep layer mean. 
+# Calculate vorticity/divergence for deep layer mean.
 # Use simplified model of 0.8u_850 + 0.2u_250.
-# Also calculate meridional and zonal gradient of the DLM vorticity and 
+# Also calculate meridional and zonal gradient of the DLM vorticity and
 # components.
 # See Zhao et al. (2009) https://doi.org/10.1029/2009GL040126
 uDLM = 0.8 * ua850 + 0.2 * ua250
@@ -264,14 +265,14 @@ cs = ax.contourf(vrtsh850.lon, vrtsh850.time, vrtsh850, levels=levels, extend='b
 ax.set_xlim((60, 240))
 ax.grid(linestyle='--', color='0.5')
 plt.colorbar(cs, aspect=20, label=r"$\zeta_{850}$ [$s^{-1}$]")
-savefig("SH_vorticity.850.monmean.png")
+savefig(os.path.join(OUTPUTDIR, "SH_vorticity.850.monmean.png"))
 
 fig, ax = plt.subplots(1, 1, figsize=(10, 12))
 cs = ax.contourf(vrtsh250.lon, vrtsh250.time, vrtsh250, levels=levels, extend='both', cmap='RdBu')
 ax.set_xlim((60, 240))
 ax.grid(linestyle='--', color='0.5')
 plt.colorbar(cs, aspect=20, label=r"$\zeta_{250}$ [$s^{-1}$]")
-savefig("SH_vorticity.250.monmean.png")
+savefig(os.path.join(OUTPUTDIR, "SH_vorticity.250.monmean.png"))
 
 # Time series of mean vorticity in the main TC regions in each basin:
 basin_percentiles = calcTClonPercentiles()
@@ -292,7 +293,7 @@ ax[0].legend()
 ax[0].grid(True)
 ax[1].grid(True)
 fig.tight_layout()
-savefig("SH_vorticity.timeseries.png")
+savefig(os.path.join(OUTPUTDIR, "SH_vorticity.timeseries.png"))
 
 # Time series of mean divergence in the main TC regions in each basin:
 fig, ax = plt.subplots(2, 1, figsize=(12,8), sharex=True)
@@ -312,7 +313,7 @@ ax[0].legend()
 ax[0].grid(True)
 ax[1].grid(True)
 fig.tight_layout()
-savefig("SH_divergence.timeseries.png")
+savefig(os.path.join(OUTPUTDIR, "SH_divergence.timeseries.png"))
 
 # Seasonal mean vorticity in each basin (850 and 250 hPa)
 vrtsh_djf850 = vrtsh850.sel(time=vrtsh850.time.dt.season=="DJF")
@@ -372,7 +373,7 @@ ax[1].text(0.05, 0.95, "850 hPa", transform=ax[1].transAxes,
             fontweight='bold', va='top')
 fig.suptitle("DJF Mean vorticity")
 fig.tight_layout()
-savefig("SH_vorticity.timeseries.DJF.png")
+savefig(os.path.join(OUTPUTDIR, "SH_vorticity.timeseries.DJF.png"))
 
 # Plot mean vorticity in each longitude band
 fig, ax = plt.subplots(2, 1, figsize=(12,8))
@@ -380,8 +381,7 @@ for l in range(60, 200, 20):
     lon = slice(l-10, l+10)
     ax[0].plot(vrtsh_seasonal250.year, vrtsh_seasonal250.sel(lon=lon).mean(axis=1), label=l,)
     ax[0].set_ylabel(r"$\zeta_{250}$ [$s^{-1}$]")
-    ax[0].text(0.05, 0.95, "250 hPa", transform=ax[0].transAxes,
-                fontweight='bold', va='top')
+
     ax[0].grid(True)
     ax[0].legend(loc=1)
     ax[1].plot(vrtsh_seasonal850.year, vrtsh_seasonal850.sel(lon=lon).mean(axis=1), label=l)
@@ -389,11 +389,14 @@ for l in range(60, 200, 20):
     ax[1].legend(loc=1)
 
     ax[1].set_ylabel(r"$\zeta_{850}$ [$s^{-1}$]")
-    ax[1].text(0.05, 0.95, "850 hPa", transform=ax[1].transAxes,
-                fontweight='bold', va='top')
+
+ax[0].text(0.05, 0.95, "250 hPa", transform=ax[0].transAxes,
+           fontweight='bold', va='top')
+ax[1].text(0.05, 0.95, "850 hPa", transform=ax[1].transAxes,
+           fontweight='bold', va='top')
 fig.suptitle("DJF Mean vorticity by longitude")
 fig.tight_layout()
-savefig("SH_vorticity.timeseries.DJF.longitude.png")
+savefig(os.path.join(OUTPUTDIR, "SH_vorticity.timeseries.DJF.longitude.png"))
 
 # Plot timeseries of seasonal divergence:
 fig, ax = plt.subplots(2, 1, figsize=(12,8))
@@ -416,15 +419,14 @@ ax[1].text(0.05, 0.95, "850 hPa", transform=ax[1].transAxes,
             fontweight='bold', va='top')
 fig.suptitle("DJF Mean divergence")
 fig.tight_layout()
-savefig("SH_divergence.timeseries.DJF.png")
+savefig(os.path.join(OUTPUTDIR, "SH_divergence.timeseries.DJF.png"))
 
 fig, ax = plt.subplots(2, 1, figsize=(12,8))
 for l in range(60, 200, 20):
     lon = slice(l-10, l+10)
     ax[0].plot(divsh_seasonal250.year, divsh_seasonal250.sel(lon=lon).mean(axis=1), label=l,)
     ax[0].set_ylabel(r"$\delta_{250}$ [$s^{-1}$]")
-    ax[0].text(0.05, 0.95, "250 hPa", transform=ax[0].transAxes,
-                fontweight='bold', va='top')
+
     ax[0].grid(True)
     ax[0].legend(loc=1)
     ax[1].plot(divsh_seasonal850.year, divsh_seasonal850.sel(lon=lon).mean(axis=1), label=l)
@@ -432,11 +434,14 @@ for l in range(60, 200, 20):
     ax[1].legend(loc=1)
 
     ax[1].set_ylabel(r"$\delta_{850}$ [$s^{-1}$]")
-    ax[1].text(0.05, 0.95, "850 hPa", transform=ax[1].transAxes,
-                fontweight='bold', va='top')
+
+ax[0].text(0.05, 0.95, "250 hPa", transform=ax[0].transAxes,
+           fontweight='bold', va='top')
+ax[1].text(0.05, 0.95, "850 hPa", transform=ax[1].transAxes,
+           fontweight='bold', va='top')
 fig.suptitle("DJF Mean divergence by longitude")
 fig.tight_layout()
-savefig("SH_divergence.timeseries.DJF.longitude.png")
+savefig(os.path.join(OUTPUTDIR, "SH_divergence.timeseries.DJF.longitude.png"))
 
 # Plot monthly mean (plus std dev.) of vorticity in 20 degree longitude
 # bands for 850- and 250-hPa, in southern and northern hemisphere.
@@ -485,7 +490,7 @@ ax[1].text(0.05, 0.95, "850 hPa", transform=ax[1].transAxes,
 fig.suptitle("Mean vorticity by longitude\n"
              r"5-25$^\circ$ - 1981-2022")
 fig.tight_layout()
-savefig("SH_vorticity.clim.DJF.longitude.png")
+savefig(os.path.join(OUTPUTDIR, "SH_vorticity.clim.DJF.longitude.png"))
 
 # Plot monthly mean (plus std dev.) of divergence in 20 degree longitude
 # bands for 850- and 250-hPa, in southern and northern hemisphere.
@@ -533,7 +538,7 @@ ax[1].text(0.05, 0.95, "850 hPa", transform=ax[1].transAxes,
 fig.suptitle("Mean divergence by longitude\n"
              r"5-25$^\circ$ - 1981-2022")
 fig.tight_layout()
-savefig("SH_divergence.clim.DJF.longitude.png")
+savefig(os.path.join(OUTPUTDIR, "SH_divergence.clim.DJF.longitude.png"))
 
 # Plot monthly mean (plus std dev.) of vorticity gradient in 20 degree longitude
 # bands for 850- and 250-hPa, in southern and northern hemisphere.
@@ -581,7 +586,7 @@ ax[1].text(0.05, 0.95, "850 hPa", transform=ax[1].transAxes,
 fig.suptitle("Mean vorticity gradient by longitude\n"
              r"5-25$^\circ$ - 1981-2022")
 fig.tight_layout()
-savefig("SH_vortgrad.clim.DJF.longitude.png")
+savefig(os.path.join(OUTPUTDIR, "SH_vortgrad.clim.DJF.longitude.png"))
 
 # Plot 850- and 250-hPa vorticity, coloured by month, for SI and SP basins
 # This is the average in the main TC regions in each basin (80% of all storms in the
@@ -594,14 +599,14 @@ x2 = vrtsh850.sel(lon=slice(47.8, 120.5)).mean(axis=1)
 y2 = vrtsh250.sel(lon=slice(47.8, 120.5)).mean(axis=1)
 z2 = vrtsh850.time.dt.month.values
 
-ax[0].scatter(x1, y1, ls='-', marker='o', c=z1, 
+ax[0].scatter(x1, y1, ls='-', marker='o', c=z1,
               cmap=sns.color_palette("hls", 12, as_cmap=True))
 ax[0].grid()
 ax[0].set_ylabel(r"$\zeta_{250}$ [$s^{-1}$]")
 ax[0].text(0.05, 0.95, "SP", transform=ax[0].transAxes,
             fontweight='bold', va='top')
 
-cs = ax[1].scatter(x2, y2, ls='-', marker='o', c=z2, 
+cs = ax[1].scatter(x2, y2, ls='-', marker='o', c=z2,
                    cmap=sns.color_palette("hls", 12, as_cmap=True))
 ax[1].grid()
 ax[1].set_xlabel(r"$\zeta_{850}$ [$s^{-1}$]")
@@ -612,9 +617,9 @@ handles, labels = cs.legend_elements()
 labels = [month_abbr[i] for i in range(1, 13)]
 
 plt.subplots_adjust(bottom=0.175,)
-plt.legend(handles, labels, title="Month", bbox_to_anchor=(0.5, 0), 
+plt.legend(handles, labels, title="Month", bbox_to_anchor=(0.5, 0),
            loc="lower center", ncols=6, bbox_transform=fig.transFigure)
-savefig("SH_vorticity.850-250.png")
+savefig(os.path.join(OUTPUTDIR, "SH_vorticity.850-250.png"))
 
 
 #########
@@ -659,7 +664,7 @@ fig.tight_layout()
 """
 extents = (90, 220, -25, 25)
 levels = 10e-12*np.arange(-3., 3.1, 0.2)
-fig, axes = plt.subplots(4, 3, figsize=(16, 12), 
+fig, axes = plt.subplots(4, 3, figsize=(16, 12),
                          subplot_kw={'projection': proj},
                          sharex=True, sharey=True)
 for i, ax in enumerate(axes.flatten()):
@@ -684,11 +689,11 @@ fig.suptitle(r"$\nabla \zeta_{850}$")
 plt.colorbar(cs, cax=cbarax, orientation='horizontal',
              label=r"$\nabla \zeta_{850}$")
 
-savefig("vortgrad.850_mean.png")
+savefig(os.path.join(OUTPUTDIR, "vortgrad.850_mean.png"))
 
 # Plot maps of low-level vorticity
 levels = 10e-6 * np.arange(-2., 2.01, 0.1)
-fig, axes = plt.subplots(4, 3, figsize=(16, 12), 
+fig, axes = plt.subplots(4, 3, figsize=(16, 12),
                          subplot_kw={'projection': proj},
                          sharex=True, sharey=True)
 for i, ax in enumerate(axes.flatten()):
@@ -712,7 +717,7 @@ cbarax = fig.add_axes([0.1, 0.1, 0.8, 0.025])
 fig.suptitle(r"$\zeta_{850}$")
 plt.colorbar(cs, cax=cbarax, orientation='horizontal',
              label=r"$\zeta_{850}$")
-savefig("vorticity.850_mean.png")
+savefig(os.path.join(OUTPUTDIR, "vorticity.850_mean.png"))
 
 
 # Plot profiles of mean vorticity
@@ -752,7 +757,7 @@ for i, l in enumerate(lons):
     y850shstd[i, :] = vrt850ysh.sel(lon=lonslice, time=vrt850y.time.dt.season=="DJF").mean(dim="lon").std(dim="time")
     y850nh[i, :] = vrt850ynh.sel(lon=lonslice, time=vrt850y.time.dt.season=="JJA").mean(dim=["lon", "time"])
     y850nhstd[i, :] = vrt850ynh.sel(lon=lonslice, time=vrt850y.time.dt.season=="JJA").mean(dim="lon").std(dim="time")
-    
+
 # Plot mean meridional gradient of vorticity by latitude, for each longitude:
 fig, ax = plt.subplots(2, 1, figsize=(12, 6), sharex=True)
 for i, l in enumerate(lons):
@@ -760,14 +765,14 @@ for i, l in enumerate(lons):
     ax[1].fill_betweenx(slats, l + 10e11*y850sh[i,:].T, x2=l, color='k', alpha=0.25)
 
 ax[0].hlines(y=5, xmin=basin_percentiles.loc['WP', 'p10'],
-             xmax=basin_percentiles.loc['WP', 'p90'], 
-             color='k', linewidth=5, 
+             xmax=basin_percentiles.loc['WP', 'p90'],
+             color='k', linewidth=5,
              transform=ax[0].transData)
 rect = plt.Rectangle((30, 5), 60, 20, facecolor="white", alpha=0.85, zorder=1)
 ax[0].add_patch(rect)
-ax[1].hlines(y=-5, xmin=basin_percentiles.loc['SI', 'p10'], 
-             xmax=basin_percentiles.loc['SI', 'p90'], 
-             color='r', linewidth=5, 
+ax[1].hlines(y=-5, xmin=basin_percentiles.loc['SI', 'p10'],
+             xmax=basin_percentiles.loc['SI', 'p90'],
+             color='r', linewidth=5,
              transform=ax[1].transData)
 ax[1].hlines(y=-5, xmin=basin_percentiles.loc['SP', 'p10'],
              xmax=basin_percentiles.loc['SP', 'p90'],
@@ -805,7 +810,7 @@ ax[1].grid(linestyle='--')
 fig.suptitle(r"$\zeta_{850} \times 10^{-5}$ [s$^{-1}$]")
 ax[1].set_xlim((50, 210))
 fig.tight_layout()
-savefig("vorticity.850.longitude.profile.png")
+savefig(os.path.join(OUTPUTDIR, "vorticity.850.longitude.profile.png"))
 
 # Plot profiles of mean meridional vorticity gradient
 # between 5 & 25, for each longitude band (10 degrees each)
@@ -872,14 +877,14 @@ ax[1].grid(linestyle='--')
 fig.suptitle(r"$\partial \zeta_{850}/\partial y \times 10^{-11}$ [m$^{-1}$s$^{-1}$]")
 ax[1].set_xlim((50, 210))
 fig.tight_layout()
-savefig("vortgrad.850.longitude.profile.png")
+savefig(os.path.join(OUTPUTDIR, "vortgrad.850.longitude.profile.png"))
 
 # Calculate climatological mean gradients of vorticity, zonal and meridional flow
 # for all storms in the Southern Hemisphere. This is to test the results of
-# Zhao et al. (2009), https://doi.org/10.1029/2009GL040126. 
-# We calculate climatological mean as the DJFM (southern hemisphere) or JJAS 
+# Zhao et al. (2009), https://doi.org/10.1029/2009GL040126.
+# We calculate climatological mean as the DJFM (southern hemisphere) or JJAS
 # (northern hemisphere) mean of the deep-layer mean (0.8*u_850 + 0.2*u_250)
-# within 4 degrees of the centre of the cyclone. 
+# within 4 degrees of the centre of the cyclone.
 vrtDLMxsh_djf850 = vrtDLMx.sel(time=vrtDLMx.time.dt.month.isin([12, 1, 2, 3]))
 vrtDLMxsh_seasonal = vrtDLMxsh_djf850.groupby(vrtDLMxsh_djf850.time.dt.year).mean("time").mean(axis=0)
 vrtDLMysh_djf850 = vrtDLMy.sel(time=vrtDLMy.time.dt.month.isin([12, 1, 2, 3]))
@@ -913,7 +918,7 @@ for row in df.itertuples():
     lon_cntr = 0.25 * np.round(row.LON * 4)
     lat_slice = slice(lat_cntr + width, lat_cntr - width)
     long_slice = slice(lon_cntr - width, lon_cntr + width)
-    
+
     dzdy = (
         vrtDLMysh_seasonal.sel(lat=lat_slice, lon=long_slice).mean(
             axis=(0, 1)).values
@@ -926,16 +931,16 @@ for row in df.itertuples():
         dvDLMdxsh_seasonal.sel(lat=lat_slice, lon=long_slice).mean(
             axis=(0, 1)).values
     )
-     
+
     res = np.hstack((row.index, dzdy, dudy, dvdx))
     output.append(res)
-    
+
 cols = ["index", "dzdy", "dudy", "dvdx"]
 vdf = pd.DataFrame(data=np.array(
     [r for r in output]).squeeze(), columns=cols)
 vdf["index"] = vdf["index"].astype(int)
 outdf = df.merge(vdf, left_on="index", right_on="index", how="inner")
-outdf.to_csv("betaclim.SH.csv", index=False)
+outdf.to_csv(os.path.join(OUTPUTDIR, "betaclim.SH.csv"), index=False)
 
 
 df = load_ibtracs_df(basins=['WP'])
@@ -949,7 +954,7 @@ for row in df.itertuples():
     lon_cntr = 0.25 * np.round(row.LON * 4)
     lat_slice = slice(lat_cntr + width, lat_cntr - width)
     long_slice = slice(lon_cntr - width, lon_cntr + width)
-    
+
     dzdy = (
         vrtDLMynh_seasonal.sel(lat=lat_slice, lon=long_slice).mean(
             axis=(0, 1)).values
@@ -962,13 +967,13 @@ for row in df.itertuples():
         dvDLMdxnh_seasonal.sel(lat=lat_slice, lon=long_slice).mean(
             axis=(0, 1)).values
     )
-     
+
     res = np.hstack((row.index, dzdy, dudy, dvdx))
     output.append(res)
-    
+
 cols = ["index", "dzdy", "dudy", "dvdx"]
 vdf = pd.DataFrame(data=np.array(
     [r for r in output]).squeeze(), columns=cols)
 vdf["index"] = vdf["index"].astype(int)
 outdf = df.merge(vdf, left_on="index", right_on="index", how="inner")
-outdf.to_csv("betaclim.WP.csv", index=False)
+outdf.to_csv(os.path.join(OUTPUTDIR, "betaclim.WP.csv"), index=False)

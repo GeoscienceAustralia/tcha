@@ -185,7 +185,7 @@ def plot_flow(uda, vda, df, width=4.0):
         levels = np.arange(0, 40.1, 2)
         ax[0, 0].contourf(us.longitude, us.latitude, np.sqrt(us[0]**2+vs[0]**2), levels=levels, extend="max", cmap="viridis_r")
         ax[0, 0].barbs(us.longitude, us.latitude, us[0], vs[0], flip_barb=True, length=5)
-        ax[0, 0].arrow(lon_cntr, lat_cntr, row.u/10, row.v/10, fc='r', ec='r', width=0.2)
+        ax[0, 0].arrow(lon_cntr, lat_cntr, row.u/10, row.v/10, fc='w', ec='k', width=0.2)
         ax[0, 0].set_title("Full flow (850 hPa) [m/s]")
 
         ax[1, 0].contourf(uenv.longitude, uenv.latitude, np.sqrt(uenv[0]**2+venv[0]**2), levels=levels, extend="max", cmap="viridis_r")
@@ -201,7 +201,7 @@ def plot_flow(uda, vda, df, width=4.0):
 
         ax[0, 1].contourf(us.longitude, us.latitude, np.sqrt(us[1]**2+vs[1]**2), levels=levels, extend="max", cmap="viridis_r")
         ax[0, 1].barbs(us.longitude, us.latitude, us[1], vs[1], flip_barb=True, length=5)
-        ax[0, 1].arrow(lon_cntr, lat_cntr, row.u/10, row.v/10, fc='r', ec='r', width=0.2)
+        ax[0, 1].arrow(lon_cntr, lat_cntr, row.u/10, row.v/10, fc='w', ec='k', width=0.2)
         ax[0, 1].set_title("Full flow (250 hPa) [m/s]")
 
         ax[1, 1].contourf(uenv.longitude, uenv.latitude, np.sqrt(uenv[1]**2+venv[1]**2), levels=levels, extend="max", cmap="viridis_r")
@@ -332,8 +332,8 @@ vda = vdss['v']
 plot_flow(uda, vda, lmidf)
 
 
-events = ["AU199899_10U", "AU200506_22U", "AU202021_22U"]
+#events = ["AU199899_10U", "AU200506_22U", "AU202021_22U"]
 
-for event in events:
-    eventdf = df.loc[df['DISTURBANCE_ID']==event]
-    plot_event_flow(uda, vda, eventdf, event)
+#for event in events:
+#    eventdf = df.loc[df['DISTURBANCE_ID']==event]
+#    plot_event_flow(uda, vda, eventdf, event)

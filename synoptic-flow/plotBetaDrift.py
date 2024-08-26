@@ -18,7 +18,7 @@ proj = ccrs.PlateCarree(central_longitude=180)
 trans = ccrs.PlateCarree()
 LONLOCATOR = MultipleLocator(30)
 LATLOCATOR = MultipleLocator(10)
-MINTCs = 20
+MINTCs = 40
 
 
 def savefig(filename, *args, **kwargs):
@@ -35,9 +35,9 @@ def savefig(filename, *args, **kwargs):
             fontsize='xx-small')
     plt.savefig(filename, *args, **kwargs)
 
-
-BASEDIR = "/scratch/w85/cxa547/envflow/cyclic"
-df = pd.read_csv(os.path.join(BASEDIR, "tcenvflow.pred.SH.csv"))
+BASIN = "SH"
+BASEDIR = f"/scratch/w85/cxa547/envflow/{BASIN}"
+df = pd.read_csv(os.path.join(BASEDIR, f"tcenvflow.pred.{BASIN}.csv"))
 df["TM"] = pd.to_datetime(
         df.TM, format="%Y-%m-%d %H:%M:%S", errors="coerce")
 df['ub'] = df['u'] - df['upred']
@@ -46,7 +46,7 @@ df['su'] = df['u850'] - df['u250']
 df['sv'] = df['v850'] - df['v250']
 
 # Load the beta-drift data calculated from the climatological flow in `vorticity_analysis.py`
-bdf = pd.read_csv(os.path.join(BASEDIR, "betaclim.SH.csv"))
+bdf = pd.read_csv(os.path.join(BASEDIR, f"betaclim.{BASIN}.csv"))
 bdf["TM"] = pd.to_datetime(bdf.TM, format="%Y-%m-%d %H:%M:%S", errors="coerce")
 df = df.merge(bdf[['DISTURBANCE_ID', 'TM', 'dzdy', 'dudy', 'dvdx']], on=['DISTURBANCE_ID', 'TM'])
 df = df[df.TM.dt.month.isin([ 1, 2, 3, 12])]
@@ -175,7 +175,7 @@ ax[2].text(0.05, 0.9, "Beta", fontweight='bold',
            color='b', transform=ax[2].transAxes,
            bbox=dict(facecolor='white', edgecolor='black', alpha=0.75))
 
-savefig(os.path.join(BASEDIR, f"tcenvflow.pred.SH.n{MINTCs}.png"), bbox_inches='tight')
+savefig(os.path.join(BASEDIR, f"tcenvflow.pred.{BASIN}.n{MINTCs}.png"), bbox_inches='tight')
 
 
 # Plot ratio of estimated beta drift to observed translation speed
@@ -196,7 +196,7 @@ gl.top_labels = False
 gl.right_labels = False
 cax = fig.add_axes([0.1, 0.1, 0.85, 0.05], )
 fig.colorbar(cf, cax=cax, orientation='horizontal', aspect=50, extend='max')
-savefig(os.path.join(BASEDIR, f"tcenvflow.betaratio.SH.n{MINTCs}.png"), bbox_inches='tight')
+savefig(os.path.join(BASEDIR, f"tcenvflow.betaratio.{BASIN}.n{MINTCs}.png"), bbox_inches='tight')
 
 XX, YY = np.meshgrid(xPoints, yPoints)
 
@@ -215,6 +215,6 @@ corr = cdf.corr(method=lambda x, y: pearsonr(x, y)[0])
 pvalues = cdf.corr(method=lambda x, y: np.round(pearsonr(x, y)[1], 4)) - np.eye(len(cdf.columns))
 
 # Save the gridded values to file
-cdf.to_csv(os.path.join(BASEDIR, f"beta.components.SH.n{MINTCs}.csv"))
-corr.to_csv(os.path.join(BASEDIR, f"beta.corr.SH.n{MINTCs}.csv"))
-pvalues.to_csv(os.path.join(BASEDIR, f"beta.pvalues.SH.n{MINTCs}.csv"))
+cdf.to_csv(os.path.join(BASEDIR, f"beta.components.{BASIN}.n{MINTCs}.csv"))
+corr.to_csv(os.path.join(BASEDIR, f"beta.corr.{BASIN}.n{MINTCs}.csv"))
+pvalues.to_csv(os.path.join(BASEDIR, f"beta.pvalues.{BASIN}.n{MINTCs}.csv"))
