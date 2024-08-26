@@ -2,6 +2,7 @@
 __pycache__/
 tcha.code-workspace
 data/
+**/.ipynb_checkpoints/
 
 # Log files, backups, etc.
 *.log
