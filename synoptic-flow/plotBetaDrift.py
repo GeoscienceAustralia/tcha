@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import pandas as pd
-import lmfit
 from scipy.stats import pearsonr
 
 import matplotlib.pyplot as plt
@@ -18,7 +17,7 @@ proj = ccrs.PlateCarree(central_longitude=180)
 trans = ccrs.PlateCarree()
 LONLOCATOR = MultipleLocator(30)
 LATLOCATOR = MultipleLocator(10)
-MINTCs = 40
+MINTCs = 20
 
 
 def savefig(filename, *args, **kwargs):
@@ -49,7 +48,10 @@ df['sv'] = df['v850'] - df['v250']
 bdf = pd.read_csv(os.path.join(BASEDIR, f"betaclim.{BASIN}.csv"))
 bdf["TM"] = pd.to_datetime(bdf.TM, format="%Y-%m-%d %H:%M:%S", errors="coerce")
 df = df.merge(bdf[['DISTURBANCE_ID', 'TM', 'dzdy', 'dudy', 'dvdx']], on=['DISTURBANCE_ID', 'TM'])
-df = df[df.TM.dt.month.isin([ 1, 2, 3, 12])]
+
+# This is customised to the Southern Hemisphere. Needs to be modified 
+# if you want to examine Northern Hemisphere storms
+df = df[df.TM.dt.month.isin([ 1, 2, 3, 12])] # Dec - March
 xBins = np.arange(40, 241, 2.5)
 yBins = np.arange(-40, 0.1, 2.5)
 

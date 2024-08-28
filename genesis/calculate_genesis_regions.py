@@ -1,3 +1,22 @@
+"""
+Calculate a TC genesis parameter based on combination of dynamic and
+therodynamic variables
+
+The TC genesis parameter is based on Tory et al. (2018).
+
+Data is from ERA5. Data are on a 1x1 degree grid. Wind fields and
+relative humidity are assed through two iterations of a 9-point smoother (see 
+`metpy.calc.smooth_n_point` for the weighting of points).
+
+
+Tory, K. J., H. Ye, and R. A. Dare, 2018: Understanding the geographic
+distribution of tropical cyclone formation for applications in climate 
+models. Climate Dynamics, 50, 2489-2512,  
+https://doi.org/10.1007/s00382-017-3752-4.
+
+"""
+
+
 import os
 import sys
 import glob
@@ -47,13 +66,23 @@ def humidityfilelist(basepath):
     return rfiles
 
 def mpifilelist(basepath):
-    """Return a list of files that contain potential intensity data"""
+    """
+    Return a list of files that contain potential intensity data
+    
+    The PI data is diagnosed from ERA5 data, so is not stored in the same
+    location as the other variables. 
+    
+    """
     return [os.path.join(basepath, f"tcpi.1981-2023.nc")]
 
 def calculateEta(ds, level):
     """
-    Calculate absolute vorticity for a
-    specified pressure level.
+    Calculate absolute vorticity for a specified pressure level.
+    
+    :param ds: `xr.Dataset` that contains `u` and `v` wind components
+    :param level: float value of the pressure value to use
+    
+    :returns: `metpy.units`-aware `xr.DataArray` of absolute vorticity.
     """
     uda = ds.sel(level=level)['u']
     vda = ds.sel(level=level)['v']
@@ -63,7 +92,14 @@ def calculateEta(ds, level):
 def calculateXi(ds, level):
     """
     Calculate the xi term in equation 12 from Tory et al. 2018.
-
+    
+    :param ds: `xr.Dataset` that contains `u` and `v` wind components
+    :param level: float value of the pressure value to use. 
+    
+    NOTE: This will require wind data at 850 hPa as well. See the reference
+    for details.
+    
+    :returns: `xr.DataArray` of normalised absolute vorticity parameter.
     """
     LOGGER.info("Calculating vorticity parameter")
     R = mpconst.earth_avg_radius

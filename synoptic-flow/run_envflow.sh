@@ -21,5 +21,17 @@ module load conda/analysis3
 cd $HOME/tcha/synoptic-flow
 export PYTHONPATH=$PYTHONPATH:/scratch/$PROJECT/$USER/python/lib/python3.10/site-packages
 
-mpirun -np $PBS_NCPUS python3 envflow.py > envflow.WP.log 2>&1
 
+# With all these scripts, check that the basins align - e.g. "SH". In some scripts, this
+# is set inline, not by a command line argument, so check each carefully.
+mpirun -np $PBS_NCPUS python3 envflow.py > $HOME/tcha/logs/envflow.SH.log 2>&1
+
+# Run the BAM parameter fitting. This script prints info to stdout, so we
+# direct the output to a different location so we can review:
+python3 fitBAMparameters.py > /scratch/$PROJECT/$USER/envflow/SH/fitBAM.log 2>&1
+
+# Run the vorticity analysis:
+python3 vorticity_analysis.py > $HOME/tcha/logs/vorticity_analysis.SH.log 2>&1
+
+# Run beta drift calculations. This script is 
+python3 plotBetaDrift.py > $HOME/tcha/logs/betadrift.SH.log 2>&1

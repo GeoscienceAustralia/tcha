@@ -913,7 +913,7 @@ width = 4.0
 output = []
 for row in df.itertuples():
     dt = row.TM.to_numpy()
-    print(f"Calculating environmental flow at {dt}")
+    print(f"Extracting vorticity data at {dt}")
     lat_cntr = 0.25 * np.round(row.LAT * 4)
     lon_cntr = 0.25 * np.round(row.LON * 4)
     lat_slice = slice(lat_cntr + width, lat_cntr - width)
@@ -949,7 +949,7 @@ width = 4.0
 output = []
 for row in df.itertuples():
     dt = row.TM.to_numpy()
-    print(f"Calculating environmental flow at {dt}")
+    print(f"Extracting vorticity data at {dt}")
     lat_cntr = 0.25 * np.round(row.LAT * 4)
     lon_cntr = 0.25 * np.round(row.LON * 4)
     lat_slice = slice(lat_cntr + width, lat_cntr - width)

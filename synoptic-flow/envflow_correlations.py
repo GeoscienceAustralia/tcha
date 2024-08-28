@@ -36,22 +36,22 @@ df = df[df['v'] <= 50]
 basins = df.BASIN.unique()
 cols = ['LAT', 'MAX_WIND_SPD', 'u', 'v', 'du', 'dv',
         'u850', 'v850', 'u250', 'v250', 'su', 'sv', 'ub', 'vb']
-df['ub'] = df['u'] - df['upred']
-df['vb'] = df['v'] - df['vpred']
+df.loc[:, 'ub'] = df['u'] - df['upred']
+df.loc[:, 'vb'] = df['v'] - df['vpred']
 
 for basin in basins:
     print(f"Calculating correlations for {basin}")
     sdf = df[df.BASIN==basin]
 
-    sdf['du'] = sdf.groupby("DISTURBANCE_ID")['u'].diff()
-    sdf['du'] = sdf['du'].fillna(0)
+    sdf.loc[:, 'du'] = sdf.groupby("DISTURBANCE_ID")['u'].diff()
+    sdf.loc[:, 'du'] = sdf['du'].fillna(0)
 
-    sdf['dv'] = sdf.groupby("DISTURBANCE_ID")['v'].diff()
-    sdf['dv'] = sdf['dv'].fillna(0)
+    sdf.loc[:, 'dv'] = sdf.groupby("DISTURBANCE_ID")['v'].diff()
+    sdf.loc[:, 'dv'] = sdf['dv'].fillna(0)
 
     # Shear vector components:
-    sdf['su'] = sdf['u850'] - sdf['u250']
-    sdf['sv'] = sdf['v850'] - sdf['v250']
+    sdf.loc[:, 'su'] = sdf['u850'] - sdf['u250']
+    sdf.loc[:, 'sv'] = sdf['v850'] - sdf['v250']
 
     #sns.pairplot(sdf[cols])
     sdf[cols].corr().to_csv(os.path.join(BASEDIR, f"{basin}corr.csv"))
