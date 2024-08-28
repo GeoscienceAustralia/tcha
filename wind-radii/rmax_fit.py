@@ -11,7 +11,6 @@ import statsmodels.api as sm
 import statsmodels.nonparametric.api as smnp
 from six import string_types
 from lmfit import Model, Minimizer, fit_report, conf_interval, printfuncs, report_fit
-import corner
 from datetime import datetime
 import warnings
 warnings.filterwarnings("ignore")
@@ -29,7 +28,9 @@ sns.set_context('notebook', rc={"grid.linewidth": 0.5, "grid.linestyle": ':'})
 ###########
 # set the output and inot paths
 input_path = os.path.expanduser("~/geoscience/data/jtwc")
+input_path = r"X:\georisk\HaRIA_B_Wind\data\raw\from_jtwc\bsh"
 out_path = os.path.expanduser("~/geoscience/data/out")
+out_path = r"X:\georisk\HaRIA_B_Wind\projects\tcha\data\derived\windradii"
 
 
 def lin_dp(x, alpha, beta):
@@ -86,7 +87,7 @@ fp = stats.norm.fit(residuals)
 ax0.plot(x, stats.norm.pdf(x, fp[0], fp[1]), label='Normal', color='r')
 print(stats.normaltest(residuals))
 ax0.legend()
-plt.text(0.0, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)",
+plt.text(0.0, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2024-07-17)",
           transform=ax0.transAxes, fontsize='xx-small', ha='left',)
 plt.text(1.0, -0.15, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=ax1.transAxes, fontsize='xx-small', ha='right')
@@ -112,7 +113,7 @@ ax.set_ylabel(r"$R_{max}$ (km)")
 ax.set_yticks(np.arange(0, 201, 25))
 ax.legend(loc=1)
 ax.grid(True)
-plt.text(-0.2, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2021-09-14)",
+plt.text(-0.2, -0.15, "Source: https://www.metoc.navy.mil/jtwc/jtwc.html \n(accessed 2024-07-17)",
           transform=ax.transAxes, fontsize='xx-small', ha='left',)
 plt.text(1.0, -0.15, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=ax.transAxes, fontsize='xx-small', ha='right')
@@ -162,8 +163,8 @@ l2rmlat = l2score(olat_rmax, mlat_rmax)
 
 fig, ax = plt.subplots(1, 1, figsize=(12, 8))
 levs = np.arange(0.01, 0.11, 0.01)
-ax = sns.kdeplot(df.dP,  df.rMax, cmap='Reds', kwargs={'levels': levs}, shade=True, shade_lowest=False)
-ax = sns.kdeplot(df.dP, rm, cmap='Blues', kwargs={'levels': levs})
+ax = sns.kdeplot(x=df.dP,  y=df.rMax, cmap='Reds', levels=levs, shade=True, shade_lowest=False)
+ax = sns.kdeplot(x=df.dP, y=rm, cmap='Blues', levels=levs)
 ax.set_xlim(0, 100)
 ax.set_ylim(0, 150)
 ax.set_xlabel(r"$\Delta p$ (hPa)")
@@ -182,8 +183,8 @@ plt.text(1.0, -0.15, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
 plt.savefig(os.path.join(out_path, "RMax - dP RMax model distribution.png"), bbox_inches='tight')
 
 fig, ax = plt.subplots(1, 1, figsize=(12, 8))
-ax = sns.kdeplot(df.Latitude, df.rMax, cmap='Reds', kwargs={'levels':levs}, shade=True, shade_lowest=False)
-ax = sns.kdeplot(df.Latitude, rm, cmap='Blues', kwargs={'levels':levs})
+ax = sns.kdeplot(x=df.Latitude, y=df.rMax, cmap='Reds', levels=levs, shade=True, shade_lowest=False)
+ax = sns.kdeplot(x=df.Latitude, y=rm, cmap='Blues', levels=levs)
 ax.set_xlim(-30, 0)
 ax.set_ylim(0, 150)
 

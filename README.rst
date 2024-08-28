@@ -23,6 +23,9 @@ frequency/frequency_distribution.py - fits a negative binomial distribution to
 annual frequency, for consideration as the source model for TCRM. Negative
 binomial initially selected over poisson distribution, as the distribution is
 very slightly overdispersed ([mu / sigma] < 1).
+frequency/tc_frequency_bayesian.py - use Bayesian MCMC methods to fit Poisson
+distribution to TC frequency, and generate posterior samples that can be used
+for sampling annual TC counts.
 
 
 Track density
@@ -38,6 +41,10 @@ Compares 1981-2020 and 1951-2020 periods.
 Uses jackknife (leave-one-out) bootstrap resampling to evaluate mean track
 density, by iteratively excluding seasons from the dataset for calculating track
 density.
+
+To run::
+
+    ``python density/track_density.py``
 
 
 TC landfall rates
@@ -72,7 +79,7 @@ Potential intensity from climate models
 
 Deep layer mean winds
 ---------------------
-
+dlm-climatology/climatology.py -
 
 TC-related rainfall
 -------------------
@@ -84,3 +91,4 @@ Contact:
 
 Craig Arthur
 craig.arthur@ga.gov.au
+Last updated: 2023-07-20

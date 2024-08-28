@@ -168,6 +168,8 @@ def load_jtwc_data(path, savepath=None):
 
     df['r34'] = df[rads].values.mean(axis=1)
     df['r34'].values[~mask] = np.nan
+    rmwmask = df['r34'] < df['rMax']
+    df['r34'].values[rmwmask] = df['rMax'].values[rmwmask]
 
     # delete duplicates and sort by TC event and chronological order
     # enables time differencing
