@@ -42,10 +42,10 @@ def savefig(filename, *args, **kwargs):
     plt.savefig(filename, *args, **kwargs)
 
 
-BASEDIR = "/scratch/w85/cxa547/envflow/cyclic"
+BASEDIR = "/scratch/w85/cxa547/envflow/SH"
 filelist = sorted(glob.glob(os.path.join(BASEDIR, "tcenvflow_serial.*.csv")))
 df = pd.concat((pd.read_csv(f, keep_default_na=False, na_values=[' ', '']) for f in filelist), ignore_index=True)
-df['MAX_WIND_SPD'].fillna(df['WMO_WIND'], inplace=True)
+df.fillna({"MAX_WIND_SPD": df['WMO_WIND']}, inplace=True)
 df.loc[df['LON'] < 0, "LON"] = df['LON'] + 360
 df.dropna(subset=['u850', 'u250', 'v850', 'v250'], inplace=True)
 # Remove any records with missing wind speed values, even after replacing with WMO_WIND

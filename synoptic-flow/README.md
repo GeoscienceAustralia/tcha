@@ -17,3 +17,13 @@ Next, 10,000 years of TC tracks can be simulated by using a genesis distribution
 And once this is complete the results can be analyzed and plotted with:
 
 ```python analyse_tracks.py```
+
+
+## Fitting BAM parameters
+
+1. `extract_era5.sh` to extract required fields from ERA5 replication dataset on gadi (requires connection to project `rt52`)
+2. `run_envflow.sh` to calculate environmental steering of TCs based on Galarneau & Davis (2013)
+3. Optionally run `plot_env_flow.sh` to plot the environmental flow for each storm at time of maximum intensity
+4. `fitBAMparameters.py` to fit the parameters to the intensity-conditioned BAM described by Lin et al. (2023)
+5. `vorticity_analysis.py` to extract vorticity and gradients of vorticity from ERA5 at the location of storms
+6. `plotBetaDrift.py` to calculate mean beta drift (residual between observed and weighted steering flow) on 2.5x2.5 degree grid
