@@ -5,13 +5,13 @@ therodynamic variables
 The TC genesis parameter is based on Tory et al. (2018).
 
 Data is from ERA5. Data are on a 1x1 degree grid. Wind fields and
-relative humidity are assed through two iterations of a 9-point smoother (see 
+relative humidity are assed through two iterations of a 9-point smoother (see
 `metpy.calc.smooth_n_point` for the weighting of points).
 
 
 Tory, K. J., H. Ye, and R. A. Dare, 2018: Understanding the geographic
-distribution of tropical cyclone formation for applications in climate 
-models. Climate Dynamics, 50, 2489-2512,  
+distribution of tropical cyclone formation for applications in climate
+models. Climate Dynamics, 50, 2489-2512,
 https://doi.org/10.1007/s00382-017-3752-4.
 
 """
@@ -29,6 +29,7 @@ from os.path import join as pjoin, realpath, isdir, dirname, splitext
 import dask
 import numpy as np
 import xarray as xr
+import pandas as pd
 import metpy.calc as mpcalc
 import metpy.constants as mpconst
 from pathlib import Path
@@ -68,20 +69,20 @@ def humidityfilelist(basepath):
 def mpifilelist(basepath):
     """
     Return a list of files that contain potential intensity data
-    
+
     The PI data is diagnosed from ERA5 data, so is not stored in the same
-    location as the other variables. 
-    
+    location as the other variables.
+
     """
     return [os.path.join(basepath, f"tcpi.1981-2023.nc")]
 
 def calculateEta(ds, level):
     """
     Calculate absolute vorticity for a specified pressure level.
-    
+
     :param ds: `xr.Dataset` that contains `u` and `v` wind components
     :param level: float value of the pressure value to use
-    
+
     :returns: `metpy.units`-aware `xr.DataArray` of absolute vorticity.
     """
     uda = ds.sel(level=level)['u']
@@ -92,19 +93,19 @@ def calculateEta(ds, level):
 def calculateXi(ds, level):
     """
     Calculate the xi term in equation 12 from Tory et al. 2018.
-    
+
     :param ds: `xr.Dataset` that contains `u` and `v` wind components
-    :param level: float value of the pressure value to use. 
-    
+    :param level: float value of the pressure value to use.
+
     NOTE: This will require wind data at 850 hPa as well. See the reference
     for details.
-    
+
     :returns: `xr.DataArray` of normalised absolute vorticity parameter.
     """
     LOGGER.info("Calculating vorticity parameter")
     R = mpconst.earth_avg_radius
     omega = mpconst.earth_avg_angular_vel
-    
+
     uda = ds.sel(level=level)['u']
     vda = ds.sel(level=level)['v']
     avrt = mpcalc.absolute_vorticity(uda, vda)
@@ -126,7 +127,7 @@ def calculateShear(ds, upper, lower):
     ul = ds.sel(level=lower)['u']
     vu = ds.sel(level=upper)['v']
     vl = ds.sel(level=lower)['v']
-    
+
     shear = np.sqrt((uu - ul)**2 + (vu - vl)**2)
     shear = utils.cyclic_wrapper(shear, "longitude")
     shear = mpcalc.smooth_n_point(shear, 9, 2)
@@ -143,27 +144,27 @@ def calculateRH(ds, level):
     rh = rds.sel(level=level)['r']
     rh = mpcalc.smooth_n_point(rh, 9, 2)
     return rh.metpy.dequantify()
-    
+
 def calculateTCGP(vmax, xi, rh, shear):
     """
     Calculate TC genesis potential
-    
-    This is a first-pass effort, where we normalise all components by the 
-    thresholds reported in Tory et al. (2018), then mask areas below the 
+
+    This is a first-pass effort, where we normalise all components by the
+    thresholds reported in Tory et al. (2018), then mask areas below the
     threshold. The four components are multiplied to give the TCGP
-    
+
     :param vmax: `xr.DataArray` of maximum potential intensity
     :param xi: `xr.DataArray` of normalised absolute vorticity
     :param rh: `xr.DataArray` of 700-hPa relative humidity
     :param shear: `xr.DataArray` of 200-850 hPa wind shear
-    
+
     """
     LOGGER.info("Calculating TC genesis parameter")
     nu = xr.where(((vmax / 40) - 1) < 0, 0, (vmax / 40) - 1)
     mu = xr.where(((xi / 2e-5) - 1) < 0, 0, (xi / 2e-5) - 1)
     rho = xr.where(((rh / 40) - 1) < 0, 0, (rh / 40) - 1)
     sigma = xr.where((1 - (shear / 20)) < 0, 0, 1 - (shear / 20))
-    
+
     tcgp = nu * mu * rho * sigma
     return tcgp.metpy.dequantify()
 
@@ -173,7 +174,7 @@ def calculateMeans(da, quantile=0.9):
 
     :param da: `xr.DataArray` to calculate means and quantiles
     :param quantile: quantile level to calculate [0.0, 1.0]
-    
+
     """
     LOGGER.info("Calculating monthly long term means and quantiles")
     mongrp = da.groupby('time.month')
@@ -191,9 +192,9 @@ def saveTCGP(ds, filepath):
     except:
         logging.exception(f"Cannot save {filepath}")
         raise
-    
+
 def process(basepath, config):
-    
+
     startYear = config.getint("Input", "StartYear")
     endYear = config.getint("Input", "EndYear")
     timeslice = slice(datetime.datetime(startYear, 1, 1),
@@ -209,7 +210,7 @@ def process(basepath, config):
 
     xi = calculateXi(ds, level=700.)
     shear = calculateShear(ds, upper=200., lower=850.)
-    
+
     # Humidity
     rfiles = humidityfilelist(basepath)
     rds = xr.open_mfdataset(rfiles, chunks={"longitude": 240, "latitude": 240}, parallel=True)
@@ -220,14 +221,14 @@ def process(basepath, config):
     # so lives in a different directory
     mpipath = config.get("Input", "MPI")
     mpifiles = mpifilelist(mpipath)
-    
+
     mpids = xr.open_mfdataset(mpifiles, chunks={"longitude": 240, "latitude": 240}, parallel=True)
     mpids = mpids.roll(longitude=-180, roll_coords=True)
     mpids["longitude"] = np.where(
         mpids["longitude"] < 0, mpids["longitude"] + 360, mpids["longitude"]
     )
     vmax = mpids['vmax']
-    
+
     tcgp = calculateTCGP(vmax, xi, rh, shear)
     outds = xr.Dataset({
         'tcgp': tcgp,
@@ -237,7 +238,12 @@ def process(basepath, config):
         'vmax': vmax
     }
     )
-    
+
+    # For downstream convenience, change the dates to be the middle of the month
+    time = outds['time']
+    time15 = pd.to_datetime(time.values).to_period("M").to_timestamp("D") + pd.Timedelta(days=14)
+    outds = outds.assign_coords(time=time15)
+
     outds['tcgp'].attrs['standard_name'] = "TC genesis parameter"
     outds['tcgp'].attrs['units'] = ''
     outds['shear'].attrs['standard_name'] = "200-850 hPa wind shear"
@@ -248,14 +254,14 @@ def process(basepath, config):
     outds['rh'].attrs['units'] = '%'
     outds['xi'].attrs['standard_name'] = "normalised vorticity"
     outds['xi'].attrs['units'] = 's-1'
-    
+
     outds.attrs['title'] = "Tropical cyclone genesis parameter"
     outds.attrs['description'] = "TC genesis parameter and components"
     curdate = datetime.datetime.now()
     history = (f"{curdate:%Y-%m-%d %H:%M:%S}: {' '.join(sys.argv)}")
     outds.attrs['history'] = history
     outds.attrs['version'] = COMMIT
-    
+
     outpath = config.get("Output", "Path")
     outfile = os.path.join(outpath, "tcgp.1981-2023.nc")
     saveTCGP(outds, outfile)
