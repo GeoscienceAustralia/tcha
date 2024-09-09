@@ -19,7 +19,6 @@ LONLOCATOR = MultipleLocator(30)
 LATLOCATOR = MultipleLocator(10)
 MINTCs = 20
 
-
 def savefig(filename, *args, **kwargs):
     """
     Add a timestamp to each figure when saving
@@ -35,6 +34,8 @@ def savefig(filename, *args, **kwargs):
     plt.savefig(filename, *args, **kwargs)
 
 BASIN = "SH"
+EXTENT = (40, 240, -40, 0)
+MONTHS = [12, 1, 2, 3]
 BASEDIR = f"/scratch/w85/cxa547/envflow/{BASIN}"
 df = pd.read_csv(os.path.join(BASEDIR, f"tcenvflow.pred.{BASIN}.csv"))
 df["TM"] = pd.to_datetime(
@@ -51,9 +52,9 @@ df = df.merge(bdf[['DISTURBANCE_ID', 'TM', 'dzdy', 'dudy', 'dvdx']], on=['DISTUR
 
 # This is customised to the Southern Hemisphere. Needs to be modified 
 # if you want to examine Northern Hemisphere storms
-df = df[df.TM.dt.month.isin([ 1, 2, 3, 12])] # Dec - March
-xBins = np.arange(40, 241, 2.5)
-yBins = np.arange(-40, 0.1, 2.5)
+df = df[df.TM.dt.month.isin(MONTHS)] # Dec - March
+xBins = np.arange(EXTENT[0], EXTENT[1]+1, 2.5)
+yBins = np.arange(EXTENT[2], EXTENT[3]+1, 2.5)
 
 xPoints = xBins + 1.25
 yPoints = yBins + 1.25
@@ -133,7 +134,7 @@ qk = ax[0].quiverkey(q0, 0.1, 0.05, 5, r'5 m/s', labelpos='N',
                    coordinates='axes')
 
 ax[0].coastlines()
-ax[0].set_extent((60, 200, -40, 0), crs=trans)
+ax[0].set_extent(EXTENT, crs=trans)
 gl = ax[0].gridlines(draw_labels=True, linestyle=":")
 gl.xformatter = LONGITUDE_FORMATTER
 gl.yformatter = LATITUDE_FORMATTER
@@ -148,7 +149,7 @@ ax[0].text(0.05, 0.9, "Observed", fontweight='bold',
            bbox=dict(facecolor='white', edgecolor='black', alpha=0.75))
 
 ax[1].coastlines()
-ax[1].set_extent((60, 200, -40, 0), crs=trans)
+ax[1].set_extent(EXTENT, crs=trans)
 gl = ax[1].gridlines(draw_labels=True, linestyle=":")
 gl.xformatter = LONGITUDE_FORMATTER
 gl.yformatter = LATITUDE_FORMATTER
@@ -163,7 +164,7 @@ ax[1].text(0.05, 0.9, "Predicted", fontweight='bold',
            bbox=dict(facecolor='white', edgecolor='black', alpha=0.75))
 
 ax[2].coastlines()
-ax[2].set_extent((60, 200, -40, 0), crs=trans)
+ax[2].set_extent(EXTENT, crs=trans)
 gl = ax[2].gridlines(draw_labels=True, linestyle=":")
 gl.xformatter = LONGITUDE_FORMATTER
 gl.yformatter = LATITUDE_FORMATTER
@@ -186,7 +187,7 @@ cf = ax.contourf(xPoints, yPoints, mag_b / mag_o,
                  levels=[0., 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0],
                  transform=trans, cmap='viridis_r', extend='max')
 ax.coastlines()
-ax.set_extent((60, 200, -40, 0), crs=trans)
+ax.set_extent(EXTENT, crs=trans)
 gl = ax.gridlines(draw_labels=True, linestyle=":")
 gl.xformatter = LONGITUDE_FORMATTER
 gl.yformatter = LATITUDE_FORMATTER
