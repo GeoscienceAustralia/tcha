@@ -6,8 +6,8 @@ df$dvdx <- df$dvdx * 10e5
 df$dzdy <- df$dzdy * 10e11
 df$cosphi <- cos(df$lat)
 
-ubdf = df[c("ub", "dudy", "dvdx", "dzdy", "su", "sv", "cosphi")]
-vbdf = df[c("vb", "dudy", "dvdx", "dzdy", "su", "sv", "cosphi")]
+ubdf = df[c("ub", "dudy", "dvdx", "dzdy", "su", "sv", "lat")]
+vbdf = df[c("vb", "dudy", "dvdx", "dzdy", "su", "sv", "lat")]
 
 print("-------------------------------------------")
 print("Using stepAIC()")
@@ -67,16 +67,16 @@ predvb.BPM = vblm.BPM$fit
 # Plotting:
 par(mfrow = c(1, 2))
 
-plot(predub.BPM, df$ub,
-     xlab = "Predicted values (u_beta)",
-     ylab = "Observed (u_beta)",
+plot(df$ub, predub.BPM,
+     ylab = "Predicted values (u_beta)",
+     xlab = "Observed (u_beta)",
      main = "Observed vs. Predicted (u_beta)")
 abline(a = 0, b = 1, col = "red")  # Add 1:1 line
 
 # Plot residuals vs. predicted values for Model 2
-plot(predvb.BPM, df$vb,
-     xlab = "Predicted values (v_beta)",
-     ylab = "Observed (v_beta)",
+plot(df$vb, predvb.BPM,
+     ylab = "Predicted values (v_beta)",
+     xlab = "Observed (v_beta)",
      main = "Observed vs. Predicted (v_beta)")
 abline(a = 0, b=1, col = "red")  # Add 1:1 line
 
