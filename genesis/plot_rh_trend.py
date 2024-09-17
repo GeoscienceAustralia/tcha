@@ -88,7 +88,7 @@ def process():
     rds = xr.open_mfdataset(rfiles, chunks={"longitude": 240, "latitude": 240}, parallel=True)
     rds = rds.sel(time=timeslice)
     rh = calculateRH(rds, 700)
-    LOGGER.info("Plotting trend of relative humidity")
+    LOGGER.info("Plotting trend of mid-level relative humidity")
     for d in DOMAINS.keys():
         lonslice = slice(DOMAINS[d]['lonmin'], DOMAINS[d]['lonmax'])
         latslice = slice(DOMAINS[d]['latmax'], DOMAINS[d]['latmin'])
@@ -116,6 +116,40 @@ def process():
     ax.set_ylabel(r"$RH_{700}$ [%]")
     utils.savefig(os.path.join(OUTPATH, "RH_trends.png"), bbox_inches='tight')
     utils.savefig(os.path.join(OUTPATH, "RH_trends.pdf"), bbox_inches='tight')
+
+    LOGGER.info("Plot annual cycle of mid-level relative humidity")
+    startYear = 1981
+    endYear = 2020
+    timeslice = slice(datetime.datetime(startYear, 1, 1),
+                      datetime.datetime(endYear, 12, 31))
+    rh = rh.sel(time=timeslice)
+    for d in DOMAINS.keys():
+        lonslice = slice(DOMAINS[d]['lonmin'], DOMAINS[d]['lonmax'])
+        latslice = slice(DOMAINS[d]['latmax'], DOMAINS[d]['latmin'])
+        subregion = rh.sel(latitude=latslice, longitude=lonslice).mean(dim=['latitude', 'longitude'])
+
+        DOMAINS[d]['data'] = subregion.groupby(subregion.time.dt.month).mean(dim='time')
+        DOMAINS[d]['q10'] = subregion.groupby(subregion.time.dt.month).quantile(0.1, dim='time')
+        DOMAINS[d]['q90'] = subregion.groupby(subregion.time.dt.month).quantile(0.9, dim='time')
+
+    fig, ax = plt.subplots(1, 1, figsize=(12, 6))
+    for d in DOMAINS.keys():
+        ax.plot(DOMAINS[d]['data']['month'],
+                DOMAINS[d]['data'],
+                color=DOMAINS[d]['color'], label=d)
+
+        ax.fill_between(DOMAINS[d]['data']['month'],
+                        DOMAINS[d]['q10'],
+                        DOMAINS[d]['q90'],
+                        color=DOMAINS[d]['color'],
+                        alpha=0.25)
+    ax.legend()
+    ax.grid()
+    ax.set_xlim((1, 12))
+    ax.set_ylabel(r"$RH_{700}$ [%]")
+    ax.set_title(rf"{startYear}-{endYear} monthly mean $RH_{{700}}$")
+    utils.savefig(os.path.join(OUTPATH, "RH_annual_cycle.png"), bbox_inches='tight')
+    utils.savefig(os.path.join(OUTPATH, "RH_annual_cycle.pdf"), bbox_inches='tight')
 
     LOGGER.info("Complete")
 
