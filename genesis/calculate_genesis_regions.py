@@ -2,17 +2,26 @@
 Calculate a TC genesis parameter based on combination of dynamic and
 therodynamic variables
 
-The TC genesis parameter is based on Tory et al. (2018).
+The TC genesis parameter is based on Tory et al. (2018), while we also
+calculate the Z parameter defined in Hsieh et al (2020).
 
 Data is from ERA5. Data are on a 1x1 degree grid. Wind fields and
 relative humidity are assed through two iterations of a 9-point smoother (see
 `metpy.calc.smooth_n_point` for the weighting of points).
 
+The potential intensity has been precalculated from ERA5 based on Gilford
+(2021).
 
 Tory, K. J., H. Ye, and R. A. Dare, 2018: Understanding the geographic
 distribution of tropical cyclone formation for applications in climate
 models. Climate Dynamics, 50, 2489-2512,
 https://doi.org/10.1007/s00382-017-3752-4.
+
+Hsieh, T-L., Vecchi, G. A., Yang, W. Held, I. M., and Garner, S. T., 2020:
+Large-scale control on the frequency of tropical cyclones and seeds: a
+consistent relationship across a hierarchyof global atmospheric models.
+Climate Dynamics, 55, 3177-3196, https://doi.org/10.1007/s00382-020-05446-5.
+
 
 """
 
@@ -118,6 +127,27 @@ def calculateXi(ds, level):
     xi = mpcalc.smooth_n_point(xi, 9, 2)
     return xi.metpy.dequantify()
 
+def calculateZ(ds, level):
+    """
+    Calculate the Z parameter in Hsieh et al. 2020.
+
+    :param ds: `xr.Dataset` that contains `u` and `v` wind components
+    :param level: float value of the pressure value to use.
+
+    :returns: `xr.DataArray` of Z term
+    """
+    LOGGER.info("Calculating Z parameter")
+    uda = ds.sel(level=level)['u']
+    vda = ds.sel(level=level)['v']
+    avrt = mpcalc.absolute_vorticity(uda, vda)
+    dedy, _ = mpcalc.gradient(avrt, axes=['latitude', 'longitude'])
+    U = 20.
+    Z = np.abs(avrt) / np.sqrt(np.abs(dedy) * U)
+    Z = utils.cyclic_wrapper(Z, "longitude")
+    Z = mpcalc.smooth_n_point(Z, 9, 2)
+    Z = Z.drop('level')
+    return Z.metpy.dequantify()
+
 def calculateShear(ds, upper, lower):
     """
     Calculate magnitude of vertical wind shear
@@ -168,6 +198,33 @@ def calculateTCGP(vmax, xi, rh, shear):
     tcgp = nu * mu * rho * sigma
     return tcgp.metpy.dequantify()
 
+
+def calculateTCGPZ(vmax, Z, rh, shear):
+    """
+    Calculate TC genesis potential using teh vorticity ratio from Hsieh
+    et al. (2020). Set the threshold to be 0.5.
+
+    This is a first-pass effort, where we normalise all components by the
+    thresholds reported in Tory et al. (2018), then mask areas below the
+    threshold. The four components are multiplied to give the TCGP
+
+    :param vmax: `xr.DataArray` of maximum potential intensity
+    :param Z: `xr.DataArray` of absolute vorticity ratio
+    :param rh: `xr.DataArray` of 700-hPa relative humidity
+    :param shear: `xr.DataArray` of 200-850 hPa wind shear
+
+    """
+    LOGGER.info("Calculating TC genesis parameter")
+    p = 1 / (1 + np.power(Z, (-1/0.15)))
+    nu = xr.where(((vmax / 40) - 1) < 0, 0, (vmax / 40) - 1)
+    mu = xr.where(((p / 0.5) - 1) < 0, 0, (p / 0.5) - 1)
+    rho = xr.where(((rh / 40) - 1) < 0, 0, (rh / 40) - 1)
+    sigma = xr.where((1 - (shear / 20)) < 0, 0, 1 - (shear / 20))
+
+    tcgp = nu * mu * rho * sigma
+    return tcgp.metpy.dequantify()
+
+
 def calculateMeans(da, quantile=0.9):
     """
     Calculate monthly mean and quantiles of a DataArray
@@ -200,7 +257,7 @@ def process(basepath, config):
     timeslice = slice(datetime.datetime(startYear, 1, 1),
                       datetime.datetime(endYear, 12, 31))
     windfiles = windfilelist(basepath)
-    ds = xr.open_mfdataset(windfiles, chunks={"longitude": 240, "latitude": 240}, parallel=True)
+    ds = xr.open_mfdataset(windfiles, chunks={"time":365*4}, parallel=True) # "longitude": 240, "latitude": 240}, parallel=True)
     ds = ds.sel(time=timeslice)
     ds = ds.isel(longitude=slice(0, 1440, 4), latitude=slice(0, 721, 4))
     ds = ds.roll(longitude=-180, roll_coords=True)
@@ -209,8 +266,8 @@ def process(basepath, config):
     )
 
     xi = calculateXi(ds, level=700.)
+    Z = calculateZ(ds, level=850.)
     shear = calculateShear(ds, upper=200., lower=850.)
-
     # Humidity
     rfiles = humidityfilelist(basepath)
     rds = xr.open_mfdataset(rfiles, chunks={"longitude": 240, "latitude": 240}, parallel=True)
@@ -229,13 +286,17 @@ def process(basepath, config):
     )
     vmax = mpids['vmax']
 
-    tcgp = calculateTCGP(vmax, xi, rh, shear)
+    tcgp_xi = calculateTCGP(vmax, xi, rh, shear)
+    tcgp_Z = calculateTCGPZ(vmax, Z, rh, shear)
+
     outds = xr.Dataset({
-        'tcgp': tcgp,
+        'tcgp': tcgp_xi,
+        'tcgpZ': tcgp_Z,
         'shear': shear,
         'rh': rh,
         'xi': xi,
-        'vmax': vmax
+        'vmax': vmax,
+        'Z': Z
     }
     )
 
@@ -244,8 +305,10 @@ def process(basepath, config):
     time15 = pd.to_datetime(time.values).to_period("M").to_timestamp("D") + pd.Timedelta(days=14)
     outds = outds.assign_coords(time=time15)
 
-    outds['tcgp'].attrs['standard_name'] = "TC genesis parameter"
+    outds['tcgp'].attrs['standard_name'] = "TC genesis parameter (T2018)"
     outds['tcgp'].attrs['units'] = ''
+    outds['tcgpZ'].attrs['standard_name'] = "TC genesis parameter (H2020)"
+    outds['tcgpZ'].attrs['units'] = ''
     outds['shear'].attrs['standard_name'] = "200-850 hPa wind shear"
     outds['shear'].attrs['units'] = 'm/s'
     outds['vmax'].attrs['standard_name'] = 'potential intensity'
@@ -254,6 +317,8 @@ def process(basepath, config):
     outds['rh'].attrs['units'] = '%'
     outds['xi'].attrs['standard_name'] = "normalised vorticity"
     outds['xi'].attrs['units'] = 's-1'
+    outds['Z'].attrs['standard_name'] = "vorticity ratio"
+    outds['Z'].attrs['units'] = ''
 
     outds.attrs['title'] = "Tropical cyclone genesis parameter"
     outds.attrs['description'] = "TC genesis parameter and components"
@@ -266,15 +331,22 @@ def process(basepath, config):
     outfile = os.path.join(outpath, "tcgp.1981-2023.nc")
     saveTCGP(outds, outfile)
 
-    tcgpmean, tcgpquant = calculateMeans(tcgp, 0.9)
+    tcgpmean, tcgpquant = calculateMeans(tcgp_xi, 0.9)
+    tcgpZmean, tcgpZquant = calculateMeans(tcgp_Z, 0.9)
     meands = xr.Dataset({
         'tcgpmean': tcgpmean,
-        'tcgpquant': tcgpquant
+        'tcgpquant': tcgpquant,
+        'tcgpZmean': tcgpZmean,
+        'tcgpZquant': tcgpZquant
     })
-    meands['tcgpmean'].attrs['standard_name'] = "Monthly mean TC genesis parameter"
+    meands['tcgpmean'].attrs['standard_name'] = "Monthly mean TC genesis parameter (T2018)"
     meands['tcgpmean'].attrs['units'] = ''
-    meands['tcgpquant'].attrs['standard_name'] = "Quantile TC genesis parameter"
+    meands['tcgpquant'].attrs['standard_name'] = "Quantile TC genesis parameter (T2018)"
     meands['tcgpquant'].attrs['units'] = ''
+    meands['tcgpZmean'].attrs['standard_name'] = "Monthly mean TC genesis parameter (H2020)"
+    meands['tcgpZmean'].attrs['units'] = ''
+    meands['tcgpZquant'].attrs['standard_name'] = "Quantile TC genesis parameter (H2020)"
+    meands['tcgpZquant'].attrs['units'] = ''
 
     meands.attrs['title'] = "LTM Tropical cyclone genesis parameter"
     meands.attrs['description'] = "TC genesis parameter monthly long term mean"

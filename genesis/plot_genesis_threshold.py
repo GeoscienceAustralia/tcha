@@ -114,6 +114,46 @@ for month in range(1, 13):
     utils.savefig(os.path.join(basedir, f"xi.{month:02d}.pdf"))
 
 for month in range(1, 13):
+    logging.info(f"Plot ratio of absolute vorticity to meridional gradient of vorticity for {month_name[month]}")
+    fig, ax = plt.subplots(1, 1, figsize=(12, 5), subplot_kw={"projection": proj})
+    zz = 1. / (1 + np.power(ltmds['xi'][month-1, :, :], -1/0.15))
+    cs = ax.contourf(
+        ltmds["longitude"],
+        ltmds["latitude"],
+        zz,
+        levels=np.linspace(0, 1, 21),
+        transform=trans,
+        extend="both",
+        cmap=CMAP,
+    )
+    ax.contour(
+        ltmds["longitude"],
+        ltmds["latitude"],
+        zz,
+        levels=[0.5],
+        colors="r",
+        linewidths=1,
+        transform=trans,
+    )
+
+    cb = plt.colorbar(
+        cs, ax=ax, orientation="horizontal",
+        pad=0.025, label=r"$Z$ ",
+        aspect=40
+    )
+    cb.ax.xaxis.set_major_formatter(CBFORMATTER)
+
+    ax.coastlines()
+    gl = ax.gridlines(draw_labels=True, linestyle=":")
+    gl.xlocator = LONLOCATOR
+    gl.ylocator = LATLOCATOR
+    gl.bottom_labels = False
+    gl.right_labels = False
+    ax.set_extent(EXTENT, crs=trans)
+    ax.text(50, -40, month_name[month], transform=trans, bbox=BBOX)
+    utils.savefig(os.path.join(basedir, f"Z.{month:02d}.pdf"))
+
+for month in range(1, 13):
     logging.info(f"Plot relative humidity for {month_name[month]}")
     fig, ax = plt.subplots(1, 1, figsize=(12, 5), subplot_kw={"projection": proj})
     cs = ax.contourf(
