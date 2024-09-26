@@ -265,14 +265,18 @@ def process(basepath, config):
         ds["longitude"] < 0, ds["longitude"] + 360, ds["longitude"]
     )
 
+    RHlevel = config.getfloat("Levels", "RH")
+    shear_upper_level = config.getfloat("Levels", "Upper")
+    shear_lower_level = config.getfloat("Levels", "Lower")
+
     xi = calculateXi(ds, level=700.)
     Z = calculateZ(ds, level=850.)
-    shear = calculateShear(ds, upper=200., lower=850.)
+    shear = calculateShear(ds, upper=shear_upper_level, lower=shear_lower_level)
     # Humidity
     rfiles = humidityfilelist(basepath)
     rds = xr.open_mfdataset(rfiles, chunks={"longitude": 240, "latitude": 240}, parallel=True)
     rds = rds.sel(time=timeslice)
-    rh = calculateRH(rds, 700)
+    rh = calculateRH(rds, RHlevel)
 
     # Load potential intensity. This has been calculated separately,
     # so lives in a different directory
@@ -309,12 +313,15 @@ def process(basepath, config):
     outds['tcgp'].attrs['units'] = ''
     outds['tcgpZ'].attrs['standard_name'] = "TC genesis parameter (H2020)"
     outds['tcgpZ'].attrs['units'] = ''
-    outds['shear'].attrs['standard_name'] = "200-850 hPa wind shear"
+    outds['shear'].attrs['standard_name'] = "wind shear"
+    outds['shear'].attrs['upper_level'] = shear_upper_level
+    outds['shear'].attrs['lower_level'] = shear_lower_level
     outds['shear'].attrs['units'] = 'm/s'
     outds['vmax'].attrs['standard_name'] = 'potential intensity'
     outds['vmax'].attrs['units'] = 'm/s'
     outds['rh'].attrs['standard_name'] = "relative humidity"
     outds['rh'].attrs['units'] = '%'
+    outds['rh'].attrs['level'] = RHlevel
     outds['xi'].attrs['standard_name'] = "normalised vorticity"
     outds['xi'].attrs['units'] = 's-1'
     outds['Z'].attrs['standard_name'] = "vorticity ratio"
@@ -328,7 +335,7 @@ def process(basepath, config):
     outds.attrs['version'] = COMMIT
 
     outpath = config.get("Output", "Path")
-    outfile = os.path.join(outpath, "tcgp.1981-2023.nc")
+    outfile = os.path.join(outpath, f"tcgp.{startYear:0d}-{endYear:0d}.nc")
     saveTCGP(outds, outfile)
 
     tcgpmean, tcgpquant = calculateMeans(tcgp_xi, 0.9)

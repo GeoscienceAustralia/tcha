@@ -1,27 +1,18 @@
 import os
 import sys
-import glob
+from copy import copy
 import logging
 import numpy as np
 import pandas as pd
 import xarray as xr
 
-from datetime import datetime
-from calendar import month_name, month_abbr
-import pyproj
+from calendar import month_name
 from matplotlib import pyplot as plt
 import matplotlib.ticker as mticker
 import matplotlib.dates as mdates
 
 import cartopy.crs as ccrs
-import cartopy.util as cutil
-import cartopy.feature as cfeature
 import seaborn as sns
-
-from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
-
-import metpy.constants as mpconst
-import metpy.calc as mpcalc
 
 from pathlib import Path
 
@@ -41,6 +32,8 @@ EXTENT = (30, 330, 50, -50)
 MONTHS = [1, 2, 12]
 CMAP = sns.blend_palette(["#a05806", "#FFFFFF", "#1e76cf"],
                          n_colors=20, as_cmap=True)
+PAL = copy(plt.get_cmap("viridis_r"))
+PAL.set_under("white", 0.05)
 
 BBOX=dict(boxstyle="square",
           ec=(1., 0.5, 0.5),
@@ -48,7 +41,7 @@ BBOX=dict(boxstyle="square",
           )
 
 
-basedir = "/scratch/w85/cxa547/tcpi"
+basedir = "/scratch/w85/cxa547/tcpi/600RH"
 logging.info("Load IBTRACS data for observed genesis locations")
 df = utils.load_ibtracs_df()
 df = df[(df.SEASON > 1980) & (df.SEASON < 2024)]
@@ -111,12 +104,12 @@ for month in range(1, 13):
     gl.right_labels = False
     ax.set_extent(EXTENT, crs=trans)
     ax.text(50, -40, month_name[month], transform=trans, bbox=BBOX)
-    utils.savefig(os.path.join(basedir, f"xi.{month:02d}.pdf"))
+    utils.savefig(os.path.join(basedir, f"xi.{month:02d}.png"))
 
 for month in range(1, 13):
     logging.info(f"Plot ratio of absolute vorticity to meridional gradient of vorticity for {month_name[month]}")
     fig, ax = plt.subplots(1, 1, figsize=(12, 5), subplot_kw={"projection": proj})
-    zz = 1. / (1 + np.power(ltmds['xi'][month-1, :, :], -1/0.15))
+    zz = 1. / (1 + np.power(ltmds['Z'][month-1, :, :], -1/0.15))
     cs = ax.contourf(
         ltmds["longitude"],
         ltmds["latitude"],
@@ -151,7 +144,7 @@ for month in range(1, 13):
     gl.right_labels = False
     ax.set_extent(EXTENT, crs=trans)
     ax.text(50, -40, month_name[month], transform=trans, bbox=BBOX)
-    utils.savefig(os.path.join(basedir, f"Z.{month:02d}.pdf"))
+    utils.savefig(os.path.join(basedir, f"Z.{month:02d}.png"))
 
 for month in range(1, 13):
     logging.info(f"Plot relative humidity for {month_name[month]}")
@@ -188,7 +181,7 @@ for month in range(1, 13):
     gl.right_labels = False
     ax.set_extent(EXTENT, crs=trans)
     ax.text(50, -40, month_name[month], transform=trans, bbox=BBOX)
-    utils.savefig(os.path.join(basedir, f"RH.{month:02d}.pdf"))
+    utils.savefig(os.path.join(basedir, f"RH.{month:02d}.png"))
 
 for month in range(1, 13):
     logging.info(f"Plot potential intensity for {month_name[month]}")
@@ -225,7 +218,7 @@ for month in range(1, 13):
     gl.right_labels = False
     ax.set_extent(EXTENT, crs=trans)
     ax.text(50, -40, month_name[month], transform=trans, bbox=BBOX)
-    utils.savefig(os.path.join(basedir, f"VMAX.{month:02d}.pdf"))
+    utils.savefig(os.path.join(basedir, f"VMAX.{month:02d}.png"))
 
 for month in range(1, 13):
     logging.info(f"Plot wind shear for {month_name[month]}")
@@ -262,7 +255,7 @@ for month in range(1, 13):
     gl.right_labels = False
     ax.set_extent(EXTENT, crs=trans)
     ax.text(50, -40, month_name[month], transform=trans, bbox=BBOX)
-    utils.savefig(os.path.join(basedir, f"VSH.{month:02d}.pdf"))
+    utils.savefig(os.path.join(basedir, f"VSH.{month:02d}.png"))
 
 for month in range(1, 13):
     logging.info(f"Plot TCGP for {month_name[month]}")
@@ -331,5 +324,73 @@ for month in range(1, 13):
     gl.right_labels = False
     ax.set_extent(EXTENT, crs=trans)
     ax.text(50, -40, month_name[month], transform=trans, bbox=BBOX)
-    utils.savefig(os.path.join(basedir, f"TCGP.{month:02d}.pdf"))
+    utils.savefig(os.path.join(basedir, f"TCGP.{month:02d}.png"))
 
+for month in range(1, 13):
+    logging.info(f"Plot TCGPZ for {month_name[month]}")
+    fig, ax = plt.subplots(
+        1, 1, figsize=(12, 5), subplot_kw={"projection": proj}, sharex=True
+    )
+    cs = ax.contourf(
+        ltmds["longitude"],
+        ltmds["latitude"],
+        ltmds['tcgpZ'][month-1, :, :],
+        levels=np.arange(0.05, 1.01, 0.05),
+        transform=trans,
+        extend="max",
+        cmap=PAL,
+    )
+    cb = plt.colorbar(
+        cs, ax=ax, orientation="horizontal", pad=0.025, label=r"TCGP", aspect=40
+    )
+    cb.ax.xaxis.set_major_formatter(CBFORMATTER)
+
+    lw = 0.5
+    ax.contour(
+        ltmds["longitude"],
+        ltmds["latitude"],
+        ltmds['vmax'][month-1, :, :],
+        levels=[40],
+        colors="red",
+        linewidths=lw,
+        transform=trans,
+    )
+    ax.contour(
+        ltmds["longitude"],
+        ltmds["latitude"],
+        ltmds['Z'][month-1, :, :],
+        levels=[0.5],
+        colors="orange",
+        linewidths=lw,
+        transform=trans,
+    )
+    ax.contour(
+        ltmds["longitude"],
+        ltmds["latitude"],
+        ltmds['rh'][month-1, :, :],
+        levels=[40],
+        colors="b",
+        linewidths=lw,
+        transform=trans,
+    )
+    ax.contour(
+        ltmds["longitude"],
+        ltmds["latitude"],
+        ltmds['shear'][month-1, :, :],
+        levels=[20],
+        colors="green",
+        linewidths=lw,
+        transform=trans,
+    )
+    seasgen = gpdf[gpdf.TM.dt.month==month]
+    ax.scatter(seasgen.LON, seasgen.LAT, s=2, c='k', alpha=0.5, transform=trans)
+
+    ax.coastlines()
+    gl = ax.gridlines(draw_labels=True, linestyle=":")
+    gl.xlocator = LONLOCATOR
+    gl.ylocator = LATLOCATOR
+    gl.bottom_labels = False
+    gl.right_labels = False
+    ax.set_extent(EXTENT, crs=trans)
+    ax.text(50, -40, month_name[month], transform=trans, bbox=BBOX)
+    utils.savefig(os.path.join(basedir, f"TCGPZ.{month:02d}.png"))

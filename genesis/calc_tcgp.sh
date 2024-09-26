@@ -4,7 +4,7 @@
 #PBS -N tcgp
 #PBS -m ae
 #PBS -M craig.arthur@ga.gov.au
-#PBS -lwalltime=6:00:00
+#PBS -lwalltime=4:00:00
 #PBS -lmem=160GB,ncpus=48,jobfs=4000MB
 #PBS -W umask=0022
 #PBS -joe
