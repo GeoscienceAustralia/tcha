@@ -21,7 +21,7 @@ And once this is complete the results can be analyzed and plotted with:
 
 ## Fitting BAM parameters
 
-1. `extract_era5.sh` to extract required fields from ERA5 replication dataset on gadi (requires connection to project `rt52`)
+1. `extract_era5.sh` to extract required fields from ERA5 replication dataset on gadi (requires connection to project `rt52`). The resulting files can also be used as input to the Lin TC model (Lin et al, 2023).
 2. `run_envflow.sh` to calculate environmental steering of TCs based on Galarneau & Davis (2013)
 3. Optionally run `plot_env_flow.sh` to plot the environmental flow for each storm at time of maximum intensity
 4. `fitBAMparameters.py` to fit the parameters to the intensity-conditioned BAM described by Lin et al. (2023)
