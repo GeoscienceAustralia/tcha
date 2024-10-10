@@ -186,7 +186,7 @@ def process(year):
             longitude=slice(0, 1440, 4),
             latitude=slice(0, 721, 4),
         )
-        outds = outds.sel(level=[850, 250])
+        outds = outds.sel(level=[850, 700, 250, 200])
         outds.attrs = ds.attrs
         outds.to_netcdf(destfn)
 

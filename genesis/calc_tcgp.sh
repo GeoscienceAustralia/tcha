@@ -5,7 +5,7 @@
 #PBS -m ae
 #PBS -M craig.arthur@ga.gov.au
 #PBS -lwalltime=4:00:00
-#PBS -lmem=160GB,ncpus=32,jobfs=4000MB
+#PBS -lmem=160GB,ncpus=48,jobfs=4000MB
 #PBS -W umask=0022
 #PBS -joe
 #PBS -o /home/547/cxa547/tcha/logs/tcgp.out.log
