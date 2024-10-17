@@ -28,7 +28,7 @@ import numpy as np
 import glob
 import xarray as xr
 from mpi4py import MPI
-
+import dask
 import dask.array as da
 
 NCPUS = int(os.environ.get("NCPUS"))
@@ -148,6 +148,7 @@ def process(year):
                 src_dir, var, f"{year:0d}", f"{var}_era5_*_pl_*.nc")
                       )
         )
+        print(fnlist)
         ds = xr.open_mfdataset(
             fnlist,
             combine="nested",
@@ -190,42 +191,50 @@ def process(year):
         outds.attrs = ds.attrs
         outds.to_netcdf(destfn)
 
-    for var in day3d:
-        # Calculate deep-layer mean flow for two different depths
-        print(f"Extracting {var} daily DLM data for {year}")
-        destfn = os.path.join(dest_dir, f"era5_{var}dlm_daily_{year:0d}.nc")
-        if os.path.exists(destfn):
-            print(f"Already extracted {var} daily DLM data for {year}")
-            continue
+    #for var in day3d:
+    #    # Calculate deep-layer mean flow for two different depths
+    #    print(f"Extracting {var} daily DLM data for {year}")
+    #    destfn = os.path.join(dest_dir, f"era5_{var}dlm_daily_{year:0d}.nc")
+    #    if os.path.exists(destfn):
+    #        print(f"Already extracted {var} daily DLM data for {year}")
+    #        continue
 
-        dlmdd = calcdlm(
-            ds.isel(
-                time=slice(0, ntimes, 6),
-                longitude=slice(0, 1440, 4),
-                latitude=slice(0, 721, 4),
-            ),
-            var,
-            dlmd,
-        )
-        dlmds = calcdlm(
-            ds.isel(
-                time=slice(0, ntimes, 6),
-                longitude=slice(0, 1440, 4),
-                latitude=slice(0, 721, 4),
-            ),
-            var,
-            dlms,
-        )
+    #    dlmdd = calcdlm(
+    #        ds.isel(
+    #            time=slice(0, ntimes, 6),
+    #            longitude=slice(0, 1440, 4),
+    #            latitude=slice(0, 721, 4),
+    #        ),
+    #        var,
+    #        dlmd,
+    #    )
+    #    dlmds = calcdlm(
+    #        ds.isel(
+    #            time=slice(0, ntimes, 6),
+    #            longitude=slice(0, 1440, 4),
+    #            latitude=slice(0, 721, 4),
+    #        ),
+    #        var,
+    #        dlms,
+    #    )
 
-        dvar = xr.concat([dlmds, dlmdd], dim="level")
-        dvar = dvar.transpose("time", "level", "latitude", "longitude")
-        dlm = xr.Dataset(data_vars={var: dvar})
-        dlm.attrs = ds.attrs
-        dlm.to_netcdf(destfn)
+    #    dvar = xr.concat([dlmds, dlmdd], dim="level")
+    #    dvar = dvar.transpose("time", "level", "latitude", "longitude")
+    #    dlm = xr.Dataset(data_vars={var: dvar})
+    #    dlm.attrs = ds.attrs
+    #    dlm.to_netcdf(destfn)
 
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
-rank_years = years[(years % comm.size) == rank]
-for year in rank_years:
-    process(year)
+#rank_years = years[(years % comm.size) == rank]
+#for year in rank_years:
+#    process(year)
+scheduler = 'processes'
+results = []
+for year in years:
+    lazy_result = dask.delayed(process)(year)
+    results.append(lazy_result)
+out = dask.compute(*results,
+                   scheduler=scheduler,
+                   num_workers=comm.size)
